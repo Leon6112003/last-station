@@ -52,6 +52,9 @@ func _build() -> void:
 			column.add_child(_valve_row(i))
 		column.add_child(_make_button("CONFIRM SETTINGS", _on_confirm_oxygen))
 	elif _kind == "cooling":
+		# The same readings that are on the wall, repeated here because the panel hides the wall.
+		var cooling: Dictionary = _gm.puzzles["cooling"]
+		column.add_child(_make_label("CORE TEMP %d K     REACTOR %s" % [int(cooling["temp"]), cooling["state"]], 22, Color.WHITE))
 		column.add_child(_coolant_row())
 		column.add_child(_make_button("ENGAGE COOLING", _on_engage_cooling))
 	else:
@@ -121,7 +124,7 @@ func _on_engage_cooling() -> void:
 	if _gm.engage_cooling():
 		solved.emit()
 	else:
-		_message.text = "PUMP OVERLOAD  -%d s" % Rules.confirm_penalty()
+		_message.text = "PUMP OVERLOAD  -%d s  (check the protocol and the reactor state)" % Rules.confirm_penalty()
 
 
 func _adjust_valve(index: int, steps: int) -> void:

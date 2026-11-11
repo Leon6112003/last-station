@@ -13,6 +13,7 @@ func _initialize() -> void:
 	_test_game_rules()
 	_test_oracle()
 	await _test_station()
+	await _test_panel()
 	print("")
 	if _failures == 0:
 		print("ALL PASS")
@@ -122,6 +123,33 @@ func _test_station() -> void:
 	_check(texts.has("CORE TEMP: %d K" % int(puzzle["temp"])) and texts.has("REACTOR: %s" % puzzle["state"]), "the room shows the core temperature and reactor state")
 	_check((station["reactor"] as StandardMaterial3D).albedo_color != Rules.COLOR_CYAN, "the reactor core starts hot, not cyan")
 	world.free()
+	await process_frame
+
+
+## The panel repeats the core temperature and reactor state, because it covers the wall display.
+func _test_panel() -> void:
+	var gm := GameManager.new()
+	root.add_child(gm)
+	gm.start_shift(21, 1)
+	var panel := PuzzlePanel.create("cooling", gm)
+	root.add_child(panel)
+	await process_frame
+	var cooling: Dictionary = gm.puzzles["cooling"]
+	var found := false
+	for label in panel.find_children("*", "Label", true, false):
+		if (label as Label).text == "CORE TEMP %d K     REACTOR %s" % [int(cooling["temp"]), cooling["state"]]:
+			found = true
+	_check(found, "the coolant panel shows the core temperature and the reactor state")
+	var buttons := panel.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).text == "ENGAGE COOLING")
+	gm.coolant_flow = (PuzzleValidators.cooling_target(cooling) + 1) % (Rules.COOLING_FLOW_MAX + 1)
+	(buttons[0] as Button).pressed.emit()
+	var message := ""
+	for label in panel.find_children("*", "Label", true, false):
+		if (label as Label).text.begins_with("PUMP OVERLOAD"):
+			message = (label as Label).text
+	_check(message.contains("reactor state"), "a wrong flow tells the player to check the protocol and the reactor state")
+	panel.free()
+	gm.free()
 	await process_frame
 
 

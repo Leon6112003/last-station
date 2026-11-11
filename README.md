@@ -38,7 +38,7 @@ As a project it is a demonstration of a **RAG assistant inside a game**: the rul
 | **COMMS** (third): count the lit beacons | 100 + 20 × lit MHz | 100 + 10 × lit MHz |
 | **COOLING** (fourth): read the CORE TEMP and the REACTOR state, set the coolant flow | (CORE TEMP − 400) ÷ 20 L/s | (CORE TEMP − 400) ÷ 10 L/s |
 
-In the Cooling room, add 5 L/s to the flow when the REACTOR state is SURGE.
+In the Cooling room, add 5 L/s to the flow when the REACTOR state is SURGE. The coolant panel repeats the CORE TEMP and REACTOR state, because it covers the wall display.
 
 A wrong breaker costs 15 s; wrong valves, a wrong frequency or a wrong coolant flow cost 10 s.
 </details>
@@ -140,7 +140,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 ```
 ./tests/run_all.sh        # needs `godot` on PATH
 ```
-22 headless test files, 883 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
+22 headless test files, 885 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
 
 ## Changes since the original spec
 
