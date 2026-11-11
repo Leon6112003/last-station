@@ -54,7 +54,7 @@ func _build() -> void:
 	elif _kind == "cooling":
 		# The same readings that are on the wall, repeated here because the panel hides the wall.
 		var cooling: Dictionary = _gm.puzzles["cooling"]
-		column.add_child(_make_label("CORE TEMP %d K     REACTOR %s" % [int(cooling["temp"]), cooling["state"]], 22, Color.WHITE))
+		column.add_child(_make_label("CORE TEMP %d K  ·  REACTOR %s" % [int(cooling["temp"]), cooling["state"]], 20, Color.WHITE))
 		column.add_child(_coolant_row())
 		column.add_child(_make_button("ENGAGE COOLING", _on_engage_cooling))
 	else:

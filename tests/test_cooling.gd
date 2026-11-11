@@ -137,7 +137,7 @@ func _test_panel() -> void:
 	var cooling: Dictionary = gm.puzzles["cooling"]
 	var found := false
 	for label in panel.find_children("*", "Label", true, false):
-		if (label as Label).text == "CORE TEMP %d K     REACTOR %s" % [int(cooling["temp"]), cooling["state"]]:
+		if (label as Label).text == "CORE TEMP %d K  ·  REACTOR %s" % [int(cooling["temp"]), cooling["state"]]:
 			found = true
 	_check(found, "the coolant panel shows the core temperature and the reactor state")
 	var buttons := panel.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).text == "ENGAGE COOLING")
@@ -149,6 +149,24 @@ func _test_panel() -> void:
 			message = (label as Label).text
 	_check(message == "PUMP OVERLOAD  -%d s" % Rules.confirm_penalty(), "a wrong flow shows the short penalty message, like the other panels")
 	panel.free()
+	# Same size as the other panels, before and after a wrong answer (a wide message once
+	# stretched this panel).
+	var widths := {}
+	for kind in ["oxygen", "comms", "cooling"]:
+		var other := PuzzlePanel.create(kind, gm)
+		root.add_child(other)
+		await process_frame
+		await process_frame
+		var width_before := other.size.x
+		match kind:
+			"oxygen": other._on_confirm_oxygen()
+			"comms": other._on_transmit()
+			_: other._on_engage_cooling()
+		await process_frame
+		await process_frame
+		widths[kind] = [width_before, other.size.x]
+		other.free()
+	_check(widths["cooling"] == widths["oxygen"] and widths["cooling"] == widths["comms"], "the Cooling panel is as wide as the Oxygen and Comms panels, even after a wrong answer (%s)" % str(widths["cooling"]))
 	gm.free()
 	await process_frame
 
