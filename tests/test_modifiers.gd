@@ -204,6 +204,8 @@ func _test_speedrun() -> void:
 	main.gm.transmit()
 	main.gm.adjust_coolant(PuzzleValidators.cooling_target(main.gm.puzzles["cooling"]))
 	main.gm.engage_cooling()
+	for pad in PuzzleValidators.reboot_answer(main.gm.puzzles["reboot"]):
+		main.gm.press_reboot_pad(pad)
 	main.gm.try_reboot()
 	await process_frame
 	var text := ""

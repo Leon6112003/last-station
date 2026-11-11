@@ -41,7 +41,7 @@
  {
   "id": "first_steps",
   "title": "How to Start",
-  "text": "Read the checklist at the top left and note the protocol. Leave the crew quarters and walk east to the Power room. Read its panel, look up the rule in these manuals and repair it. The next door opens once the system before it is repaired. When all four are repaired, walk back west and press E on the reboot terminal.",
+  "text": "Read the checklist at the top left and note the protocol. Leave the crew quarters and walk east to the Power room. Read its panel, look up the rule in these manuals and repair it. The next door opens once the system before it is repaired. When all four are repaired, walk back west and press E on the reboot terminal, then enter its code.",
   "keywords": [
    "start",
    "begin",
@@ -379,7 +379,7 @@
  {
   "id": "reboot_terminal",
   "title": "Reboot Terminal",
-  "text": "The reboot terminal at the west end of the corridor works only when all four systems are repaired, and it turns cyan when ready. Using it earlier shows a warning. Using it with all four repaired wins the shift and shows your score. You have to walk all the way back to it.",
+  "text": "The reboot terminal at the west end of the corridor works only when all four systems are repaired, and it turns cyan when ready. Using it earlier shows a warning. With all four repaired it opens the reboot code; entering the code wins the shift and shows your score (see the reboot code entry). You have to walk all the way back to it.",
   "keywords": [
    "reboot",
    "terminal",
@@ -392,6 +392,31 @@
    "west",
    "walk",
    "back"
+  ]
+ },
+ {
+  "id": "reboot_code",
+  "title": "Reboot code",
+  "text": "With all four systems repaired, the reboot terminal asks for a code. Four pads, A to D, flash in a sequence. Protocol A: press them in the same order. Protocol B: press them in reverse order. The first showing is free; showing it again costs half a hint (10 seconds on Engineer). A wrong pad costs the usual wrong-answer penalty (10 seconds on Engineer) and the sequence is shown again. Later shifts have longer sequences.",
+  "keywords": [
+   "reboot",
+   "code",
+   "sequence",
+   "pads",
+   "pad",
+   "flash",
+   "flashing",
+   "lights",
+   "memory",
+   "order",
+   "reverse",
+   "same",
+   "terminal",
+   "protocol",
+   "show",
+   "again",
+   "enter",
+   "repeat"
   ]
  },
  {
@@ -448,6 +473,32 @@
    "corridor",
    "longer",
    "shorter"
+  ]
+ },
+ {
+  "id": "hazard_links",
+  "title": "Hazards and repairs",
+  "text": "Repairing a system shuts down the hazard it was feeding. Comms switches off the first laser grid and Cooling the second, for good. Oxygen seals the corridor vent between Power and Oxygen and the gas leak in the Oxygen room; Cooling seals the leak in the Cooling room. The Oxygen room always leaks at its console until Oxygen is repaired; the Cooling room leaks only while the reactor state is SURGE. Wait for the grey lamp. The walk back is safer.",
+  "keywords": [
+   "hazard",
+   "hazards",
+   "repair",
+   "repairing",
+   "laser",
+   "grid",
+   "offline",
+   "vent",
+   "sealed",
+   "seal",
+   "leak",
+   "leaks",
+   "gas",
+   "oxygen",
+   "cooling",
+   "console",
+   "room",
+   "safer",
+   "back"
   ]
  },
  {

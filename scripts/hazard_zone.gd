@@ -14,6 +14,9 @@ const KIND_GAS := "gas"
 var kind: String = KIND_GAS
 var size: Vector3 = Vector3(6.0, 2.8, 3.0)
 
+var sealed: bool = false             ## sealed for good (the system that feeds it was repaired)
+var off_extra: float = 0.0           ## extra quiet seconds in each cycle (room leaks are kinder than the corridor vents)
+var on_factor: float = 1.0           ## the venting time is multiplied by this
 var run: int = 1                     # the shift: later shifts have shorter quiet spells and longer venting
 var _time: float = 0.0
 var _exposed: bool = false           # already reported damage during this stay
@@ -25,9 +28,11 @@ var cues: bool = true               ## show a word (WAIT / SOON / GAS!) beside t
 
 
 ## `phase_offset` shifts where in its cycle the vent starts, in seconds.
-static func create(zone_size: Vector3, at: Vector3, phase_offset: float, shift: int = 1) -> HazardZone:
+static func create(zone_size: Vector3, at: Vector3, phase_offset: float, shift: int = 1, extra_quiet: float = 0.0, venting_factor: float = 1.0) -> HazardZone:
 	var zone := HazardZone.new()
 	zone.run = shift
+	zone.off_extra = extra_quiet
+	zone.on_factor = venting_factor
 	zone.size = zone_size
 	zone.position = at
 	zone._time = phase_offset
@@ -36,17 +41,34 @@ static func create(zone_size: Vector3, at: Vector3, phase_offset: float, shift: 
 	return zone
 
 
+func _quiet_seconds() -> float:
+	return Rules.gas_off_seconds(run) + off_extra
+
+
+func _venting_seconds() -> float:
+	return Rules.gas_on_seconds(run) * on_factor
+
+
 func cycle_seconds() -> float:
-	return Rules.gas_off_seconds(run) + Rules.GAS_WARN_SECONDS + Rules.gas_on_seconds(run)
+	return _quiet_seconds() + Rules.GAS_WARN_SECONDS + _venting_seconds()
 
 
 func phase() -> Phase:
-	var t := fposmod(_time, cycle_seconds())
-	if t < Rules.gas_off_seconds(run):
+	if sealed:
 		return Phase.OFF
-	if t < Rules.gas_off_seconds(run) + Rules.GAS_WARN_SECONDS:
+	var t := fposmod(_time, cycle_seconds())
+	if t < _quiet_seconds():
+		return Phase.OFF
+	if t < _quiet_seconds() + Rules.GAS_WARN_SECONDS:
 		return Phase.WARN
 	return Phase.ON
+
+
+## Seals the vent for good. It never vents again this shift.
+func seal() -> void:
+	sealed = true
+	_exposed = false
+	_update_visuals()
 
 
 func is_active() -> bool:
@@ -145,8 +167,8 @@ func _update_visuals() -> void:
 	_phase_label.visible = cues
 	match current:
 		Phase.OFF:
-			_phase_label.text = "GAS: SAFE"
-			_phase_label.modulate = Color(0.7, 0.75, 0.8)
+			_phase_label.text = "GAS: SEALED" if sealed else "GAS: SAFE"
+			_phase_label.modulate = Rules.COLOR_CYAN if sealed else Color(0.7, 0.75, 0.8)
 		Phase.WARN:
 			_phase_label.text = "GAS: SOON"
 			_phase_label.modulate = Color(1.0, 0.8, 0.3)

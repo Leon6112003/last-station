@@ -6,7 +6,7 @@ extends SceneTree
 const REQUIRED_IDS := [
 	"objective", "protocols", "help_topics", "first_steps", "hints", "controls", "reserve_timer", "scoring", "retry_rules",
 	"power_overview", "power_order", "oxygen_overview", "oxygen_table",
-	"comms_overview", "comms_formula", "cooling_overview", "cooling_formula", "cryo_bay", "hazards_grow", "modifiers", "settings", "mistake_penalties", "reboot_terminal",
+	"comms_overview", "comms_formula", "cooling_overview", "cooling_formula", "reboot_code", "hazard_links", "cryo_bay", "hazards_grow", "modifiers", "settings", "mistake_penalties", "reboot_terminal",
 	"oracle_limits", "offline_setup", "privacy",
 ]
 
@@ -67,6 +67,11 @@ func _initialize() -> void:
 	_has("mistake_penalties", str(Rules.WRONG_CONFIRM_PENALTY_SECONDS))
 	_has("power_order", str(Rules.SURGE_PENALTY_SECONDS))
 	_has("cooling_formula", str(Rules.COOLING_BASE_K))
+	_has("reboot_code", "reverse order")
+	_has("hazard_links", "first laser grid")
+	_has("hazard_links", "SURGE")
+	_has("reboot_code", "half a hint (%d seconds" % Rules.replay_cost())
+	_has("reboot_code", "penalty (%d seconds" % Rules.WRONG_CONFIRM_PENALTY_SECONDS)
 	_has("modifiers", "x%s" % str(Rules.MOD_SCORE[Rules.MOD_BLACKOUT]))
 	_has("modifiers", "x%s" % str(Rules.MOD_SCORE[Rules.MOD_HARDCORE]))
 	_has("modifiers", "%d points plus %d per second" % [Rules.SPEED_BONUS_FLAT, Rules.SPEED_BONUS_PER_SECOND])

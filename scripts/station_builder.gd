@@ -59,6 +59,8 @@ const PLATE_OFFSET := 0.03                  # plates sit this far behind their t
 const GAS_XS := [6.0, 18.0]                 # gas vents: Bedroom-Power and Power-Oxygen
 const GAS_PHASE_OFFSETS := [8.0, 4.5]       # seconds into each cycle when a shift starts
 const GAS_LENGTH := 6.0
+const ROOM_LEAK_EXTRA_QUIET := 3.0          # room leaks are quiet this much longer...
+const ROOM_LEAK_VENTING_FACTOR := 0.6       # ...and vent for this share of the corridor vents' time
 const LASER_X := 30.0                       # the first laser grid, between Oxygen and Comms
 const LASER_XS := [30.0, 42.0]              # ...and the second, between Comms and Cooling (from shift 3)
 const LASER_SWITCH_DISTANCE := 3.5          # the two off-switches stand this far either side
@@ -100,6 +102,7 @@ const FONT_SMALL := 22
 ##   "door_status": {room_id: StandardMaterial3D}, # frame and light: red, then cyan when repaired
 ##   "doors": {room_id: DoorGate},               # sliding doors (oxygen, comms) locked in order
 ##   "hazards": Array[HazardZone],               # the two gas vents in the corridor
+##   "room_leaks": {room_id: HazardZone},        # gas leaks at the Oxygen console and (in SURGE) the Cooling console
 ##   "laser": LaserGrid,                         # the first laser barrier, between Oxygen and Comms
 ##   "lasers": Array[LaserGrid],                 # every laser barrier (a second one from shift 3)
 ##   "laser_switches": Array[Interactable],      # the two wall switches that turn it off
@@ -291,6 +294,22 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 	interactables.append(cooling_console)
 	_add_label(parent, "COOLANT\nCONTROL", Vector3(cooling_x, 1.35, ROOM_BACK_Z + 0.5 + 0.3 + 0.01), 30, Rules.COLOR_GOLD)
 
+	# --- Gas leaks in two of the rooms, right at the console: the Oxygen room leaks until Oxygen is
+	# repaired, and the Cooling room leaks (steam) while the reactor is in SURGE, until Cooling is
+	# repaired. They are kinder than the corridor vents (a longer quiet spell, shorter venting).
+	var room_leaks := {}
+	var leak_xs := {"oxygen": oxygen_x}
+	if cooling["state"] == "SURGE":
+		leak_xs["cooling"] = cooling_x
+	for room_id in leak_xs:
+		var leak_x: float = leak_xs[room_id]
+		var leak := HazardZone.create(Vector3(4.5, 2.8, 4.0), Vector3(leak_x, 1.4, ROOM_BACK_Z + 2.2), 4.0, run_number, ROOM_LEAK_EXTRA_QUIET, ROOM_LEAK_VENTING_FACTOR)
+		parent.add_child(leak)
+		room_leaks[room_id] = leak
+		var sign_x := leak_x + (-2.0 if room_id == "oxygen" else 2.0)
+		_add_screen(parent, Vector3(sign_x, 1.7, ROOM_FACE_Z - PLATE_OFFSET), Vector2(1.6, 0.7))
+		_add_label(parent, "GAS LEAK\nWAIT FOR THE LAMP", Vector3(sign_x, 1.7, ROOM_FACE_Z), 18, Color(0.5, 1.0, 0.6))
+
 	# --- The optional Cryo Bay at the west end, on the way to the reboot terminal: the sleeping crew
 	# and four log terminals.
 	var pods := _add_cryo_bay(parent, theme, interactables)
@@ -357,6 +376,7 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 		"door_status": door_status,
 		"doors": door_gates,
 		"hazards": hazards,
+		"room_leaks": room_leaks,
 		"laser": lasers[0],
 		"lasers": lasers,
 		"laser_switches": laser_switches,

@@ -52,6 +52,8 @@ func _solve_all(gm: GameManager) -> void:
 	gm.transmit()
 	gm.adjust_coolant(PuzzleValidators.cooling_target(gm.puzzles["cooling"]))
 	gm.engage_cooling()
+	for pad in PuzzleValidators.reboot_answer(gm.puzzles["reboot"]):
+		gm.press_reboot_pad(pad)
 
 
 func _test_main_flow_and_leaks() -> void:

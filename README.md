@@ -110,6 +110,10 @@ All sound is generated in code when the game starts (no audio files): no backgro
 
 Feel: a gentle head bob and footsteps while walking (each footstep sound plays when a foot lands: the head dips and the legs are at their widest), the view rises and fades in from black at the start of every shift or retry, the object you aim at glows and pulses smoothly, and consoles and breakers push in when pressed.
 
+## The reboot code (a different kind of puzzle)
+
+The four systems are "read a value, apply the rule". The last step is different: with all four repaired, the **reboot terminal** at the west end does not reboot at once, it asks for a **code**. Four pads, **A B C D**, each with its own colour and a letter (so colour is never the only cue), flash in a sequence. You repeat the sequence on the pads: **protocol A: in the same order; protocol B: in reverse order** (the panel does not say which; the manuals and ORACLE do, as with the other rules). The first showing is free and starts by itself; showing it again costs half a hint (10 s on Engineer). A wrong pad costs the usual wrong-answer penalty, starts the code again and shows the sequence again. The sequence is 4 pads on shifts 1 and 2 and one longer every second shift, up to 6. It is re-rolled on every retry. ORACLE explains the rule and never the sequence.
+
 ## The walk (corridor, doors and hazards)
 
 The station is one long corridor (about 70 m) with the crew quarters, Power, Oxygen, Comms and Cooling rooms along it, 12 m apart (the optional Cryo Bay and the reboot terminal are at the far west end), so a shift is a real walk there and back.
@@ -117,6 +121,7 @@ The station is one long corridor (about 70 m) with the crew quarters, Power, Oxy
 - **Doors in order:** the Oxygen door stays locked until Power is repaired, the Comms door until Oxygen is repaired, and the Cooling door until Comms is repaired. Each shows what it needs and slides open when its system is repaired.
 - **Two gas vents** (one between the quarters and Power, one between Power and Oxygen): a lamp above each is grey (quiet), amber (warning) or red (venting). Standing in venting gas costs 12 reserve seconds per second. Wait for grey.
 - **Hazards grow with the shift:** each later shift the gas vents are quiet 0.5 s less (to a floor of 1.5 s), vent 0.5 s longer (to 9 s) and spread 1 m further (to 10 m), and a wall switch keeps a laser grid off 1 s less (never under half its time). From shift 3 a **second laser grid** blocks the corridor between Comms and Cooling, with its own two switches. Shift 1 is exactly as before. The notice at the start of a shift says "HAZARDS GROW", or "A SECOND LASER GRID" on shift 3.
+- **Repairs switch off hazards (hazards and puzzles affect each other):** repairing **Comms** switches off the first laser grid for good, and **Cooling** the second. Repairing **Oxygen** seals the corridor vent between Power and Oxygen. Two rooms also have **gas leaks right at their console**: the Oxygen room always, until Oxygen is repaired, and the Cooling room only while the reactor state is SURGE, until Cooling is repaired. A leak is kinder than a corridor vent (3 s longer quiet spell, 60% of the venting time) and has a warning sign and a lamp. So the walk back to the reboot terminal is safer than the walk out. One notice names the repair and everything it switched off.
 - **Laser grid** (between Oxygen and Comms; the second one, from shift 3, is between Comms and Cooling): six red beams that are a solid wall, so you cannot walk through. Touching them costs 10 reserve seconds. A **wall switch** on each side (press **E**) turns the grid off for 10 seconds; it flickers before it switches back on, and it waits while anyone stands in the beams.
 - **ORACLE costs time:** every question asked to ORACLE costs 5 reserve seconds (never the last second). The manuals (**M**) and the hint button's own 20 s cost are separate; the manuals are free.
 - Hazards use the shift's real reserve and are not counted as puzzle mistakes. They start in a fixed state each attempt, so a retry plays the same walk.
@@ -166,7 +171,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 ```
 ./tests/run_all.sh        # needs `godot` on PATH
 ```
-26 headless test files, 1079 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
+28 headless test files, 1175 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
 
 ## Changes since the original spec
 
@@ -176,6 +181,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 - **Guided first shift and protocol board:** shift 1 is always Protocol A with a "what to do next" line; a big sign in the crew quarters shows the protocol.
 - **The walk (added after playtesting feedback):** the compact hub became a bedroom start, a long corridor, far rooms, doors that unlock in order, and gas and spark hazards (see "The walk").
 - **Redesigned look (after playtesting feedback):** every door has a header sign, a frame and a light that turn from red to cyan when its system is repaired; two matching boards flank the middle door (the protocol, and how to get help); each room has a tinted floor and a ceiling strip, and the room lights up (bright cyan strip and floor) when repaired; the hub light flickers, and under a minute of reserve the station pulses red with a red screen-edge vignette (visual only, rules unchanged); breaker ratings are printed on the breakers; each room has one tidy display panel; the reboot terminal is labelled and turns cyan when ready.
+- **The reboot code and hazard links (added later):** a memory-and-rule puzzle at the reboot terminal, and repairs that switch off lasers and seal vents and leaks (see "The reboot code" and "The walk").
 - **Settings and accessibility (added later):** volume sliders, mouse speed, key rebinding, colour-blind cues and sound captions (see "Settings and accessibility").
 - **Modifiers (added later):** Blackout, Hardcore and Speedrun switches on the menu (see "Modifiers").
 - **Cryo Bay (added later):** an optional room with the sleeping crew and four story logs (see "The Cryo Bay").

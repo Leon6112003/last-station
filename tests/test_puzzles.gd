@@ -191,7 +191,10 @@ func _test_full_solve_and_reboot() -> void:
 	_check(gm.engage_cooling(), "correct coolant flow repairs cooling")
 	_check(gm.mistakes == 0, "no mistakes in a clean solve")
 
-	_check(gm.try_reboot(), "reboot works at 4/4 systems")
+	_check(not gm.try_reboot(), "reboot refused at 4/4 until the reboot code is entered")
+	for pad in PuzzleValidators.reboot_answer(gm.puzzles["reboot"]):
+		gm.press_reboot_pad(pad)
+	_check(gm.try_reboot(), "reboot works at 4/4 systems with the code entered")
 	_check(gm.state == GameManager.State.WON, "state is WON after reboot")
 	_check(results["won"] and results["score"] == 480, "clean instant solve scores 480 (got %d)" % results["score"])
 	_check(not gm.try_reboot(), "a second reboot is ignored")

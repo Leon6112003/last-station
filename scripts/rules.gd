@@ -74,6 +74,16 @@ static func laser_off_for(run: int = 1) -> float:
 	return maxf(laser_off() * LASER_OFF_MIN_FRACTION, laser_off() - LASER_OFF_STEP * _growth(run))
 
 
+## The length of the reboot sequence on a shift: 4, growing by one every second shift, up to 6.
+static func sequence_length(run: int = 1) -> int:
+	return mini(SEQ_LENGTH_MAX, SEQ_LENGTH_BASE + _growth(run) / 2)
+
+
+## What it costs to have the reboot sequence shown again (half a hint; the first showing is free).
+static func replay_cost() -> int:
+	return maxi(1, hint_cost() / 2)
+
+
 static func laser_count(run: int = 1) -> int:
 	return 2 if run >= SECOND_LASER_FROM_SHIFT else 1
 
@@ -255,6 +265,14 @@ const COOLING_TEMPS: Array[int] = [440, 480, 520, 560, 600, 640]
 const COOLING_STATES: Array[String] = ["NORMAL", "SURGE"]
 const COOLING_FLOW_MAX := 40
 const COOLING_FLOW_STEP := 1
+# The reboot code: once all four systems are repaired, the reboot terminal flashes a sequence of
+# pads. Protocol A: repeat it in the same order. Protocol B: repeat it in reverse. A wrong pad costs
+# the usual confirm penalty and replays the sequence; showing it again on request costs reserve.
+const SEQ_PAD_COUNT := 4
+const SEQ_PAD_NAMES: Array[String] = ["A", "B", "C", "D"]
+const SEQ_LENGTH_BASE := 4
+const SEQ_LENGTH_MAX := 6
+const SEQ_STEP_SECONDS := 0.75      # how long each pad lights up when the sequence is shown
 const SYSTEMS_TOTAL := 4
 
 # --- Retry -------------------------------------------------------------

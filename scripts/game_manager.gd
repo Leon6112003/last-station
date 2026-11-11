@@ -38,6 +38,10 @@ var breakers_latched: Array[int] = []
 var oxygen_values: Array[int] = [0, 0, 0]
 var tuner_mhz: int = Rules.COMMS_MIN_MHZ
 var coolant_flow: int = 0
+var reboot_progress: Array[int] = []   # the pads pressed so far for the reboot code
+var reboot_code_done: bool = false     # the reboot code was entered correctly
+var reboot_free_view_used: bool = false   # the one free showing of the sequence has been used
+var reboot_paid_views: int = 0         # times the sequence was shown again on request (each costs reserve)
 
 
 # --- Shift lifecycle ----------------------------------------------------
@@ -68,7 +72,7 @@ func retry() -> void:
 
 func _reset_attempt() -> void:
 	# Shift 1 is the guided shift: it always runs under protocol A.
-	puzzles = PuzzleGenerator.generate(seed_value, attempt, "A" if run_number <= 1 else "")
+	puzzles = PuzzleGenerator.generate(seed_value, attempt, "A" if run_number <= 1 else "", run_number)
 	reserve = float(Rules.reserve_for_shift(run_number))
 	mistakes = 0
 	hints_used = 0
@@ -80,6 +84,10 @@ func _reset_attempt() -> void:
 	oxygen_values = [0, 0, 0]
 	tuner_mhz = Rules.COMMS_MIN_MHZ
 	coolant_flow = 0
+	reboot_progress.clear()
+	reboot_code_done = false
+	reboot_free_view_used = false
+	reboot_paid_views = 0
 	state = State.PLAYING
 	shift_started.emit()
 	reserve_changed.emit(reserve)
@@ -180,11 +188,47 @@ func engage_cooling() -> bool:
 	return false
 
 
+# --- Reboot code: a sequence of pads ----------------------------------------------
+
+## A pad was pressed. Returns "ignored", "ok", "wrong" or "done". Needs all systems repaired.
+## A wrong pad costs the confirm penalty and starts the code again.
+func press_reboot_pad(index: int) -> String:
+	if state != State.PLAYING or reboot_code_done or repaired_count() < Rules.SYSTEMS_TOTAL or index < 0 or index >= Rules.SEQ_PAD_COUNT:
+		return "ignored"
+	var answer := PuzzleValidators.reboot_answer(puzzles["reboot"])
+	if answer[reboot_progress.size()] != index:
+		reboot_progress.clear()
+		_penalize("reboot", Rules.confirm_penalty())
+		return "wrong"
+	reboot_progress.append(index)
+	if reboot_progress.size() == answer.size():
+		reboot_code_done = true
+		return "done"
+	return "ok"
+
+
+## Asks for the sequence to be shown. The first showing of a shift is free, later ones cost
+## Rules.replay_cost() of reserve. Returns the seconds charged, or -1 if refused (too little reserve).
+func request_sequence_view() -> int:
+	if state != State.PLAYING or repaired_count() < Rules.SYSTEMS_TOTAL or reboot_code_done:
+		return -1
+	if not reboot_free_view_used:
+		reboot_free_view_used = true
+		return 0
+	var cost := Rules.replay_cost()
+	if reserve <= float(cost):
+		return -1
+	reserve -= float(cost)
+	reboot_paid_views += 1
+	reserve_changed.emit(reserve)
+	return cost
+
+
 # --- Reboot / win --------------------------------------------------------
 
-## Succeeds only at 3/3 systems. Freezes the clock and computes the score.
+## Succeeds only with all systems repaired and the reboot code entered. Freezes the clock and computes the score.
 func try_reboot() -> bool:
-	if state != State.PLAYING or repaired_count() < Rules.SYSTEMS_TOTAL:
+	if state != State.PLAYING or repaired_count() < Rules.SYSTEMS_TOTAL or not reboot_code_done:
 		return false
 	state = State.WON
 	clock_running = false
@@ -221,7 +265,8 @@ func use_hint() -> Dictionary:
 			next = id
 			break
 	if next.is_empty():
-		return {"ok": true, "text": "All systems are repaired. Walk back west along the corridor and press E on the reboot terminal.", "cost": 0}
+		var how := "in the same order" if puzzles.get("protocol", "A") == "A" else "in reverse order"
+		return {"ok": true, "text": "All systems are repaired. Walk back west along the corridor and press E on the reboot terminal. It flashes a sequence of pads: on protocol %s repeat it %s." % [puzzles.get("protocol", "A"), how], "cost": 0}
 	if reserve <= float(Rules.hint_cost()):
 		return {"ok": false, "text": "Not enough oxygen reserve left for a hint.", "cost": 0}
 	reserve -= float(Rules.hint_cost())

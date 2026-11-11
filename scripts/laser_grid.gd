@@ -20,6 +20,8 @@ var _touch_latched: bool = false      # the player is still against the beams af
 var _flicker_time: float = 0.0
 ## How long a wall switch keeps this grid off (shorter on later shifts).
 var off_seconds: float = Rules.laser_off()
+## Offline for good: the system it guards was repaired. It never switches on again this shift.
+var offline: bool = false
 var _barrier: StaticBody3D
 var _sensor: Area3D
 var _beams: Array[MeshInstance3D] = []
@@ -111,9 +113,23 @@ func _build() -> void:
 
 ## Turns the grid off for `off_seconds` (pressing the switch again starts the time over).
 func switch_off() -> void:
+	if offline:
+		return
 	var was_armed := armed
 	armed = false
 	_off_left = off_seconds
+	_barrier.collision_layer = 0
+	if was_armed:
+		state_changed.emit(false)
+	_refresh_visuals()
+
+
+## Switches the grid off for good (nothing can turn it back on this shift).
+func go_offline() -> void:
+	var was_armed := armed
+	offline = true
+	armed = false
+	_off_left = 0.0
 	_barrier.collision_layer = 0
 	if was_armed:
 		state_changed.emit(false)
@@ -135,6 +151,9 @@ func _physics_process(delta: float) -> void:
 ## Advances the grid. Separate from _physics_process so it can be tested without physics.
 func tick(delta: float, player_near: bool) -> void:
 	_flicker_time += delta
+	if offline:
+		_refresh_visuals()
+		return
 	if armed:
 		if not player_near:
 			_touch_latched = false
@@ -163,7 +182,10 @@ func _refresh_visuals() -> void:
 	_emitter_material.emission_energy_multiplier = 1.4
 	_light.light_color = Rules.COLOR_FAULT if armed else Rules.COLOR_CYAN
 	_light.light_energy = 1.6 if armed else 0.5
-	if armed:
+	if offline:
+		_label.text = "LASER OFFLINE"
+		_label.modulate = Rules.COLOR_CYAN
+	elif armed:
 		_label.text = "LASER GRID ON"
 		_label.modulate = Rules.COLOR_FAULT
 	else:

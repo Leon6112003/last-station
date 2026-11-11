@@ -73,6 +73,8 @@ func _solve(gm: GameManager) -> void:
 	gm.transmit()
 	gm.adjust_coolant(PuzzleValidators.cooling_target(gm.puzzles["cooling"]))
 	gm.engage_cooling()
+	for pad in PuzzleValidators.reboot_answer(gm.puzzles["reboot"]):
+		gm.press_reboot_pad(pad)
 
 
 func _test_run_score() -> void:
@@ -182,6 +184,8 @@ func _test_in_game() -> void:
 	_check(main._coach_text().contains("reboot terminal"), "shift 1 coach: finally the reboot terminal")
 
 	# Win screen shows run information.
+	for pad in PuzzleValidators.reboot_answer(gm.puzzles["reboot"]):
+		gm.press_reboot_pad(pad)
 	gm.try_reboot()
 	await process_frame
 	var labels: Array = main._modal_layer.find_children("*", "Label", true, false)

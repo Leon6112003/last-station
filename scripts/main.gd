@@ -47,11 +47,14 @@ The doors open in order: Oxygen after Power, Comms after Oxygen,
 Cooling after Comms. West of the crew quarters, on the way to the
 reboot terminal, an optional CRYO BAY holds the sleeping crew and
 their logs. In the corridor, GAS VENTS drain your
-reserve fast while they vent (red lamp): wait for a grey lamp. A LASER
+reserve fast while they vent (red lamp): wait for a grey lamp. Gas also
+leaks at the Oxygen console (and the Cooling console in a SURGE) until
+that system is repaired. A LASER
 GRID blocks the corridor and costs time if you touch it: press E on a
 wall switch beside it to turn it off for a short time. Later shifts are
 worse: wider, longer gas vents, a shorter switch-off time, and from
-shift 3 a second laser grid before the Cooling room.
+shift 3 a second laser grid before the Cooling room. Repairing Comms
+or Cooling switches off the laser grid beyond it for good.
 
 COSTS
 Every question to ORACLE (H) costs some reserve time (none on Rookie,
@@ -74,6 +77,7 @@ const MISTAKE_TEXT := {
 	"oxygen": "PRESSURE MISMATCH",
 	"comms": "NO SIGNAL",
 	"cooling": "PUMP OVERLOAD",
+	"reboot": "WRONG CODE",
 }
 
 ## Where the best score is saved. Tests change this before the node is added.
@@ -325,7 +329,7 @@ func _update_station_sounds(delta: float) -> void:
 				break
 	_gas_hiss_timer -= delta
 	if _gas_hiss_timer <= 0.0:
-		for zone in _station["hazards"]:
+		for zone in _gas_zones():
 			if (zone as HazardZone).is_active() and absf(player_x - (zone as HazardZone).global_position.x) < GAS_HEARING_METRES:
 				_gas_hiss_timer = GAS_HISS_INTERVAL_SECONDS
 				sound.play("gasleak")
@@ -344,7 +348,7 @@ func _danger_level(delta: float) -> float:
 	var danger := DANGER_AT_START + (1.0 - DANGER_AT_START) * clampf(1.0 - gm.reserve / start_reserve, 0.0, 1.0)
 	danger = maxf(danger, clampf(1.0 - gm.reserve / DANGER_RESERVE_SECONDS, 0.0, 1.0))
 	var player_x := _player.global_position.x
-	for zone in _station["hazards"]:
+	for zone in _gas_zones():
 		if (zone as HazardZone).is_active():
 			var distance := absf(player_x - (zone as HazardZone).global_position.x)
 			danger = maxf(danger, 0.85 if distance < 3.5 else (0.5 if distance < 7.0 else 0.0))
@@ -502,6 +506,42 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 
+## Repairing a system shuts down the hazard it was feeding: the laser grid just beyond the room
+## (Comms switches off the first grid, Cooling the second), the corridor vent between Power and
+## Oxygen (when Oxygen is repaired) and the gas leaks in the Oxygen and Cooling rooms. Returns
+## the messages to show. The hazards stay off for the rest of the shift.
+func _seal_hazards_for(system_id: String) -> Array[String]:
+	var notes: Array[String] = []
+	var lasers: Array = _station["lasers"]
+	match system_id:
+		"comms":
+			if lasers.size() > 0 and not (lasers[0] as LaserGrid).offline:
+				(lasers[0] as LaserGrid).go_offline()
+				notes.append("LASER GRID 1 OFFLINE")
+		"cooling":
+			if lasers.size() > 1 and not (lasers[1] as LaserGrid).offline:
+				(lasers[1] as LaserGrid).go_offline()
+				notes.append("LASER GRID 2 OFFLINE")
+	if system_id == "oxygen":
+		var vents: Array = _station["hazards"]
+		if vents.size() > 1:
+			(vents[1] as HazardZone).seal()
+			notes.append("GAS VENT 2 SEALED")
+	var leaks: Dictionary = _station["room_leaks"]
+	if leaks.has(system_id):
+		(leaks[system_id] as HazardZone).seal()
+		notes.append("GAS LEAK SEALED")
+	return notes
+
+
+## Every gas zone: the two corridor vents and any room leaks.
+func _gas_zones() -> Array:
+	var zones: Array = (_station["hazards"] as Array).duplicate()
+	for leak in (_station["room_leaks"] as Dictionary).values():
+		zones.append(leak)
+	return zones
+
+
 ## The player's current key for an action, as text (for messages).
 func _key(action: String) -> String:
 	return KeyBindings.key_text(int(save.bindings[action]))
@@ -512,7 +552,7 @@ func _coach_text() -> String:
 	if gm.run_number != 1 or gm.state != GameManager.State.PLAYING:
 		return ""
 	if gm.repaired_count() == Rules.SYSTEMS_TOTAL:
-		return "All systems repaired! Walk back west along the corridor and press E on the reboot terminal."
+		return "All systems repaired! Walk back west along the corridor and press %s on the reboot terminal. It asks for a code: watch the lights, then press %s and ask ORACLE how to enter it." % [_key("interact"), _key("toggle_oracle")]
 	for id in GameManager.SYSTEM_IDS:
 		if gm.repaired.get(id, false):
 			continue
@@ -690,7 +730,7 @@ func _rebuild_world() -> void:
 	_player.name = "Player"
 	_player.position = _station["spawn"]
 	_player.rotation.y = deg_to_rad(float(_station["spawn_yaw"]))
-	for zone in _station["hazards"]:
+	for zone in _gas_zones():
 		(zone as HazardZone).hit.connect(_on_hazard_zone_hit)
 	for laser in _station["lasers"]:
 		(laser as LaserGrid).touched.connect(_on_laser_touched)
@@ -1013,7 +1053,7 @@ func _build_panel_layer() -> void:
 
 
 func _open_panel(kind: String) -> void:
-	if gm.repaired[kind]:
+	if kind != "reboot" and gm.repaired[kind]:
 		_show_notice("%s ALREADY REPAIRED" % kind.to_upper())
 		return
 	if _panel != null:
@@ -1021,6 +1061,8 @@ func _open_panel(kind: String) -> void:
 	_panel = PuzzlePanel.create(kind, gm)
 	_panel.closed.connect(_close_panel)
 	_panel.solved.connect(_close_panel)
+	if kind == "reboot":
+		_panel.solved.connect(func() -> void: gm.try_reboot())   # the code was right: reboot the station
 	_panel_center.add_child(_panel)
 	_prompt_label.text = ""
 	_refresh_input_state()
@@ -1101,7 +1143,7 @@ func _update_cues() -> void:
 		var fixed: bool = gm.repaired.get(room_id, false)
 		(icons["fault"] as Node3D).visible = save.cues and not fixed
 		(icons["ok"] as Node3D).visible = save.cues and fixed
-	for zone in _station["hazards"]:
+	for zone in _gas_zones():
 		(zone as HazardZone).cues = save.cues
 
 
@@ -1331,6 +1373,9 @@ func _on_interacted(item: Interactable, _player_node: Node) -> void:
 	elif id.begins_with("laser_switch"):
 		sound.play("click")
 		var grid: LaserGrid = item.get_meta("laser_grid")
+		if grid.offline:
+			_show_notice("THIS LASER GRID IS ALREADY OFFLINE", 2.5)
+			return
 		grid.switch_off()
 		_show_notice("LASER GRID OFF FOR %d s. Walk through now." % int(grid.off_seconds), 3.0)
 	elif id == "oxygen_console":
@@ -1346,9 +1391,12 @@ func _on_interacted(item: Interactable, _player_node: Node) -> void:
 		sound.play("click")
 		_open_log(int(id.substr("crew_log_".length())))
 	elif id == "reboot_terminal":
-		if not gm.try_reboot():
+		if gm.repaired_count() < Rules.SYSTEMS_TOTAL:
 			sound.play("buzz")
 			_show_notice("ALL %d SYSTEMS MUST BE REPAIRED" % Rules.SYSTEMS_TOTAL)
+		else:
+			sound.play("hiss")
+			_open_panel("reboot")
 
 
 func _handle_breaker(index: int) -> void:
@@ -1370,13 +1418,15 @@ func _on_system_repaired(system_id: String) -> void:
 	_update_pods()
 	sound.play("fan_up")   # the ventilation spins back up
 	# Doors that were waiting for this system slide open.
+	var notes: Array[String] = []
 	for room_id in _station["doors"]:
 		var gate: DoorGate = _station["doors"][room_id]
 		var was_locked := gate.locked
 		gate.refresh(gm.repaired)
 		if was_locked and not gate.locked:
-			_show_notice("%s DOOR UNLOCKED" % String(room_id).to_upper(), 3.0)
+			notes.append("%s DOOR UNLOCKED" % String(room_id).to_upper())
 			sound.play("door_slide")
+	notes.append_array(_seal_hazards_for(system_id))
 	var light: OmniLight3D = _station["room_lights"][system_id]
 	light.light_color = Rules.COLOR_CYAN
 	light.light_energy = StationBuilder.ROOM_LIGHT_ENERGY_ON
@@ -1403,11 +1453,14 @@ func _on_system_repaired(system_id: String) -> void:
 			(breaker as Interactable).set_color(Rules.COLOR_CYAN)
 	else:
 		(_station["consoles"][system_id] as Interactable).set_color(Rules.COLOR_CYAN)
-	_show_notice("%s SYSTEM REPAIRED" % system_id.to_upper())
+	# One notice: the repair, then anything it unlocked, switched off or sealed.
+	var headline := "%s SYSTEM REPAIRED" % system_id.to_upper()
 	if gm.repaired_count() == Rules.SYSTEMS_TOTAL:
-		_show_notice("ALL SYSTEMS REPAIRED — REBOOT THE STATION")
+		headline = "ALL SYSTEMS REPAIRED — REBOOT THE STATION"
 		# The reboot terminal changes colour so it is easy to spot in the hub.
 		(_station["reboot"] as Interactable).set_color(Rules.COLOR_CYAN)
+	notes.push_front(headline)
+	_show_notice("  ·  ".join(notes), NOTICE_SECONDS + 1.0)
 
 
 ## A hazard zone saw the player inside while active. GameManager applies the cost.

@@ -113,7 +113,12 @@ func _initialize() -> void:
 	# Win.
 	_interact(main, "reboot_terminal")
 	await process_frame
-	_check(gm.state == GameManager.State.WON, "reboot wins the shift at 4/4")
+	_check(gm.state == GameManager.State.PLAYING and main._panel != null, "at 4/4 the reboot terminal opens the code panel instead of winning at once")
+	main._panel.finish_showing()
+	for pad in PuzzleValidators.reboot_answer(gm.puzzles["reboot"]):
+		main._panel._on_pad(pad)
+	await process_frame
+	_check(gm.state == GameManager.State.WON, "reboot wins the shift at 4/4 once the code is entered")
 	_check(main._modal_layer != null, "win screen is shown")
 	_check(main.save.best_score > 0 and SaveManager.new(SAVE_PATH).best_score == main.save.best_score, "the winning score is saved as the best score")
 	_check(not main._player.input_enabled and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE, "win screen frees the mouse and freezes the player")

@@ -15,7 +15,7 @@ const HEADER_EXACT := "ORACLE — Exact answer from the manual"
 ## Manual entries that hold puzzle rules, orders and numbers. Questions about
 ## these are answered exactly in code and never by the language model, because a
 ## small model reversed orders and reused example numbers in testing.
-const RULE_IDS := ["power_order", "oxygen_table", "comms_formula", "cooling_formula"]
+const RULE_IDS := ["power_order", "oxygen_table", "comms_formula", "cooling_formula", "reboot_code"]
 const SCOPE_REPLY := "I could not find that in the manuals. I can help with the Power breakers, the Oxygen valves, the Comms frequency, the Cooling flow, protocols A and B, scoring, retrying and the controls. Try: How do I fix the power breakers?"
 
 const SHORT_ENTRY_LENGTH := 380

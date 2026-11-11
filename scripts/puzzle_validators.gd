@@ -65,3 +65,13 @@ static func cooling_target(cooling: Dictionary) -> int:
 
 static func cooling_matches(cooling: Dictionary, flow: int) -> bool:
 	return flow == cooling_target(cooling)
+
+
+## The pads to press for the reboot code, in order: the flashed sequence as shown on protocol
+## A, in reverse on protocol B.
+static func reboot_answer(reboot: Dictionary) -> Array[int]:
+	var answer: Array[int] = []
+	answer.assign(reboot["sequence"])
+	if reboot.get("protocol", "A") == "B":
+		answer.reverse()
+	return answer
