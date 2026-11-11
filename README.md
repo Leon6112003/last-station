@@ -129,6 +129,14 @@ The station is one long corridor (about 70 m) with the crew quarters, Power, Oxy
 
 Not tuned yet: made harder after a friend found it easy (shorter reserve, harsher gas, a blocking laser, paid ORACLE questions). The new numbers were chosen by reasoning, not by playing; walking the corridor takes about 10 s one way.
 
+## Look of the station
+
+Everything is drawn in code (no image files):
+- **Textures:** the walls are metal plating with dark seams and rivets, the floor is diamond tread plate and the ceiling is ribbed (`scripts/proc_textures.gd`). They are light grey and tint with each shift's colour theme, and they are mapped in world space, so every wall, long or short, has plates of the same size.
+- **Lamps:** every corridor light has a lamp housing under it.
+- **Props that say what a room is:** amber-lit cabinets in Power, banded gas tanks in Oxygen, server racks with rows of lights and a dish in Comms, and three glowing rings and two pipes round the reactor in Cooling (the rings turn cyan with the reactor when Cooling is repaired). Props stand along the side walls and never in front of a console or in a doorway.
+- **Cost:** measured on this Mac (Apple M3, real window, `tools/perf_probe.gd`): about 8 to 9 ms per frame in every view I tried, with up to about 440 draw calls in the busiest corridor view (500 meshes, 22 lights in the whole station). It has **not** been measured on a weaker laptop; if it is slow there, the first thing to do is merge the many plain boxes into fewer meshes.
+
 ## Window and full screen
 
 The interface is designed at 1280x720 and scales with the window (Godot `canvas_items` stretch, aspect "expand"), so text, buttons and panels grow in full screen instead of staying small. The 3D view renders at the window's full resolution. Checked by rendering at 1280x720 and 2560x1440.
@@ -171,7 +179,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 ```
 ./tests/run_all.sh        # needs `godot` on PATH
 ```
-28 headless test files, 1175 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
+29 headless test files, 1191 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
 
 ## Changes since the original spec
 
@@ -181,6 +189,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 - **Guided first shift and protocol board:** shift 1 is always Protocol A with a "what to do next" line; a big sign in the crew quarters shows the protocol.
 - **The walk (added after playtesting feedback):** the compact hub became a bedroom start, a long corridor, far rooms, doors that unlock in order, and gas and spark hazards (see "The walk").
 - **Redesigned look (after playtesting feedback):** every door has a header sign, a frame and a light that turn from red to cyan when its system is repaired; two matching boards flank the middle door (the protocol, and how to get help); each room has a tinted floor and a ceiling strip, and the room lights up (bright cyan strip and floor) when repaired; the hub light flickers, and under a minute of reserve the station pulses red with a red screen-edge vignette (visual only, rules unchanged); breaker ratings are printed on the breakers; each room has one tidy display panel; the reboot terminal is labelled and turns cyan when ready.
+- **Visual polish (added later):** generated wall, floor and ceiling textures, lamp fixtures and room props (see "Look of the station").
 - **The reboot code and hazard links (added later):** a memory-and-rule puzzle at the reboot terminal, and repairs that switch off lasers and seal vents and leaks (see "The reboot code" and "The walk").
 - **Settings and accessibility (added later):** volume sliders, mouse speed, key rebinding, colour-blind cues and sound captions (see "Settings and accessibility").
 - **Modifiers (added later):** Blackout, Hardcore and Speedrun switches on the menu (see "Modifiers").
@@ -206,7 +215,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 godot --path . -s res://tools/screenshot.gd -- /path/to/output/folder            # as it starts
 godot --path . -s res://tools/screenshot.gd -- /path/to/output/folder repaired   # all systems repaired
 ```
-Others in `tools/` (all need a real window): `menu_shot.gd` (the main menu; add `plain` to skip the intro), `avatar_shot.gd` (the astronaut from the front, side and back), `audio_probe.gd` (prints how loud the game is with and without danger), and `export_theme.gd` (saves the theme song as a WAV).
+Others in `tools/` (all need a real window): `settings_shot.gd` (the Settings window, the gas word, the captions), `panel_shot.gd` (the reboot code panel mid-flash), `perf_probe.gd` (frame time and draw calls), `menu_shot.gd` (the main menu; add `plain` to skip the intro), `avatar_shot.gd` (the astronaut from the front, side and back), `audio_probe.gd` (prints how loud the game is with and without danger), and `export_theme.gd` (saves the theme song as a WAV).
 
 ## Known limitations
 

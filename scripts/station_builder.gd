@@ -116,10 +116,11 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 	if theme.is_empty():
 		theme = ShiftTheme.for_shift(1)
 	var wall_color: Color = theme["wall"]
-	var wall_material := _solid_material(wall_color)
+	# Plated walls, tread-plate floor and a ribbed ceiling, drawn in code (see ProcTextures).
+	var wall_material := ProcTextures.material(wall_color, ProcTextures.plating(), 0.5)
 	var header_material := _solid_material(wall_color.darkened(0.35))
-	var floor_material := _solid_material(theme["floor"])
-	var ceiling_material := _solid_material(theme["ceiling"])
+	var floor_material := ProcTextures.material(theme["floor"], ProcTextures.diamond_plate(), 1.0, 0.7)
+	var ceiling_material := ProcTextures.material(theme["ceiling"], ProcTextures.ribbed(), 0.5)
 
 	var h := Rules.WALL_HEIGHT
 	var t := Rules.WALL_THICKNESS
@@ -169,6 +170,9 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 		var corridor_light := _add_light(parent, Vector3(corridor_light_x, 2.6, 0.0), theme["hub_light"], HUB_LIGHT_ENERGY, 8.0)
 		corridor_light.set_meta("base_energy", HUB_LIGHT_ENERGY)   # the Blackout modifier flickers around this
 		corridor_lights.append(corridor_light)
+		# A lamp housing on the ceiling under each light.
+		_add_glow_box(parent, Vector3(corridor_light_x, 2.99, 0.0), Vector3(0.9, 0.05, 0.4), _solid_material(Color(0.12, 0.13, 0.18)))
+		_add_glow_box(parent, Vector3(corridor_light_x, 2.95, 0.0), Vector3(0.7, 0.04, 0.26), _glow_material(Color(1.0, 0.93, 0.8), 1.3))
 
 	for room_id in ROOM_CENTERS_X:
 		var x: float = ROOM_CENTERS_X[room_id]
@@ -309,6 +313,8 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 		var sign_x := leak_x + (-2.0 if room_id == "oxygen" else 2.0)
 		_add_screen(parent, Vector3(sign_x, 1.7, ROOM_FACE_Z - PLATE_OFFSET), Vector2(1.6, 0.7))
 		_add_label(parent, "GAS LEAK\nWAIT FOR THE LAMP", Vector3(sign_x, 1.7, ROOM_FACE_Z), 18, Color(0.5, 1.0, 0.6))
+
+	_add_room_props(parent, reactor_material)
 
 	# --- The optional Cryo Bay at the west end, on the way to the reboot terminal: the sleeping crew
 	# and four log terminals.
@@ -730,6 +736,112 @@ static func _add_status_icons(parent: Node3D, at: Vector3, material: Material) -
 		tick.add_child(bar)
 	tick.visible = false
 	return {"fault": cross, "ok": tick}
+
+
+## Props that make each room look like what it is, none of them in the way of its console:
+## cabinets with amber indicator lights in Power, gas tanks in Oxygen, server racks and a dish in
+## Comms, and rings and pipes round the reactor in Cooling. The rings share the reactor's glow,
+## so they turn cyan when Cooling is repaired.
+static func _add_room_props(parent: Node3D, reactor_material: StandardMaterial3D) -> void:
+	var room_center_z := (HUB_BACK_Z + ROOM_BACK_Z) * 0.5
+	var steel := _solid_material(Color(0.24, 0.27, 0.35))
+	steel.metallic = 0.55
+	steel.roughness = 0.5
+	var dark_steel := _solid_material(Color(0.14, 0.16, 0.22))
+	dark_steel.metallic = 0.5
+	dark_steel.roughness = 0.55
+	var amber := _glow_material(Color(1.0, 0.7, 0.2), 1.1)
+	var violet := _glow_material(Rules.COLOR_VIOLET, 1.0)
+
+	# Power: two tall cabinets on each side wall, with a column of amber lights.
+	var power_x: float = ROOM_CENTERS_X["power"]
+	for side in [-1.0, 1.0]:
+		for z in [room_center_z + 0.9, room_center_z - 0.5]:
+			var cabinet_x: float = power_x + side * 2.45
+			_add_box(parent, "Cabinet", Vector3(cabinet_x, 1.05, z), Vector3(0.6, 2.1, 0.9), dark_steel)
+			for i in 5:
+				_add_glow_box(parent, Vector3(cabinet_x - side * 0.31, 0.5 + float(i) * 0.3, z), Vector3(0.03, 0.09, 0.5), amber)
+
+	# Oxygen: gas tanks (cylinders on the floor, with bands) along the side walls.
+	var oxygen_x: float = ROOM_CENTERS_X["oxygen"]
+	for side in [-1.0, 1.0]:
+		for z in [room_center_z + 0.8, room_center_z - 0.7]:
+			var tank_x: float = oxygen_x + side * 2.45
+			_add_cylinder_solid(parent, "Tank", Vector3(tank_x, 1.15, z), 0.42, 2.3, steel)
+			for band_y in [0.45, 1.85]:
+				_add_cylinder_glow(parent, Vector3(tank_x, band_y, z), 0.44, 0.07, amber)
+			_add_cylinder_glow(parent, Vector3(tank_x, 2.4, z), 0.12, 0.2, dark_steel)   # the valve on top
+
+	# Comms: server racks with rows of small lights, and a dish on the east rack.
+	var comms_x: float = ROOM_CENTERS_X["comms"]
+	for side in [-1.0, 1.0]:
+		for z in [room_center_z + 0.9, room_center_z - 0.5]:
+			var rack_x: float = comms_x + side * 2.45
+			_add_box(parent, "Rack", Vector3(rack_x, 1.0, z), Vector3(0.6, 2.0, 0.8), dark_steel)
+			for i in 8:
+				var light_material := violet if (i + int(z * 10.0)) % 3 != 0 else amber
+				_add_glow_box(parent, Vector3(rack_x - side * 0.31, 0.3 + float(i) * 0.22, z), Vector3(0.03, 0.05, 0.5), light_material)
+	var dish_base := Vector3(comms_x + 2.45, 2.0, room_center_z - 0.5)
+	_add_cylinder_glow(parent, dish_base + Vector3(0.0, 0.2, 0.0), 0.05, 0.4, steel)
+	var dish := SphereMesh.new()
+	dish.radius = 0.5
+	dish.height = 0.5
+	dish.is_hemisphere = true
+	var dish_instance := MeshInstance3D.new()
+	dish_instance.name = "Dish"
+	dish_instance.mesh = dish
+	dish_instance.material_override = steel
+	dish_instance.position = dish_base + Vector3(0.0, 0.5, 0.0)
+	dish_instance.rotation = Vector3(deg_to_rad(-60.0), deg_to_rad(90.0), 0.0)
+	parent.add_child(dish_instance)
+
+	# Cooling: three glowing rings round the reactor core, and two pipes up to the ceiling.
+	var cooling_x: float = ROOM_CENTERS_X["cooling"]
+	var core_at := Vector3(cooling_x - 2.0, 0.0, room_center_z)
+	for ring_y in [0.65, 1.45, 2.25]:
+		_add_cylinder_glow(parent, core_at + Vector3(0.0, ring_y, 0.0), 0.62, 0.07, reactor_material)
+	for pipe_offset in [Vector3(0.0, 0.0, 0.9), Vector3(0.0, 0.0, -0.9)]:
+		_add_cylinder_glow(parent, core_at + pipe_offset + Vector3(0.0, 1.5, 0.0), 0.09, 3.0, steel)
+
+
+## A cylinder with a collider (tanks and the like), standing with its centre at `center`.
+static func _add_cylinder_solid(parent: Node3D, node_name: String, center: Vector3, radius: float, height: float, material: Material) -> void:
+	var body := StaticBody3D.new()
+	body.name = node_name
+	body.position = center
+	body.collision_layer = Rules.LAYER_WORLD
+	body.collision_mask = 0
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = height
+	mesh.radial_segments = 16
+	var instance := MeshInstance3D.new()
+	instance.mesh = mesh
+	instance.material_override = material
+	body.add_child(instance)
+	var shape := CylinderShape3D.new()
+	shape.radius = radius
+	shape.height = height
+	var collider := CollisionShape3D.new()
+	collider.shape = shape
+	body.add_child(collider)
+	parent.add_child(body)
+
+
+## A cylinder that is only drawn (no collision): bands, valves, rings and pipes.
+static func _add_cylinder_glow(parent: Node3D, center: Vector3, radius: float, height: float, material: Material) -> void:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = height
+	mesh.radial_segments = 16
+	var instance := MeshInstance3D.new()
+	instance.name = "Glow"
+	instance.mesh = mesh
+	instance.material_override = material
+	instance.position = center
+	parent.add_child(instance)
 
 
 static func _add_beacons(parent: Node3D, center_x: float, lit_count: int) -> void:
