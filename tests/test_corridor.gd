@@ -1,0 +1,178 @@
+extends SceneTree
+## The walk: corridor hazards cycle and cost reserve time only while active, doors unlock in
+## order, hazards never count as puzzle mistakes, and the manuals explain all of it.
+## Run:  godot --headless --path . -s res://tests/test_corridor.gd
+
+var _failures: int = 0
+
+
+func _initialize() -> void:
+	_test_hazard_cycle()
+	_test_gas_damage()
+	_test_spark_damage()
+	_test_manager_damage()
+	_test_doors()
+	await _test_in_the_real_scene()
+	_test_manuals()
+
+	print("")
+	if _failures == 0:
+		print("ALL PASS")
+		quit(0)
+	else:
+		print("%d FAILURE(S)" % _failures)
+		quit(1)
+
+
+func _gas(offset: float = 0.0) -> HazardZone:
+	return HazardZone.create(HazardZone.KIND_GAS, Vector3(6.0, 2.8, 3.0), Vector3.ZERO, offset)
+
+
+func _spark(offset: float = 0.0) -> HazardZone:
+	return HazardZone.create(HazardZone.KIND_SPARK, Vector3(1.6, 2.8, 3.0), Vector3.ZERO, offset)
+
+
+func _test_hazard_cycle() -> void:
+	var gas := _gas()
+	_check(gas.phase() == HazardZone.Phase.OFF, "gas starts quiet")
+	gas.tick(Rules.GAS_OFF_SECONDS + 0.1, false)
+	_check(gas.phase() == HazardZone.Phase.WARN, "then warns before it vents")
+	gas.tick(Rules.GAS_WARN_SECONDS, false)
+	_check(gas.phase() == HazardZone.Phase.ON and gas.is_active(), "then vents")
+	gas.tick(Rules.GAS_ON_SECONDS, false)
+	_check(gas.phase() == HazardZone.Phase.OFF, "then goes quiet again and the cycle repeats")
+	_check(is_equal_approx(gas.cycle_seconds(), Rules.GAS_OFF_SECONDS + Rules.GAS_WARN_SECONDS + Rules.GAS_ON_SECONDS), "the gas cycle length is the sum of its phases")
+	var shifted := _gas(Rules.GAS_OFF_SECONDS + 0.1)
+	_check(shifted.phase() == HazardZone.Phase.WARN, "a phase offset starts the cycle part-way through")
+
+
+func _test_gas_damage() -> void:
+	var gas := _gas()
+	var total := [0.0]
+	var firsts := [0]
+	gas.hit.connect(func(_k: String, seconds: float, first: bool) -> void:
+		total[0] += seconds
+		if first:
+			firsts[0] += 1)
+	gas.tick(0.5, true)   # inside while quiet
+	_check(total[0] == 0.0, "standing in the gas while it is quiet costs nothing")
+	gas._time = Rules.GAS_OFF_SECONDS + 0.5
+	gas.tick(0.5, true)
+	_check(total[0] == 0.0, "standing in the gas during the warning costs nothing")
+	gas._time = Rules.GAS_OFF_SECONDS + Rules.GAS_WARN_SECONDS + 0.1
+	for i in 10:
+		gas.tick(0.1, true)
+	_check(is_equal_approx(total[0], Rules.GAS_DRAIN_PER_SECOND * 1.0), "venting gas drains 8 reserve seconds per second inside (%.2f)" % total[0])
+	_check(firsts[0] == 1, "only the first hit of a stay is marked as the first")
+	gas.tick(0.1, false)
+	gas.tick(0.1, true)
+	_check(firsts[0] == 2, "stepping out and back in marks a new first hit")
+	var before: float = total[0]
+	for i in 10:
+		gas.tick(0.1, false)
+	_check(is_equal_approx(total[0], before), "being outside the gas costs nothing even while it vents")
+
+
+func _test_spark_damage() -> void:
+	var sparks := _spark()
+	var total := [0.0]
+	var hits := [0]
+	sparks.hit.connect(func(_k: String, seconds: float, _first: bool) -> void:
+		total[0] += seconds
+		hits[0] += 1)
+	sparks.tick(0.5, true)
+	_check(hits[0] == 0, "crossing the sparks while quiet is safe")
+	sparks._time = Rules.SPARK_OFF_SECONDS + Rules.SPARK_WARN_SECONDS + 0.05
+	for i in 5:
+		sparks.tick(0.05, true)
+	_check(hits[0] == 1 and is_equal_approx(total[0], Rules.SPARK_PENALTY_SECONDS), "a spark hit costs 12 seconds once, not once per frame")
+	# The next activation can hit again.
+	sparks.tick(Rules.SPARK_ON_SECONDS + Rules.SPARK_OFF_SECONDS + Rules.SPARK_WARN_SECONDS, false)
+	sparks._time = Rules.SPARK_OFF_SECONDS + Rules.SPARK_WARN_SECONDS + 0.05
+	sparks.tick(0.05, true)
+	_check(hits[0] == 2, "the next activation can hit again")
+
+
+func _test_manager_damage() -> void:
+	var gm := GameManager.new()
+	root.add_child(gm)
+	gm.start_shift(7, 2)
+	var start := gm.reserve
+	var hits := []
+	gm.hazard_hit.connect(func(kind: String, seconds: float) -> void: hits.append([kind, seconds]))
+	gm.hazard_damage("spark", 12.0)
+	_check(is_equal_approx(gm.reserve, start - 12.0) and gm.mistakes == 0, "a hazard takes reserve time but is not a puzzle mistake")
+	_check(hits.size() == 1 and hits[0][0] == "spark", "the manager announces the hazard hit")
+	_check(is_equal_approx(gm.hazard_seconds, 12.0), "hazard losses are tallied")
+	gm.hazard_damage("gas", -5.0)
+	_check(is_equal_approx(gm.reserve, start - 12.0), "negative damage is ignored")
+	gm.hazard_damage("gas", 100000.0)
+	_check(gm.state == GameManager.State.FAILED and gm.reserve == 0.0, "enough hazard damage ends the shift")
+	var after := gm.reserve
+	gm.hazard_damage("gas", 5.0)
+	_check(gm.reserve == after, "hazards do nothing once the shift is over")
+	gm.enter_menu()
+	gm.hazard_damage("gas", 5.0)
+	_check(gm.hazard_seconds > 0.0, "(the tally is kept until the next attempt)")
+	gm.start_shift(8, 1)
+	_check(gm.hazard_seconds == 0.0, "a new attempt starts with no hazard losses")
+	gm.queue_free()
+
+
+func _test_doors() -> void:
+	var gate := DoorGate.create(Vector3(2.0, 2.3, 0.2), "power", Vector3.ZERO, "LOCKED")
+	_check(gate.locked and gate.collision_layer == Rules.LAYER_WORLD, "a door starts locked and solid")
+	gate.refresh({"power": false})
+	_check(gate.locked, "it stays locked while its system is not repaired")
+	gate.refresh({"oxygen": true})
+	_check(gate.locked, "repairing a different system does not open it")
+	gate.refresh({"power": true})
+	_check(not gate.locked and gate.collision_layer == 0, "repairing its system opens it and removes the collision")
+	gate.refresh({"power": true})
+	_check(not gate.locked, "refreshing again is harmless")
+	gate.free()
+
+
+func _test_in_the_real_scene() -> void:
+	var save_path := "user://test_corridor_save.cfg"
+	SaveManager.new(save_path).mark_intro_seen()
+	var main: Node = load("res://scenes/main.tscn").instantiate()
+	main.save_path = save_path
+	root.add_child(main)
+	await process_frame
+	main._start_new_game()
+	await process_frame
+	var gm: GameManager = main.gm
+	var start := gm.reserve
+	main._on_hazard_zone_hit("spark", 12.0, true)
+	_check(is_equal_approx(gm.reserve, start - 12.0) and gm.mistakes == 0, "a spark hit in the real scene takes 12 s and is not a mistake")
+	for zone in main._station["hazards"]:
+		_check((zone as HazardZone).hit.is_connected(main._on_hazard_zone_hit), "the %s zone is wired to the game" % (zone as HazardZone).name)
+	var wake_notice: String = main._notice_label.text
+	_check(wake_notice.length() > 0, "a notice is on screen after waking up or a hazard (%s)" % wake_notice.left(30))
+	main.queue_free()
+	await process_frame
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
+
+
+func _test_manuals() -> void:
+	var records := KnowledgeBase.load_records()
+	var found := false
+	for record in records:
+		if record["id"] == "walk_hazards":
+			found = true
+			var text: String = record["text"]
+			_check(text.contains("Oxygen door") and text.contains("Comms door") and text.contains("gas") and text.contains("12"), "the manuals explain the locked doors, the gas vent and the sparks")
+	_check(found, "there is a manual entry about doors and corridor hazards")
+	var results: Array = KnowledgeRetriever.retrieve("why is the oxygen door locked", records)
+	_check(results.size() > 0 and (results[0]["id"] == "walk_hazards" or results.any(func(r: Dictionary) -> bool: return r["id"] == "walk_hazards")), "ORACLE can find the doors entry when asked about a locked door")
+	results = KnowledgeRetriever.retrieve("what is the gas vent", records)
+	_check(results.any(func(r: Dictionary) -> bool: return r["id"] == "walk_hazards"), "ORACLE can find the hazards entry when asked about gas")
+
+
+func _check(condition: bool, label: String) -> void:
+	if condition:
+		print("PASS  " + label)
+	else:
+		print("FAIL  " + label)
+		_failures += 1

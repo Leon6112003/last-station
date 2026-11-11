@@ -4,9 +4,13 @@ extends Node
 ## Milestone 3: Main Menu, how-to-play card, hold-R retry, Manuals panel and a
 ## saved best score. ORACLE (the chatbot) arrives in Milestone 4.
 
-const HELP_TEXT := "WASD Move  ·  E Interact  ·  M Manuals  ·  H ORACLE  ·  Esc Pause  ·  Hold R Retry"
+const HELP_TEXT := "WASD Move  ·  E Interact  ·  V View  ·  M Manuals  ·  H ORACLE  ·  Esc Pause  ·  Hold R Retry"
 const NOTICE_SECONDS := 2.5
 const AMBIENT_ENERGY := 0.65        # a little darker than before, for mood
+const TICK_INTERVAL_SECONDS := 1.0       # clock tick spacing when reserve is low
+const TICK_FAST_BELOW_SECONDS := 20.0    # ... and it doubles in speed below this
+const TICK_FAST_INTERVAL_SECONDS := 0.5
+const FADE_IN_SECONDS := 0.7
 const LOW_RESERVE_SECONDS := 60.0   # below this the station pulses red
 const MODAL_WIDTH := 860.0
 
@@ -17,8 +21,16 @@ system, ORACLE, remembers how every system works. You are the
 only one awake who can repair them.
 
 GOAL
-Repair Power, Oxygen and Comms, then press E on the reboot
-terminal in the hub, before the reserve reaches zero.
+You wake up in the crew quarters. Something is wrong with the
+station. Walk the corridor to Power, Oxygen and Comms and repair
+each one, then walk back and press E on the reboot terminal at the
+west end, before the reserve reaches zero.
+
+THE WALK
+The Oxygen door stays locked until Power is repaired, and the Comms
+door until Oxygen is repaired. In the corridor, a GAS VENT drains
+your reserve fast while it is venting (red lamp), and LIVE WIRES cost
+12 seconds if they spark as you cross (red lamp). Wait for a grey lamp.
 
 HOW
 There are no instructions in the rooms. Read the panels, then ask
@@ -48,6 +60,12 @@ var _world: Node3D
 var _player: PlayerController
 var _station: Dictionary = {}
 var _environment: Environment
+var _theme: Dictionary = ShiftTheme.for_shift(1)
+var sound: SoundBank
+var _third_person: bool = false   # kept across shifts until changed
+var _tick_timer: float = 0.0
+var _tick_is_tock: bool = false
+var _fade: ColorRect
 var _mood_time: float = 0.0
 var _low_vignette: TextureRect
 
@@ -66,6 +84,9 @@ var _retry_bar: ProgressBar
 var _pause_overlay: Control
 var _menu_layer: CanvasLayer
 var _menu_best_label: Label
+var _menu_screen: MenuScreen
+## Plays the typed wake-up intro when the game first opens. Off in headless runs (tests).
+var boot_intro: bool = DisplayServer.get_name() != "headless"
 var _panel_center: CenterContainer
 var _panel: PuzzlePanel = null
 var _manuals: ManualsPanel = null
@@ -95,6 +116,11 @@ func _ready() -> void:
 	gm.shift_won.connect(_on_shift_won)
 	gm.shift_failed.connect(_on_shift_failed)
 
+	sound = SoundBank.new()
+	sound.name = "SoundBank"
+	sound.load_music = DisplayServer.get_name() != "headless"
+	add_child(sound)
+
 	# ORACLE: read-only help. It sees only the sanitized snapshot below.
 	oracle = OracleController.new()
 	oracle.name = "OracleController"
@@ -116,6 +142,10 @@ func _ready() -> void:
 ## Atmosphere. The hub light flickers a little; under a minute of reserve the whole
 ## station pulses red and a red vignette fades in. Visual only: no rules are touched.
 func _update_mood(delta: float) -> void:
+	var running := gm.state == GameManager.State.PLAYING and not _paused
+	# The theme song plays over the opening intro and the menu, and carries on into the
+	# shift without restarting. It is silent while paused and on the win and lose screens.
+	sound.set_music_active(gm.state == GameManager.State.MENU or (running and not _station.is_empty()))
 	if _environment == null or _station.is_empty():
 		return
 	_mood_time += delta
@@ -123,17 +153,29 @@ func _update_mood(delta: float) -> void:
 	# 0 when comfortable, up to 1 as the reserve runs out.
 	var urgency := clampf(1.0 - gm.reserve / LOW_RESERVE_SECONDS, 0.0, 1.0) if low else 0.0
 	var pulse := 0.5 + 0.5 * sin(_mood_time * (3.0 + 3.0 * urgency))
+	# The bedroom alarm pulses red until the first system is repaired, then settles.
+	var alarm_light: OmniLight3D = _station["alarm_light"]
+	alarm_light.light_energy = (0.5 + 1.3 * (0.5 + 0.5 * sin(_mood_time * 4.0))) if gm.repaired_count() == 0 else 0.4
 	var hub_light: OmniLight3D = _station["hub_light"]
 	if low:
 		hub_light.light_energy = (0.6 + 1.6 * pulse) * (0.5 + 0.5 * urgency)
 		_environment.ambient_light_energy = AMBIENT_ENERGY * (1.0 - 0.3 * urgency * pulse)
-		_environment.fog_light_color = Rules.COLOR_NAVY.lightened(0.1).lerp(Rules.COLOR_FAULT.darkened(0.6), urgency * 0.6)
+		_environment.fog_light_color = (_theme["fog"] as Color).lerp(Rules.COLOR_FAULT.darkened(0.6), urgency * 0.6)
 	else:
 		# A slow, uneven flicker on the emergency light (never fully off, never harsh).
 		var flicker := 0.5 + 0.5 * sin(_mood_time * 1.7) * sin(_mood_time * 5.3)
 		hub_light.light_energy = 0.25 * flicker if gm.repaired_count() < Rules.SYSTEMS_TOTAL else 0.0
 		_environment.ambient_light_energy = AMBIENT_ENERGY
-		_environment.fog_light_color = Rules.COLOR_NAVY.lightened(0.1)
+		_environment.fog_light_color = _theme["fog"]
+	# A clock ticks and tocks while the reserve is low, faster in the last seconds.
+	if low and running:
+		_tick_timer -= delta
+		if _tick_timer <= 0.0:
+			_tick_timer = TICK_FAST_INTERVAL_SECONDS if gm.reserve < TICK_FAST_BELOW_SECONDS else TICK_INTERVAL_SECONDS
+			sound.play("tock" if _tick_is_tock else "tick")
+			_tick_is_tock = not _tick_is_tock
+	else:
+		_tick_timer = 0.0
 	if _low_vignette != null:
 		_low_vignette.modulate.a = urgency * (0.55 + 0.35 * pulse)
 
@@ -175,6 +217,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif _can_open_overlay():
 			_open_oracle()
 			get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("toggle_view"):
+		if gm.state == GameManager.State.PLAYING and _player != null and not _paused and _modal_layer == null:
+			_third_person = not _third_person
+			_player.set_third_person(_third_person)
+			_show_notice("THIRD PERSON VIEW" if _third_person else "FIRST PERSON VIEW")
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("toggle_music"):
+		sound.set_music_enabled(not sound.music_enabled)
+		if _hud_layer.visible:
+			_show_notice("MUSIC ON" if sound.music_enabled else "MUSIC OFF")
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("toggle_sound"):
+		sound.set_muted(not sound.muted)
+		if _hud_layer.visible:
+			_show_notice("SOUND OFF" if sound.muted else "SOUND ON")
+		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("toggle_manuals"):
 		if _manuals != null:
 			_close_manuals()
@@ -189,30 +247,30 @@ func _coach_text() -> String:
 	if gm.run_number != 1 or gm.state != GameManager.State.PLAYING:
 		return ""
 	if gm.repaired_count() == Rules.SYSTEMS_TOTAL:
-		return "All systems repaired! Go back to the hub and press E on the reboot terminal."
+		return "All systems repaired! Walk back west along the corridor and press E on the reboot terminal."
 	for id in GameManager.SYSTEM_IDS:
 		if gm.repaired.get(id, false):
 			continue
 		match id:
 			"power":
-				return "NEXT: POWER room (left door). Read LOAD MODE and the breaker voltages, then press H and ask ORACLE which breaker first."
+				return "NEXT: leave the crew quarters and go east to the POWER room (first door). Read LOAD MODE and the breaker voltages, then press H and ask ORACLE which breaker first."
 			"oxygen":
-				return "NEXT: OXYGEN room (middle door). Read STATION MODE, then press H and ask ORACLE for the valve settings."
+				return "NEXT: the OXYGEN room (second door, now unlocked). Mind the gas vent on the way. Read STATION MODE, then press H and ask ORACLE for the valve settings."
 			_:
-				return "NEXT: COMMS room (right door). Count the lit beacons, then press H and ask ORACLE for the frequency."
+				return "NEXT: the COMMS room (third door, now unlocked). Mind the live wires on the way. Count the lit beacons, then press H and ask ORACLE for the frequency."
 	return ""
 
 
 ## The on-screen objective list: which systems are repaired and what is next.
 func _checklist_text() -> String:
-	var rooms := {"power": "left room", "oxygen": "middle room", "comms": "right room"}
+	var rooms := {"power": "1st room", "oxygen": "2nd room", "comms": "3rd room"}
 	var protocol: String = gm.puzzles.get("protocol", "A")
 	var lines: Array[String] = ["REPAIR THE STATION  ·  PROTOCOL %s" % protocol]
 	for id in GameManager.SYSTEM_IDS:
 		var mark := "[x]" if gm.repaired.get(id, false) else "[ ]"
 		lines.append("%s %s (%s)" % [mark, id.capitalize(), rooms[id]])
 	if gm.repaired_count() == Rules.SYSTEMS_TOTAL:
-		lines.append("-> REBOOT: terminal in the hub")
+		lines.append("-> REBOOT: terminal at the west end")
 	else:
 		lines.append("[ ] Reboot (needs 3/3)")
 	return "\n".join(lines)
@@ -239,6 +297,9 @@ func _setup_input() -> void:
 	_add_action("retry_level", [KEY_R])
 	_add_action("toggle_manuals", [KEY_M])
 	_add_action("toggle_oracle", [KEY_H])     # used from Milestone 4
+	_add_action("toggle_view", [KEY_V])       # first / third person camera
+	_add_action("toggle_music", [KEY_B])      # theme song on / off
+	_add_action("toggle_sound", [KEY_N])      # mute / unmute sound effects
 
 
 func _add_action(action: StringName, keys: Array) -> void:
@@ -321,27 +382,35 @@ func _rebuild_world() -> void:
 
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Rules.COLOR_NAVY
+	_theme = ShiftTheme.for_shift(gm.run_number)
+	environment.background_color = _theme["background"]
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Rules.COLOR_INDIGO
+	environment.ambient_light_color = _theme["ambient"]
 	environment.ambient_light_energy = AMBIENT_ENERGY
 	# A light navy haze gives the corridors depth without hiding the labels.
 	environment.fog_enabled = true
-	environment.fog_light_color = Rules.COLOR_NAVY.lightened(0.1)
+	environment.fog_light_color = _theme["fog"]
 	environment.fog_density = 0.012
 	_environment = environment
 	var world_environment := WorldEnvironment.new()
 	world_environment.environment = environment
 	_world.add_child(world_environment)
 
-	_station = StationBuilder.build(_world, gm.puzzles)
+	_station = StationBuilder.build(_world, gm.puzzles, _theme)
 
 	_player = PlayerController.new()
 	_player.name = "Player"
 	_player.position = _station["spawn"]
+	_player.rotation.y = deg_to_rad(float(_station["spawn_yaw"]))
+	for zone in _station["hazards"]:
+		(zone as HazardZone).hit.connect(_on_hazard_zone_hit)
 	_world.add_child(_player)
 	_player.target_changed.connect(_on_target_changed)
 	_player.first_move.connect(gm.begin_clock)
+	_player.stepped.connect(sound.play.bind("step"))
+	_player.set_third_person(_third_person)
+	_player.play_wake_up()
+	_fade_in()
 
 	for item in _station["interactables"]:
 		(item as Interactable).interacted.connect(_on_interacted)
@@ -351,6 +420,10 @@ func _rebuild_world() -> void:
 	_pause_overlay.visible = false
 	_prompt_label.text = ""
 	_notice_label.text = ""
+	if gm.run_number == 1 and gm.retry_count == 0:
+		_show_notice("YOU WAKE UP. SOMETHING IS WRONG WITH THE STATION.", 4.0)
+	else:
+		_show_notice("SHIFT %02d  ·  %s WING" % [gm.run_number, _theme["name"]])
 	_refresh_input_state()
 
 
@@ -397,6 +470,13 @@ func _build_hud() -> void:
 	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud_layer.add_child(_flash)
 
+	# Black cover used to fade the world in when a shift starts.
+	_fade = ColorRect.new()
+	_fade.color = Color(0.0, 0.0, 0.0, 0.0)
+	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hud_layer.add_child(_fade)
+
 	# Red edge vignette that fades in when the reserve runs low (centre stays clear).
 	var gradient := Gradient.new()
 	gradient.offsets = PackedFloat32Array([0.55, 1.0])
@@ -416,38 +496,38 @@ func _build_hud() -> void:
 	_low_vignette.modulate.a = 0.0
 	_hud_layer.add_child(_low_vignette)
 
-	_hud_layer.add_child(_make_label("+", 28, 0.47, 0.53, Color(1, 1, 1, 0.8)))
+	_hud_layer.add_child(_make_label("+", 24, 0.47, 0.53, Color(1, 1, 1, 0.8)))
 
-	_shift_label = _make_label("SHIFT 01", 22, 0.02, 0.07, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT)
+	_shift_label = _make_label("SHIFT 01", 19, 0.02, 0.07, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT)
 	_shift_label.offset_left = 24
 	_hud_layer.add_child(_shift_label)
 
-	_systems_label = _make_label("SYSTEMS 0/3", 24, 0.02, 0.07, Rules.COLOR_CYAN)
+	_systems_label = _make_label("SYSTEMS 0/3", 21, 0.02, 0.07, Rules.COLOR_CYAN)
 	_hud_layer.add_child(_systems_label)
 
 	# Guided first shift: one line saying what to do next (shift 1 only).
-	_coach_label = _make_label("", 22, 0.82, 0.93, Rules.COLOR_GOLD)
+	_coach_label = _make_label("", 19, 0.82, 0.93, Rules.COLOR_GOLD)
 	_coach_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_coach_label.offset_left = 160
 	_coach_label.offset_right = -160
 	_hud_layer.add_child(_coach_label)
 
-	_checklist_label = _make_label("", 18, 0.075, 0.26, Color(1, 1, 1, 0.92), HORIZONTAL_ALIGNMENT_LEFT)
+	_checklist_label = _make_label("", 16, 0.075, 0.26, Color(1, 1, 1, 0.92), HORIZONTAL_ALIGNMENT_LEFT)
 	_checklist_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	_checklist_label.offset_left = 24
 	_hud_layer.add_child(_checklist_label)
 
-	_reserve_label = _make_label("RESERVE 08:00", 22, 0.02, 0.07, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	_reserve_label = _make_label("RESERVE 08:00", 19, 0.02, 0.07, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	_reserve_label.offset_right = -24
 	_hud_layer.add_child(_reserve_label)
 
-	_prompt_label = _make_label("", 26, 0.56, 0.62, Rules.COLOR_GOLD)
+	_prompt_label = _make_label("", 22, 0.56, 0.62, Rules.COLOR_GOLD)
 	_hud_layer.add_child(_prompt_label)
 
-	_notice_label = _make_label("", 26, 0.09, 0.15, Rules.COLOR_CYAN)
+	_notice_label = _make_label("", 22, 0.09, 0.15, Rules.COLOR_CYAN)
 	_hud_layer.add_child(_notice_label)
 
-	_hud_layer.add_child(_make_label(HELP_TEXT, 18, 0.94, 0.99, Color(1, 1, 1, 0.75)))
+	_hud_layer.add_child(_make_label(HELP_TEXT, 15, 0.94, 0.99, Color(1, 1, 1, 0.75)))
 
 	# Hold-R progress indicator, shown only while R is held.
 	_retry_box = CenterContainer.new()
@@ -460,7 +540,7 @@ func _build_hud() -> void:
 	var retry_column := VBoxContainer.new()
 	retry_column.add_theme_constant_override("separation", 6)
 	_retry_box.add_child(retry_column)
-	var retry_label := _make_label("HOLD R TO RETRY", 20, 0.0, 1.0, Rules.COLOR_GOLD)
+	var retry_label := _make_label("HOLD R TO RETRY", 18, 0.0, 1.0, Rules.COLOR_GOLD)
 	retry_label.custom_minimum_size = Vector2(300, 28)
 	retry_column.add_child(retry_label)
 	_retry_bar = ProgressBar.new()
@@ -496,9 +576,9 @@ func _make_label(text: String, font_size: int, anchor_top: float, anchor_bottom:
 	return label
 
 
-func _show_notice(text: String) -> void:
+func _show_notice(text: String, seconds: float = NOTICE_SECONDS) -> void:
 	_notice_label.text = text
-	_notice_timer.start()
+	_notice_timer.start(seconds)
 
 
 func _flash_fault() -> void:
@@ -517,46 +597,14 @@ func _build_menu() -> void:
 	_menu_layer.layer = 15
 	add_child(_menu_layer)
 
-	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_menu_layer.add_child(root)
-
-	var background := ColorRect.new()
-	background.color = Rules.COLOR_NAVY
-	background.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_child(background)
-
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_child(center)
-
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 16)
-	center.add_child(column)
-
-	var title := Label.new()
-	title.text = "LAST STATION"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 72)
-	title.add_theme_color_override("font_color", Rules.COLOR_CYAN)
-	column.add_child(title)
-
-	var subtitle := Label.new()
-	subtitle.text = "The crew are asleep. Only you can repair the station."
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_font_size_override("font_size", 24)
-	subtitle.add_theme_color_override("font_color", Rules.COLOR_VIOLET)
-	column.add_child(subtitle)
-
-	_menu_best_label = Label.new()
-	_menu_best_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_menu_best_label.add_theme_font_size_override("font_size", 22)
-	_menu_best_label.add_theme_color_override("font_color", Rules.COLOR_GOLD)
-	column.add_child(_menu_best_label)
-
-	column.add_child(_make_menu_button("Play", _start_new_game))
-	column.add_child(_make_menu_button("How to Play", func() -> void: _show_how_to_play(false)))
-	column.add_child(_make_menu_button("Quit", func() -> void: get_tree().quit()))
+	_menu_screen = MenuScreen.create(
+		_start_new_game,
+		func() -> void: _show_how_to_play(false),
+		func() -> void: get_tree().quit(),
+		boot_intro)
+	_menu_screen.name = "MenuScreen"
+	_menu_layer.add_child(_menu_screen)
+	_menu_best_label = _menu_screen.best_label
 
 
 func _show_how_to_play(first_time: bool) -> void:
@@ -807,6 +855,13 @@ func _close_modal() -> void:
 	_refresh_input_state()
 
 
+## Fades the screen in from black when a shift (or a retry) begins.
+func _fade_in() -> void:
+	_fade.color.a = 1.0
+	var tween := create_tween()
+	tween.tween_property(_fade, "color:a", 0.0, FADE_IN_SECONDS)
+
+
 # --- Signals from the world -------------------------------------------------
 
 func _on_target_changed(target: Interactable) -> void:
@@ -817,14 +872,18 @@ func _on_interacted(item: Interactable, _player_node: Node) -> void:
 	if gm.state != GameManager.State.PLAYING:
 		return
 	var id := item.id
+	item.play_press()
 	if id.begins_with("breaker_"):
 		_handle_breaker(int(id.substr("breaker_".length())))
 	elif id == "oxygen_console":
+		sound.play("hiss")
 		_open_panel("oxygen")
 	elif id == "comms_console":
+		sound.play("hiss")
 		_open_panel("comms")
 	elif id == "reboot_terminal":
 		if not gm.try_reboot():
+			sound.play("buzz")
 			_show_notice("ALL 3 SYSTEMS MUST BE REPAIRED")
 
 
@@ -835,6 +894,7 @@ func _handle_breaker(index: int) -> void:
 	var breakers: Array = _station["breakers"]
 	match gm.flip_breaker(index):
 		"ok", "repaired":
+			sound.play("click")
 			(breakers[index] as Interactable).set_color(Rules.COLOR_CYAN)
 		"surge":
 			for breaker in breakers:
@@ -842,6 +902,14 @@ func _handle_breaker(index: int) -> void:
 
 
 func _on_system_repaired(system_id: String) -> void:
+	sound.play("chime")
+	# Doors that were waiting for this system slide open.
+	for room_id in _station["doors"]:
+		var gate: DoorGate = _station["doors"][room_id]
+		var was_locked := gate.locked
+		gate.refresh(gm.repaired)
+		if was_locked and not gate.locked:
+			_show_notice("%s DOOR UNLOCKED" % String(room_id).to_upper(), 3.0)
 	var light: OmniLight3D = _station["room_lights"][system_id]
 	light.light_color = Rules.COLOR_CYAN
 	light.light_energy = StationBuilder.ROOM_LIGHT_ENERGY_ON
@@ -869,12 +937,27 @@ func _on_system_repaired(system_id: String) -> void:
 		(_station["reboot"] as Interactable).set_color(Rules.COLOR_CYAN)
 
 
+## A hazard zone saw the player inside while active. GameManager applies the cost.
+func _on_hazard_zone_hit(kind: String, seconds: float, first: bool) -> void:
+	gm.hazard_damage(kind, seconds)
+	if first:
+		_flash_fault()
+		if kind == HazardZone.KIND_GAS:
+			sound.play("hiss")
+			_show_notice("GAS LEAK!  Reserve is draining. Get out or wait for the lamp to turn grey.")
+		else:
+			sound.play("buzz")
+			_show_notice("SPARKS!  -%d s" % int(seconds))
+
+
 func _on_mistake_made(system_id: String, penalty_seconds: int) -> void:
+	sound.play("buzz")
 	_flash_fault()
 	_show_notice("%s  -%d s" % [MISTAKE_TEXT[system_id], penalty_seconds])
 
 
 func _on_shift_won(result: Dictionary) -> void:
+	sound.play("win")
 	var is_new_best := save.record_score(result["final"])
 	var is_new_run_best := save.record_run(result["run_total"])
 	var best_line := "Best shift score: %d%s" % [save.best_score, "   NEW BEST!" if is_new_best else ""]
@@ -892,6 +975,7 @@ func _on_shift_won(result: Dictionary) -> void:
 
 
 func _on_shift_failed() -> void:
+	sound.play("fail")
 	_close_panel()
 	_close_manuals()
 	_close_oracle()

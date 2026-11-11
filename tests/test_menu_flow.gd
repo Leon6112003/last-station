@@ -60,6 +60,9 @@ func _test_main_flow_and_leaks() -> void:
 	_check(main._menu_layer.visible and not main._hud_layer.visible and main._world == null, "menu shows; HUD and world are not built yet")
 	_check(not main._input_free and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE, "the menu has no player input and a visible mouse")
 
+	main._update_mood(0.0)
+	_check(main.sound._music_active, "the theme song is on at the opening and the menu")
+
 	main._show_how_to_play(false)
 	await process_frame
 	_check(main._modal_layer != null, "How to Play opens from the menu")

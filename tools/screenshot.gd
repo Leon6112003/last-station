@@ -3,18 +3,21 @@ extends SceneTree
 ## Needs a real window (not --headless):
 ##   godot --path . -s res://tools/screenshot.gd -- /path/to/output/folder
 ## Optional second argument: "repaired" shows the station with all systems repaired.
+## Optional fourth argument: a shift number, to see that shift's colour theme.
+## Optional third argument: "third" renders from the third-person camera.
 
 const SAVE_PATH := "user://screenshot_tool_save.cfg"
 
 # name, player position, yaw in degrees (0 = looking north), pitch in degrees
 const VIEWS := [
-	["01_spawn_hub", Vector3(0.0, 0.9, 1.2), 0.0, 0.0],
-	["02_hub_left", Vector3(-1.5, 0.9, 0.8), 25.0, 0.0],
-	["03_hub_right", Vector3(1.5, 0.9, 0.8), -25.0, 0.0],
-	["04_power_room", Vector3(-4.0, 0.9, -5.2), 0.0, 5.0],
-	["05_oxygen_room", Vector3(0.0, 0.9, -5.2), 0.0, 5.0],
-	["06_comms_room", Vector3(4.0, 0.9, -5.2), 0.0, 5.0],
-	["07_hub_back", Vector3(0.0, 0.9, -1.5), 180.0, 0.0],
+	["01_bedroom_wake", Vector3(0.0, 0.9, -5.0), 180.0, 0.0],
+	["02_corridor_east", Vector3(1.0, 0.9, 0.0), -90.0, 0.0],
+	["03_gas_vent", Vector3(10.5, 0.9, 0.0), -90.0, 0.0],
+	["04_power_room", Vector3(12.0, 0.9, -4.5), 0.0, 5.0],
+	["05_oxygen_door_locked", Vector3(24.0, 0.9, 0.4), 0.0, 0.0],
+	["06_sparks", Vector3(26.0, 0.9, 0.0), -90.0, 0.0],
+	["07_comms_room", Vector3(36.0, 0.9, -4.5), 0.0, 5.0],
+	["08_reboot_terminal", Vector3(-2.0, 0.9, 0.0), 90.0, 0.0],
 ]
 
 
@@ -30,6 +33,7 @@ func _initialize() -> void:
 
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	main.save_path = SAVE_PATH
+	main.boot_intro = false
 	root.add_child(main)
 	await process_frame
 	main._start_new_game()
@@ -47,8 +51,16 @@ func _initialize() -> void:
 		gm.transmit()
 		main._close_modal()
 
+	if args.size() > 3:
+		main.gm.run_number = int(args[3])   # pick the shift, to see its colour theme
+		main._rebuild_world()
+		await process_frame
+	for zone in main._station["hazards"]:
+		(zone as HazardZone)._time = 7.0 if (zone as HazardZone).kind == "gas" else 4.2   # show them active
 	var player: PlayerController = main._player
 	player.set_input_enabled(false)
+	if args.size() > 2 and args[2] == "third":
+		player.set_third_person(true)
 	for view in VIEWS:
 		player.position = view[1]
 		player.rotation.y = deg_to_rad(view[2])
@@ -56,7 +68,7 @@ func _initialize() -> void:
 		for i in 6:
 			await process_frame
 		var image := root.get_texture().get_image()
-		var path := "%s/%s%s.png" % [out_dir, view[0], "_repaired" if repaired else ""]
+		var path := "%s/%s%s.png" % [out_dir, view[0], ("_repaired" if repaired else "") + ("_third" if args.size() > 2 and args[2] == "third" else "")]
 		image.save_png(path)
 		print("saved ", path, "  ", image.get_size())
 

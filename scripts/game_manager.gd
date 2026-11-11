@@ -13,6 +13,7 @@ signal mistake_made(system_id: String, penalty_seconds: int)
 signal shift_won(result: Dictionary)
 signal shift_failed
 signal hint_used(cost_seconds: int)
+signal hazard_hit(kind: String, seconds: float)
 
 const SYSTEM_IDS: Array[String] = ["power", "oxygen", "comms"]
 
@@ -24,6 +25,7 @@ var retry_count: int = 0
 var reserve: float = float(Rules.RESERVE_START_SECONDS)
 var mistakes: int = 0
 var hints_used: int = 0
+var hazard_seconds: float = 0.0   # reserve lost to corridor hazards this attempt
 var run_score: int = 0
 var clock_running: bool = false
 var repaired: Dictionary = {}
@@ -67,6 +69,7 @@ func _reset_attempt() -> void:
 	reserve = float(Rules.reserve_for_shift(run_number))
 	mistakes = 0
 	hints_used = 0
+	hazard_seconds = 0.0
 	clock_running = false
 	repaired = {"power": false, "oxygen": false, "comms": false}
 	breakers_latched.clear()
@@ -191,7 +194,7 @@ func use_hint() -> Dictionary:
 			next = id
 			break
 	if next.is_empty():
-		return {"ok": true, "text": "All systems are repaired. Go to the hub and press E on the reboot terminal.", "cost": 0}
+		return {"ok": true, "text": "All systems are repaired. Walk back west along the corridor and press E on the reboot terminal.", "cost": 0}
 	if reserve <= float(Rules.HINT_COST_SECONDS):
 		return {"ok": false, "text": "Not enough oxygen reserve left for a hint.", "cost": 0}
 	reserve -= float(Rules.HINT_COST_SECONDS)
@@ -207,18 +210,31 @@ func _hint_text(system_id: String) -> String:
 		"power":
 			var restore_first := "lowest" if protocol == "A" else "highest"
 			var shed_first := "highest" if protocol == "A" else "lowest"
-			return "Next: POWER (left room). Protocol %s: in RESTORE mode flip the %s voltage first; in SHED mode flip the %s first. Read the LOAD MODE and the breaker voltages." % [protocol, restore_first, shed_first]
+			return "Next: POWER (the first room along the corridor). Protocol %s: in RESTORE mode flip the %s voltage first; in SHED mode flip the %s first. Read the LOAD MODE and the breaker voltages." % [protocol, restore_first, shed_first]
 		"oxygen":
 			var table: Dictionary = Rules.OXYGEN_TABLES[protocol]
 			var rows: Array[String] = []
 			for mode in Rules.OXYGEN_MODES:
 				rows.append("%s %s" % [mode, ", ".join((table[mode] as Array).map(func(v: int) -> String: return str(v)))])
-			return "Next: OXYGEN (middle room). Protocol %s valve table: %s. Read the STATION MODE on the wall." % [protocol, ". ".join(rows)]
+			return "Next: OXYGEN (the second room; its door opens once Power is repaired). Protocol %s valve table: %s. Read the STATION MODE on the wall." % [protocol, ". ".join(rows)]
 		_:
-			return "Next: COMMS (right room). Protocol %s: 100 MHz plus %d MHz for every lit beacon. Count the lit beacons." % [protocol, Rules.COMMS_PER_BEACON_MHZ[protocol]]
+			return "Next: COMMS (the third room; its door opens once Oxygen is repaired). Protocol %s: 100 MHz plus %d MHz for every lit beacon. Count the lit beacons." % [protocol, Rules.COMMS_PER_BEACON_MHZ[protocol]]
 
 
 # --- Internals -----------------------------------------------------------
+
+## A corridor hazard (gas or sparks) took reserve time. Not a puzzle mistake: it does not
+## count in `mistakes`. Only counts while a shift is running.
+func hazard_damage(kind: String, seconds: float) -> void:
+	if state != State.PLAYING or seconds <= 0.0:
+		return
+	hazard_seconds += seconds
+	reserve = maxf(0.0, reserve - seconds)
+	hazard_hit.emit(kind, seconds)
+	reserve_changed.emit(reserve)
+	if reserve <= 0.0:
+		_fail()
+
 
 func _mark_repaired(system_id: String) -> void:
 	repaired[system_id] = true

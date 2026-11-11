@@ -2,7 +2,7 @@
   {
     "id": "objective",
     "title": "Objective",
-    "text": "Repair all three station systems (Power, Oxygen and Comms) before the oxygen reserve runs out, then use the reboot terminal in the hub to restart the station.",
+    "text": "You wake up in the crew quarters and something is wrong with the station. Walk the corridor to the Power, Oxygen and Comms rooms, repair all three systems before the oxygen reserve runs out, then walk back to the reboot terminal at the west end of the corridor.",
     "keywords": [
       "objective",
       "goal",
@@ -41,7 +41,7 @@
   {
     "id": "first_steps",
     "title": "How to Start",
-    "text": "First read the checklist at the top left and note the protocol. Then visit each room and read its panel. Next look up the rule for that room and protocol in these manuals. Repair all three systems, then press E on the reboot terminal in the hub.",
+    "text": "Read the checklist at the top left and note the protocol. Leave the crew quarters and walk east to the Power room. Read its panel, look up the rule in these manuals and repair it. The next door opens once the system before it is repaired. When all three are repaired, walk back west and press E on the reboot terminal.",
     "keywords": [
       "start",
       "begin",
@@ -79,7 +79,7 @@
   {
     "id": "protocols",
     "title": "Station Protocol",
-    "text": "Every shift runs under PROTOCOL A or B, shown on the sign in the hub and in the checklist at the top left of the screen. The protocol changes the Power breaker order, the Oxygen valve table and the Comms frequency formula, so always check it before you repair a system. Shift 1 always uses Protocol A.",
+    "text": "Every shift runs under PROTOCOL A or B, shown on the sign in the crew quarters and in the checklist at the top left of the screen. The protocol changes the Power breaker order, the Oxygen valve table and the Comms frequency formula, so always check it before you repair a system. Shift 1 always uses Protocol A.",
     "keywords": [
       "protocol",
       "protocols",
@@ -288,16 +288,45 @@
   {
     "id": "reboot_terminal",
     "title": "Reboot Terminal",
-    "text": "The reboot terminal in the hub (on the south wall) works only when all three systems are repaired, and it turns cyan when it is ready. Using it earlier shows a warning. Using it with all three repaired wins the shift and shows your score.",
+    "text": "The reboot terminal at the west end of the corridor works only when all three systems are repaired, and it turns cyan when ready. Using it earlier shows a warning. Using it with all three repaired wins the shift and shows your score. You have to walk all the way back to it.",
     "keywords": [
       "reboot",
       "terminal",
-      "hub",
       "finish",
       "win",
       "restart",
       "station",
-      "gold"
+      "gold",
+      "corridor",
+      "west",
+      "walk",
+      "back"
+    ]
+  },
+  {
+    "id": "walk_hazards",
+    "title": "Doors and Corridor Hazards",
+    "text": "The Oxygen door stays locked until Power is repaired, and the Comms door until Oxygen is repaired. A gas vent between Power and Oxygen drains the reserve fast while its lamp is red: 8 seconds of reserve for every second in the gas. Live wires between Oxygen and Comms cost 12 seconds if they spark as you cross. Wait for a grey lamp; amber is a warning. Hazards are not puzzle mistakes.",
+    "keywords": [
+      "doors",
+      "door",
+      "locked",
+      "unlock",
+      "hazard",
+      "hazards",
+      "gas",
+      "vent",
+      "sparks",
+      "spark",
+      "wires",
+      "corridor",
+      "walk",
+      "walking",
+      "lamp",
+      "drain",
+      "slow",
+      "time",
+      "lost"
     ]
   },
   {

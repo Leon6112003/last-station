@@ -23,6 +23,21 @@ func _initialize() -> void:
 	_check(gm.state == GameManager.State.PLAYING, "main scene starts a shift in PLAYING state")
 	var text: String = main._checklist_text()
 	_check(text.contains("[ ] Power") and text.contains("[ ] Oxygen") and text.contains("[ ] Comms") and text.contains("Reboot (needs 3/3)"), "the checklist starts with nothing repaired")
+
+	# V switches between first and third person, and the choice survives a retry.
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_V
+	key.pressed = true
+	main._unhandled_input(key)
+	_check(main._player.third_person, "V switches to third person")
+	main._unhandled_input(key)
+	_check(not main._player.third_person, "V switches back to first person")
+	main._unhandled_input(key)
+	main._retry()
+	await process_frame
+	_check(main._player.third_person, "the chosen view is kept after a retry")
+	main._unhandled_input(key)
+	_check(not main._player.third_person, "V switches back again after the retry")
 	_check(main._player != null and main._player.input_enabled, "player input is enabled at the start")
 
 	# Reboot too early.
@@ -39,6 +54,8 @@ func _initialize() -> void:
 		_interact(main, "breaker_%d" % index)
 	_check(gm.repaired["power"], "breakers repair power via interactables")
 	_check(main._checklist_text().contains("[x] Power") and main._checklist_text().contains("[ ] Oxygen"), "the checklist ticks Power once it is repaired")
+	var doors: Dictionary = main._station["doors"]
+	_check(not (doors["oxygen"] as DoorGate).locked and (doors["comms"] as DoorGate).locked, "repairing Power unlocks the Oxygen door but not the Comms door")
 	var power_light: OmniLight3D = main._station["room_lights"]["power"]
 	_check(power_light.light_color == Rules.COLOR_CYAN, "power room light turns cyan when repaired")
 	var strip: StandardMaterial3D = main._station["room_strips"]["power"]
@@ -51,8 +68,13 @@ func _initialize() -> void:
 	gm.reserve = 20.0
 	main._update_mood(0.5)
 	_check(main._low_vignette.modulate.a > 0.0 and (main._station["hub_light"] as OmniLight3D).light_energy > 0.0, "low reserve shows the red vignette and pulses the hub light")
+	var tock_before: bool = main._tick_is_tock
+	main._tick_timer = 0.0
+	main._update_mood(0.1)
+	_check(main._tick_is_tock != tock_before and is_equal_approx(main._tick_timer, main.TICK_FAST_INTERVAL_SECONDS if gm.reserve < main.TICK_FAST_BELOW_SECONDS else main.TICK_INTERVAL_SECONDS), "low reserve ticks and tocks in turn at the right speed")
 	gm.reserve = 300.0
 	main._update_mood(0.5)
+	_check(main._tick_timer == 0.0, "the clock is silent with plenty of reserve")
 	_check(main._low_vignette.modulate.a == 0.0, "the vignette is off with plenty of reserve")
 
 	# Oxygen: open the real panel, set values through its buttons' logic, confirm.
@@ -65,6 +87,7 @@ func _initialize() -> void:
 	main._panel._on_confirm_oxygen()
 	await process_frame
 	_check(gm.repaired["oxygen"], "valve settings repair oxygen through the panel")
+	_check(not (doors["comms"] as DoorGate).locked, "repairing Oxygen unlocks the Comms door")
 	_check(main._panel == null, "panel closes after solving")
 
 	# Comms.

@@ -2,7 +2,7 @@
 
 ## What is in this project
 
-- **All game code, scenes, text and the manuals** (`scripts/`, `scenes/`, `tests/`, `data/`, `docs/`) were written for this project. There are no imported 3D models, textures, images, sounds or fonts: everything on screen is built from Godot primitives, standard materials and Godot's built-in default font.
+- **All game code, scenes, text and the manuals** (`scripts/`, `scenes/`, `tests/`, `data/`, `docs/`) were written for this project. There are no imported 3D models, textures, images, audio files or fonts (the sound effects are synthesised in code): everything on screen is built from Godot primitives, standard materials and Godot's built-in default font.
 - The project's own files can be released under any licence the authors choose (none has been selected yet).
 
 ## Godot Engine

@@ -1,52 +1,70 @@
 class_name StationBuilder
 extends RefCounted
-## Builds the fixed station layout and this attempt's puzzle props from boxes.
+## Builds the station layout and this attempt's puzzle props from boxes.
 ## No scene files needed. Called again for every attempt, so retries show the
 ## re-rolled puzzle values.
 ##
-## Plan view (metres, -Z is north, the player spawns in the hub facing north):
+## Plan view (metres, -Z is north, +X is east). The player wakes in the crew quarters,
+## walks out into one long corridor, and has to walk to each room along it.
 ##
-##   z=-9  +--------+--------+--------+
-##         | POWER  | OXYGEN | COMMS  |   rooms, 4 m wide, 6 m deep
-##   z=-3  +--[##]---+--[##]--+--[##]--+   doorways 2 m wide at x = -4, 0, 4,
-##         |  [A]   guide   [B]        |   with a header sign above each one;
-##         |           HUB             |   a board flanks the middle door;
-##   z= 3  +---------------------------+   coloured floor lines lead to each door
-##        x=-6      x=-2   x=2        x=6
+##         CREW         POWER        OXYGEN        COMMS
+##       +-------+     +-------+     +-------+     +-------+   z=-7.5
+##       | bunk  |     |       |     |       |     |       |
+##   +---+--[ ]--+-----+--[ ]--+-----+--[D]--+-----+--[D]--+---+   z=-1.5  (doors)
+##   |R>  ----------------  gas  ----------------  sparks ----|   corridor, 3 m wide
+##   +-----------------------------------------------------------+   z=+1.5
+##  x=-5   0              12             24             36    41
+##
+##   R = reboot terminal at the west end. [D] = door that stays locked until the
+##   system before it is repaired (Oxygen needs Power, Comms needs Oxygen).
 ##
 ## Design rules: every sign sits ON a surface (a header, a plate, a breaker or a
 ## console), never floating; text of one kind uses one size.
 
-const HUB_HALF_WIDTH := 6.0
-const HUB_FRONT_Z := 3.0     # south wall of the hub
-const HUB_BACK_Z := -3.0     # wall between hub and rooms
-const ROOM_BACK_Z := -9.0    # north wall of the rooms
+const X_WEST := -5.0         # west end of the corridor (centre of the end wall)
+const X_EAST := 41.0         # east end of the corridor
+const HUB_FRONT_Z := 1.5     # south wall of the corridor
+const HUB_BACK_Z := -1.5     # wall between the corridor and the rooms
+const ROOM_BACK_Z := -7.5    # north wall of the rooms
+const ROOM_HALF_WIDTH := 3.0
 const DOOR_HALF_WIDTH := 1.0
 const DOOR_HEIGHT := 2.3     # the header above a doorway starts here
-const ROOM_CENTERS_X := {"power": -4.0, "oxygen": 0.0, "comms": 4.0}
+const BEDROOM_X := 0.0
+const ROOM_CENTERS_X := {"power": 12.0, "oxygen": 24.0, "comms": 36.0}
 const ROOM_LABELS := {"power": "POWER", "oxygen": "OXYGEN", "comms": "COMMS"}
+## Which system must be repaired before a room's door opens ("" = open from the start).
+const DOOR_REQUIRES := {"power": "", "oxygen": "power", "comms": "oxygen"}
+const DOOR_LOCK_TEXT := {"oxygen": "LOCKED\nREPAIR POWER\nFIRST", "comms": "LOCKED\nREPAIR OXYGEN\nFIRST"}
 const ROOM_FLOOR_TINT := {
 	"power": Color(0.20, 0.12, 0.36),
 	"oxygen": Color(0.07, 0.24, 0.28),
 	"comms": Color(0.30, 0.24, 0.10),
 }
-const SPAWN_POSITION := Vector3(0.0, 0.9, 1.2)
+const SPAWN_POSITION := Vector3(0.0, 0.9, -5.0)
+const SPAWN_YAW_DEGREES := 180.0    # the player wakes facing south, toward the bedroom door
 # Terminals must be taller than the eye line (1.55 m) so the interaction ray,
 # which starts at the eyes, hits them without the player having to look down.
 const TERMINAL_HEIGHT := 1.8
 const BREAKER_WIDTH := 0.7
 const BREAKER_SPACING := 0.95
 const BEACON_SPACING := 0.55
-const HUB_FACE_Z := HUB_BACK_Z + 0.2        # text on the hub side of the dividing wall
+const HUB_FACE_Z := HUB_BACK_Z + 0.2        # text on the corridor side of the rooms' wall
+const BEDROOM_FACE_Z := HUB_BACK_Z - 0.2    # text on the bedroom side of that wall
 const ROOM_FACE_Z := ROOM_BACK_Z + 0.2      # text on a room's back wall
 const PLATE_OFFSET := 0.03                  # plates sit this far behind their text
+const GAS_X := 18.0                         # gas vent between Power and Oxygen
+const SPARK_X := 30.0                       # spark gap between Oxygen and Comms
+const GAS_LENGTH := 6.0
+const SPARK_LENGTH := 1.6
+const GAS_PHASE_OFFSET := 4.5               # seconds into its cycle when a shift starts
+const SPARK_PHASE_OFFSET := 1.0
 
 const STRIP_ENERGY_OFF := 0.5     # ceiling strip while the system is down
 const STRIP_ENERGY_ON := 1.1     # ... and once repaired
 const FLOOR_ENERGY_OFF := 0.25    # tinted floor patch while the system is down
 const FLOOR_ENERGY_ON := 0.9      # ... and once repaired
 const ROOM_LIGHT_ENERGY_ON := 2.0    # room light once repaired (was 1.5 while down)
-const HUB_LIGHT_ENERGY := 1.0     # main hub light (a little dimmer than before for mood)
+const HUB_LIGHT_ENERGY := 1.0     # corridor lights
 
 const FONT_TITLE := 40
 const FONT_MAIN := 38
@@ -56,7 +74,7 @@ const FONT_SMALL := 22
 ## Builds the station under `parent` for the given puzzles (from PuzzleGenerator).
 ## Returns:
 ## {
-##   "spawn": Vector3,
+##   "spawn": Vector3, "spawn_yaw": float,        # where and which way the player wakes up
 ##   "interactables": Array[Interactable],
 ##   "breakers": Array[Interactable],            # B1..B4 in index order
 ##   "consoles": {"oxygen": Interactable, "comms": Interactable},
@@ -64,60 +82,66 @@ const FONT_SMALL := 22
 ##   "room_lights": {room_id: OmniLight3D},
 ##   "door_labels": {room_id: Label3D},          # the room name on its header sign
 ##   "door_status": {room_id: StandardMaterial3D}, # frame and light: red, then cyan when repaired
-##   "protocol_board": Label3D,                  # big "PROTOCOL A/B" sign in the hub
+##   "doors": {room_id: DoorGate},               # sliding doors (oxygen, comms) locked in order
+##   "hazards": Array[HazardZone],               # gas vent and spark gap in the corridor
+##   "protocol_board": Label3D,                  # big "PROTOCOL A/B" sign in the bedroom
 ##   "room_floors": {room_id: StandardMaterial3D}, # tinted floor patch; brightens when repaired
 ##   "room_strips": {room_id: StandardMaterial3D}, # ceiling light strip: dim red, then bright cyan
-##   "hub_light": OmniLight3D,                   # hub emergency light; main.gd flickers/pulses it
+##   "hub_light": OmniLight3D,                   # corridor emergency light; main.gd flickers/pulses it
+##   "alarm_light": OmniLight3D,                 # red alarm light in the bedroom
 ## }
-static func build(parent: Node3D, puzzles: Dictionary) -> Dictionary:
-	var wall_material := _solid_material(Rules.COLOR_INDIGO)
-	var header_material := _solid_material(Rules.COLOR_INDIGO.darkened(0.35))
-	var floor_material := _solid_material(Rules.COLOR_NAVY.lightened(0.12))
-	var ceiling_material := _solid_material(Rules.COLOR_NAVY.lightened(0.05))
+static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}) -> Dictionary:
+	if theme.is_empty():
+		theme = ShiftTheme.for_shift(1)
+	var wall_color: Color = theme["wall"]
+	var wall_material := _solid_material(wall_color)
+	var header_material := _solid_material(wall_color.darkened(0.35))
+	var floor_material := _solid_material(theme["floor"])
+	var ceiling_material := _solid_material(theme["ceiling"])
 
-	var depth := HUB_FRONT_Z - ROOM_BACK_Z                 # 12 m
-	var center_z := (HUB_FRONT_Z + ROOM_BACK_Z) * 0.5      # -3 m
-	var span_x := HUB_HALF_WIDTH * 2.0 + Rules.WALL_THICKNESS
 	var h := Rules.WALL_HEIGHT
 	var t := Rules.WALL_THICKNESS
+	var corridor_length := X_EAST - X_WEST
+	var corridor_center_x := (X_EAST + X_WEST) * 0.5
+	var corridor_depth := HUB_FRONT_Z - HUB_BACK_Z                  # 3 m
+	var room_depth := HUB_BACK_Z - ROOM_BACK_Z                      # 6 m
+	var room_center_z := (HUB_BACK_Z + ROOM_BACK_Z) * 0.5           # -4.5 m
+	var room_xs: Array = [BEDROOM_X] + ROOM_CENTERS_X.values()
 
-	# Floor and ceiling over the whole footprint.
-	_add_box(parent, "Floor", Vector3(0.0, -0.1, center_z), Vector3(span_x, 0.2, depth + t), floor_material)
-	_add_box(parent, "Ceiling", Vector3(0.0, h + 0.1, center_z), Vector3(span_x, 0.2, depth + t), ceiling_material)
+	# --- Shell: the corridor, then each room, built from boxes.
+	_add_box(parent, "CorridorFloor", Vector3(corridor_center_x, -0.1, 0.0), Vector3(corridor_length + t, 0.2, corridor_depth + t), floor_material)
+	_add_box(parent, "CorridorCeiling", Vector3(corridor_center_x, h + 0.1, 0.0), Vector3(corridor_length + t, 0.2, corridor_depth + t), ceiling_material)
+	_add_box(parent, "WallWestEnd", Vector3(X_WEST, h * 0.5, 0.0), Vector3(t, h, corridor_depth + t), wall_material)
+	_add_box(parent, "WallEastEnd", Vector3(X_EAST, h * 0.5, 0.0), Vector3(t, h, corridor_depth + t), wall_material)
+	_add_box(parent, "WallSouth", Vector3(corridor_center_x, h * 0.5, HUB_FRONT_Z), Vector3(corridor_length + t, h, t), wall_material)
+	for room_x in room_xs:
+		_add_box(parent, "RoomFloor", Vector3(room_x, -0.1, room_center_z), Vector3(ROOM_HALF_WIDTH * 2.0 + t, 0.2, room_depth + t), floor_material)
+		_add_box(parent, "RoomCeiling", Vector3(room_x, h + 0.1, room_center_z), Vector3(ROOM_HALF_WIDTH * 2.0 + t, 0.2, room_depth + t), ceiling_material)
+		_add_box(parent, "RoomWallWest", Vector3(room_x - ROOM_HALF_WIDTH, h * 0.5, room_center_z), Vector3(t, h, room_depth + t), wall_material)
+		_add_box(parent, "RoomWallEast", Vector3(room_x + ROOM_HALF_WIDTH, h * 0.5, room_center_z), Vector3(t, h, room_depth + t), wall_material)
+		_add_box(parent, "RoomWallNorth", Vector3(room_x, h * 0.5, ROOM_BACK_Z), Vector3(ROOM_HALF_WIDTH * 2.0 + t, h, t), wall_material)
 
-	# Outer walls.
-	_add_box(parent, "WallWest", Vector3(-HUB_HALF_WIDTH, h * 0.5, center_z), Vector3(t, h, depth + t), wall_material)
-	_add_box(parent, "WallEast", Vector3(HUB_HALF_WIDTH, h * 0.5, center_z), Vector3(t, h, depth + t), wall_material)
-	_add_box(parent, "WallSouth", Vector3(0.0, h * 0.5, HUB_FRONT_Z), Vector3(span_x, h, t), wall_material)
-	_add_box(parent, "WallNorth", Vector3(0.0, h * 0.5, ROOM_BACK_Z), Vector3(span_x, h, t), wall_material)
-
-	# Dividers between the three rooms.
-	var room_depth := HUB_BACK_Z - ROOM_BACK_Z             # 6 m
-	var room_center_z := (HUB_BACK_Z + ROOM_BACK_Z) * 0.5  # -6 m
-	for divider_x in [-2.0, 2.0]:
-		_add_box(parent, "Divider", Vector3(divider_x, h * 0.5, room_center_z), Vector3(t, h, room_depth), wall_material)
-
-	# Hub/room wall with three doorways, built from the solid segments between them.
-	var door_xs: Array = ROOM_CENTERS_X.values()
-	door_xs.sort()
-	var cursor := -HUB_HALF_WIDTH
-	for door_x in door_xs:
+	# The wall between the corridor and the rooms, with a doorway for every room.
+	var cursor := X_WEST
+	for door_x in room_xs:
 		_add_wall_segment(parent, cursor, door_x - DOOR_HALF_WIDTH, wall_material)
 		cursor = door_x + DOOR_HALF_WIDTH
-	_add_wall_segment(parent, cursor, HUB_HALF_WIDTH, wall_material)
+	_add_wall_segment(parent, cursor, X_EAST, wall_material)
 
-	# --- Doors: a header above each doorway carrying the room's sign, and a
-	# frame and light that are red until the system is repaired.
+	# --- Doors: a header above each doorway carrying the room's sign, and a frame and
+	# light that are red until the system is repaired.
 	var room_lights := {}
 	var door_labels := {}
 	var door_status := {}
+	var door_gates := {}
 	var room_floors := {}
 	var room_strips := {}
 	var header_height := h - DOOR_HEIGHT
-	_add_light(parent, Vector3(0.0, 2.6, 0.0), Color(0.8, 0.86, 1.0), HUB_LIGHT_ENERGY, 9.0)
-	# A dim violet accent over the reboot terminal gives the hub a second light source.
-	_add_light(parent, Vector3(0.0, 2.2, HUB_FRONT_Z - 1.2), Rules.COLOR_VIOLET, 0.9, 5.0)
-	var hub_light := _add_light(parent, Vector3(0.0, 2.9, 1.5), Rules.COLOR_FAULT, 0.0, 7.0)
+	var hub_light := _add_light(parent, Vector3(BEDROOM_X, 2.9, 0.0), Rules.COLOR_FAULT, 0.0, 7.0)
+	# Dim corridor lights, one between every pair of doors, so the walk is never pitch black.
+	for corridor_light_x in [-2.5, 6.0, 18.0, 30.0, 38.5]:
+		_add_light(parent, Vector3(corridor_light_x, 2.6, 0.0), theme["hub_light"], HUB_LIGHT_ENERGY, 8.0)
+
 	for room_id in ROOM_CENTERS_X:
 		var x: float = ROOM_CENTERS_X[room_id]
 		room_lights[room_id] = _add_light(parent, Vector3(x, 2.6, room_center_z), Rules.COLOR_FAULT, 1.5, 6.5)
@@ -128,16 +152,21 @@ static func build(parent: Node3D, puzzles: Dictionary) -> Dictionary:
 		var status := _glow_material(Rules.COLOR_FAULT, 1.4)
 		door_status[room_id] = status
 		var face_z := HUB_BACK_Z + t * 0.5 + 0.01          # just in front of the wall
-		# Light strip under the sign, and a post on each side of the doorway.
 		_add_glow_box(parent, Vector3(x, DOOR_HEIGHT + 0.06, face_z), Vector3(DOOR_HALF_WIDTH * 2.0 - 0.1, 0.05, 0.02), status)
 		for side in [-1.0, 1.0]:
 			_add_glow_box(parent, Vector3(x + side * (DOOR_HALF_WIDTH - 0.04), DOOR_HEIGHT * 0.5, face_z), Vector3(0.06, DOOR_HEIGHT, 0.02), status)
-		# The sign: a dark plate on the header with the room name on it.
 		_add_screen(parent, Vector3(x, DOOR_HEIGHT + header_height * 0.55, HUB_FACE_Z - PLATE_OFFSET), Vector2(1.7, 0.46))
 		door_labels[room_id] = _add_label(parent, ROOM_LABELS[room_id], Vector3(x, DOOR_HEIGHT + header_height * 0.55, HUB_FACE_Z), FONT_TITLE, Rules.COLOR_FAULT)
 
+		# A sliding door that stays locked until the system before this room is repaired.
+		if DOOR_REQUIRES[room_id] != "":
+			var gate := DoorGate.create(Vector3(DOOR_HALF_WIDTH * 2.0, DOOR_HEIGHT, 0.2), DOOR_REQUIRES[room_id],
+				Vector3(x, DOOR_HEIGHT * 0.5, HUB_BACK_Z), DOOR_LOCK_TEXT[room_id])
+			parent.add_child(gate)
+			door_gates[room_id] = gate
+
 		# Each room's floor is tinted so rooms are easy to tell apart.
-		room_floors[room_id] = _add_flat(parent, "RoomFloor", Vector3(x, 0.011, room_center_z), Vector2(3.7, 5.7), ROOM_FLOOR_TINT[room_id])
+		room_floors[room_id] = _add_flat(parent, "RoomFloor", Vector3(x, 0.011, room_center_z), Vector2(ROOM_HALF_WIDTH * 2.0 - 0.3, room_depth - 0.3), ROOM_FLOOR_TINT[room_id])
 
 		# A ceiling light strip: dim red while the system is down, bright cyan once repaired.
 		var strip := _glow_material(Rules.COLOR_FAULT, STRIP_ENERGY_OFF)
@@ -146,14 +175,32 @@ static func build(parent: Node3D, puzzles: Dictionary) -> Dictionary:
 
 	var interactables: Array[Interactable] = []
 
-	# --- Hub boards flanking the middle doorway, in view from the spawn.
+	# --- Crew quarters (the start): a header sign, bunk, lockers, an alarm light, and the
+	# two boards flanking the door in view from the bed.
+	_add_box(parent, "Header", Vector3(BEDROOM_X, DOOR_HEIGHT + header_height * 0.5, HUB_BACK_Z),
+		Vector3(DOOR_HALF_WIDTH * 2.0, header_height, t), header_material)
+	_add_screen(parent, Vector3(BEDROOM_X, DOOR_HEIGHT + header_height * 0.55, HUB_FACE_Z - PLATE_OFFSET), Vector2(1.7, 0.46))
+	_add_label(parent, "CREW QUARTERS", Vector3(BEDROOM_X, DOOR_HEIGHT + header_height * 0.55, HUB_FACE_Z), 28, Rules.COLOR_GOLD)
+	var alarm_light := _add_light(parent, Vector3(BEDROOM_X, 2.7, room_center_z), Rules.COLOR_FAULT, 1.2, 7.0)
+	_add_light(parent, Vector3(BEDROOM_X, 2.4, room_center_z + 1.0), Color(0.8, 0.86, 1.0), 0.5, 6.0)
+	_add_flat(parent, "RoomFloor", Vector3(BEDROOM_X, 0.011, room_center_z), Vector2(ROOM_HALF_WIDTH * 2.0 - 0.3, room_depth - 0.3), Color(0.12, 0.14, 0.30))
+	_add_bedroom_furniture(parent)
+
 	var protocol: String = puzzles.get("protocol", "A")
-	_add_screen(parent, Vector3(-2.0, 1.75, HUB_FACE_Z - PLATE_OFFSET), Vector2(1.8, 1.5))
-	var protocol_board := _add_label(parent, "PROTOCOL %s" % protocol, Vector3(-2.0, 2.2, HUB_FACE_Z), FONT_TITLE, Rules.COLOR_GOLD)
-	_add_label(parent, "The rules change\nwith the protocol.\nCheck it every shift.", Vector3(-2.0, 1.5, HUB_FACE_Z), FONT_SMALL, Color(1, 1, 1, 0.9))
-	_add_screen(parent, Vector3(2.0, 1.75, HUB_FACE_Z - PLATE_OFFSET), Vector2(1.8, 1.5))
-	_add_label(parent, "NEED HELP?", Vector3(2.0, 2.2, HUB_FACE_Z), FONT_TITLE, Rules.COLOR_CYAN)
-	_add_label(parent, "Press H: ask ORACLE\nPress M: read the manuals", Vector3(2.0, 1.5, HUB_FACE_Z), FONT_SMALL, Color(1, 1, 1, 0.9))
+	_add_screen(parent, Vector3(BEDROOM_X - 2.0, 1.75, BEDROOM_FACE_Z + PLATE_OFFSET), Vector2(1.6, 1.5))
+	var protocol_board := _add_label(parent, "PROTOCOL %s" % protocol, Vector3(BEDROOM_X - 2.0, 2.2, BEDROOM_FACE_Z), 34, Rules.COLOR_GOLD, 180.0)
+	_add_label(parent, "The rules change\nwith the protocol.\nCheck it every shift.", Vector3(BEDROOM_X - 2.0, 1.5, BEDROOM_FACE_Z), 20, Color(1, 1, 1, 0.9), 180.0)
+	_add_screen(parent, Vector3(BEDROOM_X + 2.0, 1.75, BEDROOM_FACE_Z + PLATE_OFFSET), Vector2(1.6, 1.5))
+	_add_label(parent, "NEED HELP?", Vector3(BEDROOM_X + 2.0, 2.2, BEDROOM_FACE_Z), 34, Rules.COLOR_CYAN, 180.0)
+	_add_label(parent, "Press H: ask ORACLE\nPress M: read the manuals", Vector3(BEDROOM_X + 2.0, 1.5, BEDROOM_FACE_Z), 20, Color(1, 1, 1, 0.9), 180.0)
+
+	# Direction signs on the corridor's south wall, read by someone who has just walked out
+	# of the bedroom door and is facing south: east is on their left, west on their right.
+	var south_face_z := HUB_FRONT_Z - 0.2
+	_add_screen(parent, Vector3(BEDROOM_X + 3.3, 1.9, south_face_z + PLATE_OFFSET), Vector2(2.5, 0.6))
+	_add_label(parent, "<< POWER  OXYGEN  COMMS", Vector3(BEDROOM_X + 3.3, 1.9, south_face_z), 22, Rules.COLOR_CYAN, 180.0)
+	_add_screen(parent, Vector3(BEDROOM_X - 2.6, 1.9, south_face_z + PLATE_OFFSET), Vector2(2.0, 0.6))
+	_add_label(parent, "REBOOT >>", Vector3(BEDROOM_X - 2.6, 1.9, south_face_z), 24, Rules.COLOR_GOLD, 180.0)
 
 	# --- Power room: a display above four breakers, each with its own rating.
 	var power: Dictionary = puzzles["power"]
@@ -193,17 +240,34 @@ static func build(parent: Node3D, puzzles: Dictionary) -> Dictionary:
 	interactables.append(comms_console)
 	_add_label(parent, "FREQUENCY\nTUNER", Vector3(comms_x, 1.35, ROOM_BACK_Z + 0.5 + 0.3 + 0.01), 30, Rules.COLOR_GOLD)
 
-	# --- Hub: the reboot terminal on the south wall.
+	# --- The reboot terminal at the west end of the corridor, facing east. The player has
+	# to walk all the way back to it once everything is repaired.
+	var reboot_x := X_WEST + 0.6
 	var reboot := _add_interactable(
 		parent, "reboot_terminal", "REBOOT STATION",
-		Vector3(0.0, TERMINAL_HEIGHT * 0.5, HUB_FRONT_Z - 0.6), Vector3(1.4, TERMINAL_HEIGHT, 0.5), Rules.COLOR_GOLD)
+		Vector3(reboot_x, TERMINAL_HEIGHT * 0.5, 0.0), Vector3(0.5, TERMINAL_HEIGHT, 1.4), Rules.COLOR_GOLD)
 	interactables.append(reboot)
-	var reboot_face_z := HUB_FRONT_Z - 0.6 - 0.25 - 0.01
-	# Dark text, no outline: the terminal is light (gold, then cyan once ready).
-	_add_label(parent, "REBOOT\nSTATION", Vector3(0.0, 1.2, reboot_face_z), 36, Color(0.06, 0.05, 0.12), 180.0, 0)
+	# Dark text, no outline: the terminal is light (gold, then cyan once ready). Its face
+	# looks east (+X), so the label is turned 90 degrees.
+	_add_label(parent, "REBOOT\nSTATION", Vector3(reboot_x + 0.25 + 0.01, 1.2, 0.0), 36, Color(0.06, 0.05, 0.12), 90.0, 0)
+
+	# --- Corridor hazards: a gas vent between Power and Oxygen, sparks between Oxygen and Comms.
+	var hazards: Array[HazardZone] = []
+	var gas := HazardZone.create(HazardZone.KIND_GAS, Vector3(GAS_LENGTH, 2.8, 3.0), Vector3(GAS_X, 1.4, 0.0), GAS_PHASE_OFFSET)
+	parent.add_child(gas)
+	hazards.append(gas)
+	var sparks := HazardZone.create(HazardZone.KIND_SPARK, Vector3(SPARK_LENGTH, 2.8, 3.0), Vector3(SPARK_X, 1.4, 0.0), SPARK_PHASE_OFFSET)
+	parent.add_child(sparks)
+	hazards.append(sparks)
+	# Warning signs on the wall beside each hazard (readable from the corridor).
+	_add_screen(parent, Vector3(GAS_X, 1.9, HUB_FACE_Z - PLATE_OFFSET - 0.1), Vector2(2.2, 0.55))
+	_add_label(parent, "GAS VENT\nWAIT FOR GREEN", Vector3(GAS_X, 1.9, HUB_FACE_Z - 0.1), 20, Color(0.5, 1.0, 0.6))
+	_add_screen(parent, Vector3(SPARK_X, 1.9, HUB_FACE_Z - PLATE_OFFSET - 0.1), Vector2(2.2, 0.55))
+	_add_label(parent, "LIVE WIRES\nWAIT FOR GREY", Vector3(SPARK_X, 1.9, HUB_FACE_Z - 0.1), 20, Color(0.7, 0.9, 1.0))
 
 	return {
 		"spawn": SPAWN_POSITION,
+		"spawn_yaw": SPAWN_YAW_DEGREES,
 		"interactables": interactables,
 		"breakers": breakers,
 		"consoles": {"oxygen": oxygen_console, "comms": comms_console},
@@ -211,11 +275,31 @@ static func build(parent: Node3D, puzzles: Dictionary) -> Dictionary:
 		"room_lights": room_lights,
 		"door_labels": door_labels,
 		"door_status": door_status,
+		"doors": door_gates,
+		"hazards": hazards,
 		"protocol_board": protocol_board,
 		"room_floors": room_floors,
 		"room_strips": room_strips,
 		"hub_light": hub_light,
+		"alarm_light": alarm_light,
 	}
+
+
+## A bunk bed, lockers and a small table in the crew quarters.
+static func _add_bedroom_furniture(parent: Node3D) -> void:
+	var frame := _solid_material(Color(0.28, 0.3, 0.38))
+	var mattress := _solid_material(Color(0.55, 0.7, 0.85))
+	var pillow := _solid_material(Color(0.92, 0.93, 0.96))
+	var locker := _solid_material(Color(0.2, 0.24, 0.34))
+	var bunk_x := BEDROOM_X - 2.1
+	var bunk_z := (HUB_BACK_Z + ROOM_BACK_Z) * 0.5
+	_add_box(parent, "BunkFrame", Vector3(bunk_x, 0.9, bunk_z), Vector3(1.0, 1.8, 2.1), frame)
+	for level_y in [0.62, 1.42]:
+		_add_glow_box(parent, Vector3(bunk_x + 0.02, level_y, bunk_z), Vector3(0.9, 0.14, 2.0), mattress)
+		_add_glow_box(parent, Vector3(bunk_x, level_y + 0.12, bunk_z - 0.8), Vector3(0.6, 0.1, 0.35), pillow)
+	for i in 3:
+		_add_box(parent, "Locker", Vector3(BEDROOM_X + 2.6, 0.95, bunk_z - 1.3 + float(i) * 1.0), Vector3(0.5, 1.9, 0.8), locker)
+	_add_box(parent, "Table", Vector3(BEDROOM_X + 0.9, 0.4, ROOM_BACK_Z + 0.6), Vector3(1.0, 0.8, 0.6), frame)
 
 
 static func _add_beacons(parent: Node3D, center_x: float, lit_count: int) -> void:
