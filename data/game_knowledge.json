@@ -1,0 +1,348 @@
+[
+  {
+    "id": "objective",
+    "title": "Objective",
+    "text": "Repair all three station systems (Power, Oxygen and Comms) before the oxygen reserve runs out, then use the reboot terminal in the hub to restart the station.",
+    "keywords": [
+      "objective",
+      "goal",
+      "win",
+      "repair",
+      "station",
+      "systems",
+      "play"
+    ]
+  },
+  {
+    "id": "help_topics",
+    "title": "What ORACLE Can Help With",
+    "text": "Ask me about the Power breakers, the Oxygen valves, the Comms frequency, protocols A and B, scoring, retrying, or the controls. For example: How do I fix the power breakers? What are the oxygen valve settings? What frequency should I transmit?",
+    "keywords": [
+      "hello",
+      "hi",
+      "hey",
+      "help",
+      "topics",
+      "topic",
+      "options",
+      "menu",
+      "ask",
+      "examples",
+      "example",
+      "what",
+      "can",
+      "you",
+      "do",
+      "oracle",
+      "tips",
+      "tip"
+    ]
+  },
+  {
+    "id": "first_steps",
+    "title": "How to Start",
+    "text": "First read the checklist at the top left and note the protocol. Then visit each room and read its panel. Next look up the rule for that room and protocol in these manuals. Repair all three systems, then press E on the gold reboot terminal in the hub.",
+    "keywords": [
+      "start",
+      "begin",
+      "first",
+      "steps",
+      "step",
+      "stuck",
+      "lost",
+      "guide",
+      "tutorial",
+      "where",
+      "what",
+      "next",
+      "play",
+      "how",
+      "tips"
+    ]
+  },
+  {
+    "id": "hints",
+    "title": "Hints",
+    "text": "Open ORACLE with H and press the Get a hint button. A hint costs 20 seconds of oxygen reserve. It names the next system to repair and which protocol rules apply this shift, but it never gives the answer: you still read the room's panel. Typing the word hint to ORACLE does not use a hint.",
+    "keywords": [
+      "hint",
+      "hints",
+      "give",
+      "clue",
+      "diagnostic",
+      "cost",
+      "button",
+      "stuck",
+      "help"
+    ]
+  },
+  {
+    "id": "protocols",
+    "title": "Station Protocol",
+    "text": "Every shift runs under PROTOCOL A or B, shown on the sign in the hub and in the checklist at the top left of the screen. The protocol changes the Power breaker order, the Oxygen valve table and the Comms frequency formula, so always check it before you repair a system. Shift 1 always uses Protocol A.",
+    "keywords": [
+      "protocol",
+      "protocols",
+      "version",
+      "revision",
+      "rules",
+      "differ",
+      "change",
+      "different",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "id": "controls",
+    "title": "Controls",
+    "text": "WASD moves and the mouse looks. Press E to use the terminal you are aiming at. Press M to open these manuals and H to ask ORACLE, the help assistant. Press Esc to pause, or to close a panel. Hold R for one second to retry the shift.",
+    "keywords": [
+      "controls",
+      "keys",
+      "keyboard",
+      "mouse",
+      "move",
+      "interact",
+      "pause",
+      "manuals",
+      "oracle",
+      "ask"
+    ]
+  },
+  {
+    "id": "reserve_timer",
+    "title": "Oxygen Reserve",
+    "text": "Shift 1 starts with 480 seconds (8 minutes) of oxygen reserve. Each later shift has 60 seconds less, down to a minimum of 240 seconds. The countdown starts when you first move, and it stops while the game is paused or the manuals or ORACLE are open. If it reaches zero the shift is lost.",
+    "keywords": [
+      "reserve",
+      "oxygen",
+      "timer",
+      "time",
+      "countdown",
+      "seconds",
+      "clock",
+      "fail",
+      "lost",
+      "long",
+      "left",
+      "remaining",
+      "runs",
+      "out",
+      "much"
+    ]
+  },
+  {
+    "id": "scoring",
+    "title": "Scoring",
+    "text": "When you reboot the station with all three systems repaired, your shift score is 300 plus half of your remaining reserve seconds (rounded down), minus 50 for each retry (the retry penalty is capped at 150). The highest possible score is 540, on shift 1. Mistakes already cost reserve time, so they have no separate score penalty. Your run total adds up the score of every shift you clear.",
+    "keywords": [
+      "score",
+      "points",
+      "bonus",
+      "penalty",
+      "best",
+      "highest",
+      "formula",
+      "maximum"
+    ]
+  },
+  {
+    "id": "retry_rules",
+    "title": "Retry and Next Shift",
+    "text": "Hold R for one second, or choose Retry Shift in the pause menu, to restart the same station with that shift's full reserve (480 seconds on shift 1). Each retry costs 50 points. The puzzle values and the protocol are re-rolled on every retry, so an old answer will not work. Next Shift starts a new station with less reserve and clears the retry count.",
+    "keywords": [
+      "retry",
+      "restart",
+      "again",
+      "next",
+      "shift",
+      "reroll",
+      "new",
+      "reset"
+    ]
+  },
+  {
+    "id": "power_overview",
+    "title": "Power Room",
+    "text": "The Power room has four breakers, B1 to B4. Each shows a voltage rating chosen from 120, 208, 240, 277, 400 and 480 volts, and the room shows a LOAD MODE of RESTORE or SHED. Aim at a breaker and press E to flip it.",
+    "keywords": [
+      "power",
+      "breaker",
+      "breakers",
+      "voltage",
+      "volts",
+      "load",
+      "mode",
+      "room"
+    ]
+  },
+  {
+    "id": "power_order",
+    "title": "Power: Breaker Order",
+    "text": "Protocol A, RESTORE: flip the breakers from the lowest voltage to the highest. Protocol A, SHED: flip them from the highest voltage to the lowest. Protocol B, RESTORE: flip them from the highest voltage to the lowest. Protocol B, SHED: flip them from the lowest voltage to the highest. A wrong breaker causes a surge that resets all four and costs 15 seconds.",
+    "keywords": [
+      "power",
+      "breaker",
+      "order",
+      "restore",
+      "shed",
+      "lowest",
+      "highest",
+      "surge",
+      "flip",
+      "sequence",
+      "fix",
+      "repair",
+      "solve",
+      "protocol"
+    ]
+  },
+  {
+    "id": "oxygen_overview",
+    "title": "Oxygen Room",
+    "text": "The Oxygen room shows a STATION MODE of NIGHT, DAY or EMERGENCY. Use the console to open the valve controls, set valves A, B and C in steps of 10, then confirm.",
+    "keywords": [
+      "oxygen",
+      "valve",
+      "valves",
+      "station",
+      "mode",
+      "console",
+      "pressure",
+      "room"
+    ]
+  },
+  {
+    "id": "oxygen_table",
+    "title": "Oxygen: Valve Settings",
+    "text": "Set valves A, B and C to these values. Protocol A, NIGHT: 30, 40, 50. Protocol A, DAY: 50, 60, 70. Protocol A, EMERGENCY: 70, 80, 90. Protocol B, NIGHT: 40, 50, 60. Protocol B, DAY: 60, 70, 80. Protocol B, EMERGENCY: 80, 90, 100. Wrong settings cost 10 seconds of reserve.",
+    "keywords": [
+      "oxygen",
+      "valve",
+      "valves",
+      "settings",
+      "table",
+      "night",
+      "day",
+      "emergency",
+      "values",
+      "fix",
+      "repair",
+      "solve",
+      "protocol",
+      "mode",
+      "modes"
+    ]
+  },
+  {
+    "id": "comms_overview",
+    "title": "Comms Room",
+    "text": "The Comms room has a row of six beacons and a frequency tuner, and some of the beacons are lit. Use the console to open the tuner, set a frequency from 100 to 200 MHz in steps of 5, then transmit.",
+    "keywords": [
+      "comms",
+      "beacon",
+      "beacons",
+      "tuner",
+      "room",
+      "lit"
+    ]
+  },
+  {
+    "id": "comms_formula",
+    "title": "Comms: Frequency Formula",
+    "text": "Protocol A: the distress frequency is 100 MHz plus 20 MHz for every lit beacon, so 3 lit beacons is 160 MHz. Protocol B: the distress frequency is 100 MHz plus 10 MHz for every lit beacon, so 3 lit beacons is 130 MHz. A wrong frequency costs 10 seconds of reserve.",
+    "keywords": [
+      "comms",
+      "frequency",
+      "formula",
+      "beacon",
+      "beacons",
+      "lit",
+      "mhz",
+      "distress",
+      "transmit",
+      "fix",
+      "repair",
+      "solve",
+      "tuner",
+      "tune",
+      "protocol"
+    ]
+  },
+  {
+    "id": "mistake_penalties",
+    "title": "Mistake Penalties",
+    "text": "Mistakes cost reserve time. A wrong breaker (a power surge) costs 15 seconds. Wrong valve settings and a wrong frequency cost 10 seconds each. The reserve never goes below zero.",
+    "keywords": [
+      "mistake",
+      "mistakes",
+      "penalty",
+      "penalties",
+      "wrong",
+      "surge",
+      "cost",
+      "seconds"
+    ]
+  },
+  {
+    "id": "reboot_terminal",
+    "title": "Reboot Terminal",
+    "text": "The gold reboot terminal in the hub works only when all three systems are repaired. Using it earlier shows a warning. Using it with all three repaired wins the shift and shows your score.",
+    "keywords": [
+      "reboot",
+      "terminal",
+      "hub",
+      "finish",
+      "win",
+      "restart",
+      "station",
+      "gold"
+    ]
+  },
+  {
+    "id": "oracle_limits",
+    "title": "About ORACLE",
+    "text": "ORACLE quotes these manuals exactly for rules and numbers. It cannot see your rooms: not the load mode, the station mode, the number of lit beacons, the breaker voltages or the protocol. Tell it what you read (the breaker voltages, the protocol and the mode) and it works out the order. It cannot change the game. Press H to open it.",
+    "keywords": [
+      "oracle",
+      "assistant",
+      "chatbot",
+      "limits",
+      "ai",
+      "answer",
+      "oracle",
+      "chat",
+      "manuals",
+      "questions"
+    ]
+  },
+  {
+    "id": "offline_setup",
+    "title": "Offline Play",
+    "text": "The game works fully offline. ORACLE can also use a small language model that you install separately with Ollama (the model qwen2.5:1.5b). If it is not running, ORACLE shows the matching manual entries instead.",
+    "keywords": [
+      "offline",
+      "internet",
+      "ollama",
+      "model",
+      "install",
+      "setup",
+      "local"
+    ]
+  },
+  {
+    "id": "privacy",
+    "title": "Privacy",
+    "text": "The game collects no personal data and uses no accounts or online services. The only things saved on your computer are your best score and whether you have seen the intro.",
+    "keywords": [
+      "privacy",
+      "data",
+      "save",
+      "saved",
+      "account",
+      "online",
+      "personal"
+    ]
+  }
+]
