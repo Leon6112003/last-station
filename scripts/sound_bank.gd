@@ -27,7 +27,11 @@ const TENSE_SILENT_DB := -40.0       # ... and with no danger
 const DANGER_BLEND_SPEED := 1.5      # danger moves this much per second, so the music swells instead of jumping
 const MUSIC_FADE_SECONDS := 2.0
 
+signal played(sound_name: String)   ## a sound was asked for (also when muted, so the game can caption it)
+
 var muted: bool = false
+var music_volume: float = 1.0        # 0 to 1, from Settings
+var sfx_volume: float = 1.0          # 0 to 1, from Settings
 var music_enabled: bool = true       # the player's music switch (B)
 ## Set before adding to the tree. Off in headless runs so tests do not render the song.
 var load_music: bool = false
@@ -70,13 +74,26 @@ func _exit_tree() -> void:
 
 ## Plays a sound once. Unknown names and a muted bank are ignored.
 func play(sound_name: String) -> void:
-	if muted or not _streams.has(sound_name) or _pool.is_empty():
+	if not _streams.has(sound_name) or _pool.is_empty():
+		return
+	played.emit(sound_name)
+	if muted or sfx_volume <= 0.001:
 		return
 	var player := _pool[_next]
 	_next = (_next + 1) % _pool.size()
 	player.stream = _streams[sound_name]
-	player.volume_db = VOLUME_DB[sound_name]
+	player.volume_db = VOLUME_DB[sound_name] + volume_offset_db(sfx_volume)
 	player.play()
+
+
+## A 0 to 1 volume as decibels to add (1 = no change, 0 = silent).
+static func volume_offset_db(volume: float) -> float:
+	return -80.0 if volume <= 0.001 else linear_to_db(clampf(volume, 0.0, 1.0))
+
+
+## The calm music layer's normal volume, with the player's music volume applied.
+func music_db() -> float:
+	return MUSIC_DB + volume_offset_db(music_volume)
 
 
 func set_muted(value: bool) -> void:
@@ -124,9 +141,13 @@ func set_music_danger(level: float) -> void:
 func _process(delta: float) -> void:
 	_danger_shown = move_toward(_danger_shown, _danger, DANGER_BLEND_SPEED * delta)
 	if _music_tense != null:
+		var fading := _music_fade != null and _music_fade.is_running()
+		if not fading:
+			_music.volume_db = music_db()   # follows the music volume slider while you move it
 		# The tense layer follows the danger, and the same fade-in offset as the calm layer.
-		var fade_offset := _music.volume_db - MUSIC_DB
-		_music_tense.volume_db = lerpf(TENSE_SILENT_DB, TENSE_MUSIC_DB, pow(_danger_shown, 0.5)) + minf(fade_offset, 0.0)
+		var fade_offset := _music.volume_db - music_db()
+		var offset := volume_offset_db(music_volume)
+		_music_tense.volume_db = lerpf(TENSE_SILENT_DB, TENSE_MUSIC_DB, pow(_danger_shown, 0.5)) + offset + minf(fade_offset, 0.0)
 
 
 func is_music_playing() -> bool:
@@ -149,7 +170,7 @@ func _apply_music_state() -> void:
 			_music.stream_paused = false
 			_music_tense.stream_paused = false
 			_music_fade = create_tween()
-			_music_fade.tween_property(_music, "volume_db", MUSIC_DB, MUSIC_FADE_SECONDS)
+			_music_fade.tween_property(_music, "volume_db", music_db(), MUSIC_FADE_SECONDS)
 	elif _music.playing:
 		_music.stream_paused = true
 		_music_tense.stream_paused = true

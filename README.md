@@ -75,6 +75,15 @@ Pick **Rookie**, **Engineer** or **Survivor** on the main menu (your choice is s
 
 All the numbers live in `scripts/rules.gd` (`LEVELS`); the manuals have a "Levels" entry that `tests/test_kb_sync.gd` keeps in sync with it. The numbers are estimates and have not been tuned by play.
 
+## Settings and accessibility
+
+Open **Settings** from the main menu (top right corner) or the pause menu. Everything is saved in the save file and applies at once.
+
+- **Audio:** separate music and effects volume sliders (the effects slider plays a short click so you can judge it).
+- **Controls:** a mouse speed slider (25% to 300% of normal) and a list of keys. Click a key, press the new one; Esc cancels, a key that another action already uses is refused with a message, and **Reset keys** restores the defaults. Escape (pause / close) is fixed. The movement keys keep their arrow keys as a second key unless another action has taken them. The help line at the bottom of the screen, the "E - ..." prompt and the guidance line follow your keys. The how-to-play text and the signs in the crew quarters still show the default keys.
+- **Colour-blind cues (on by default):** every red / cyan signal has a second cue that does not rely on colour: a cross (faulted) or a tick (repaired) beside each room's name, the words `GAS: SAFE`, `GAS: SOON` and `GAS: DANGER` by each gas lamp, `LOW` after a low reserve, and the laser grid's own text (`LASER GRID ON` / `LASER OFF`). The objectives list already uses `[x]` and `[ ]`.
+- **Sound captions (off by default):** a short line of text for the sounds that warn of something: the alarm, gas venting, sparks, doors, the fans, groans and bangs, your heartbeat. **Captions also appear automatically whenever sound is muted (N) or the effects volume is 0.**
+
 ## Modifiers
 
 Three optional extras on the main menu, under the levels. They can be combined, they are remembered in the save file, and each one switched on raises the score multiplier.
@@ -157,7 +166,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 ```
 ./tests/run_all.sh        # needs `godot` on PATH
 ```
-25 headless test files, 1019 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
+26 headless test files, 1079 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
 
 ## Changes since the original spec
 
@@ -167,6 +176,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 - **Guided first shift and protocol board:** shift 1 is always Protocol A with a "what to do next" line; a big sign in the crew quarters shows the protocol.
 - **The walk (added after playtesting feedback):** the compact hub became a bedroom start, a long corridor, far rooms, doors that unlock in order, and gas and spark hazards (see "The walk").
 - **Redesigned look (after playtesting feedback):** every door has a header sign, a frame and a light that turn from red to cyan when its system is repaired; two matching boards flank the middle door (the protocol, and how to get help); each room has a tinted floor and a ceiling strip, and the room lights up (bright cyan strip and floor) when repaired; the hub light flickers, and under a minute of reserve the station pulses red with a red screen-edge vignette (visual only, rules unchanged); breaker ratings are printed on the breakers; each room has one tidy display panel; the reboot terminal is labelled and turns cyan when ready.
+- **Settings and accessibility (added later):** volume sliders, mouse speed, key rebinding, colour-blind cues and sound captions (see "Settings and accessibility").
 - **Modifiers (added later):** Blackout, Hardcore and Speedrun switches on the menu (see "Modifiers").
 - **Cryo Bay (added later):** an optional room with the sleeping crew and four story logs (see "The Cryo Bay").
 - **Hazards that grow (added later):** vents and laser switches get harsher each shift, and a second laser grid appears from shift 3 (see "The walk").

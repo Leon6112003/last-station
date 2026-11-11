@@ -94,7 +94,7 @@ func _test_menu() -> void:
 	var names: Array[String] = []
 	for button in menu.find_children("*", "Button", true, false):
 		names.append((button as Button).text)
-	_check(names == ["Rookie", "Engineer", "Survivor", "Blackout", "Hardcore", "Speedrun", "Play", "How to Play", "Quit"], "the menu shows the three modifier switches under the levels")
+	_check(names == ["Rookie", "Engineer", "Survivor", "Blackout", "Hardcore", "Speedrun", "Play", "How to Play", "Quit", "Settings"], "the menu shows the three modifier switches under the levels")
 	var buttons := menu.find_children("*", "Button", true, false)
 	_check(not (buttons[3] as Button).button_pressed and (buttons[4] as Button).button_pressed and not (buttons[5] as Button).button_pressed, "only the saved modifier is on when the menu opens")
 	(buttons[3] as Button).button_pressed = true

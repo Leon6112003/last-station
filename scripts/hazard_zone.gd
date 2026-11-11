@@ -20,6 +20,8 @@ var _exposed: bool = false           # already reported damage during this stay
 var _cloud_material: StandardMaterial3D
 var _lamp_material: StandardMaterial3D
 var _light: OmniLight3D
+var _phase_label: Label3D
+var cues: bool = true               ## show a word (WAIT / SOON / GAS!) beside the lamp colour
 
 
 ## `phase_offset` shifts where in its cycle the vent starts, in seconds.
@@ -72,6 +74,15 @@ func _build() -> void:
 	lamp_mesh.material_override = _lamp_material
 	lamp_mesh.position = Vector3(0.0, size.y * 0.5 - 0.15, 0.0)
 	add_child(lamp_mesh)
+	# A word under the lamp, for players who cannot tell grey, amber and red apart.
+	_phase_label = Label3D.new()
+	_phase_label.font_size = 26
+	_phase_label.pixel_size = 0.006
+	_phase_label.outline_size = 8
+	_phase_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_phase_label.no_depth_test = false
+	_phase_label.position = Vector3(0.0, size.y * 0.5 - 0.5, 0.0)
+	add_child(_phase_label)
 
 	# A translucent cloud filling the corridor section.
 	_cloud_material = StandardMaterial3D.new()
@@ -131,3 +142,14 @@ func _update_visuals() -> void:
 		Phase.ON:
 			_cloud_material.albedo_color = Color(0.3, 1.0, 0.45, 0.32 + 0.1 * pulse)
 	_light.light_energy = 0.9 if current == Phase.ON else 0.0
+	_phase_label.visible = cues
+	match current:
+		Phase.OFF:
+			_phase_label.text = "GAS: SAFE"
+			_phase_label.modulate = Color(0.7, 0.75, 0.8)
+		Phase.WARN:
+			_phase_label.text = "GAS: SOON"
+			_phase_label.modulate = Color(1.0, 0.8, 0.3)
+		Phase.ON:
+			_phase_label.text = "GAS: DANGER"
+			_phase_label.modulate = Rules.COLOR_FAULT

@@ -111,6 +111,32 @@
   ]
  },
  {
+  "id": "settings",
+  "title": "Settings",
+  "text": "Open Settings from the main menu (top right) or the pause menu. Set the music and effects volume, the mouse speed, and rebind any key: click it, then press the new key (Esc cancels, and a key already in use is refused). Colour-blind cues add a cross or tick beside each room name and the words GAS: SAFE, SOON or DANGER. Sound captions show a line of text for alarms and hazards, and always show when sound is muted. Settings are saved.",
+  "keywords": [
+   "settings",
+   "options",
+   "volume",
+   "music",
+   "effects",
+   "mouse",
+   "sensitivity",
+   "speed",
+   "rebind",
+   "remap",
+   "keys",
+   "key",
+   "controls",
+   "colour",
+   "color",
+   "blind",
+   "captions",
+   "accessibility",
+   "mute"
+  ]
+ },
+ {
   "id": "reserve_timer",
   "title": "Oxygen Reserve",
   "text": "On the Engineer level (the standard game), shift 1 starts with 360 seconds (6 minutes) of oxygen reserve. Each later shift has 45 seconds less, down to a minimum of 180 seconds. The countdown starts when you first move, and it stops while the game is paused or the manuals or ORACLE are open. If it reaches zero the shift is lost.",

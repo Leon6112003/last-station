@@ -75,7 +75,7 @@ func _test_menu_selector() -> void:
 	var names: Array[String] = []
 	for button in buttons:
 		names.append((button as Button).text)
-	_check(names == ["Rookie", "Engineer", "Survivor", "Play", "How to Play", "Quit"], "the menu shows the three levels above Play")
+	_check(names == ["Rookie", "Engineer", "Survivor", "Play", "How to Play", "Quit", "Settings"], "the menu shows the three levels above Play")
 	var any_lit := false
 	for i in 3:
 		any_lit = any_lit or (buttons[i] as Button).button_pressed

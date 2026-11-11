@@ -14,7 +14,7 @@ func _initialize() -> void:
 	await process_frame
 	_check(not plain.is_intro_active(), "no intro when it is switched off")
 	var buttons := plain.find_children("*", "Button", true, false)
-	_check(buttons.size() == 3 and (buttons[0] as Button).text == "Play" and (buttons[1] as Button).text == "How to Play" and (buttons[2] as Button).text == "Quit", "the menu has Play, How to Play and Quit")
+	_check(buttons.size() == 4 and (buttons[0] as Button).text == "Play" and (buttons[1] as Button).text == "How to Play" and (buttons[2] as Button).text == "Quit" and (buttons[3] as Button).text == "Settings", "the menu has Play, How to Play, Quit and a Settings button")
 	for button in buttons:
 		(button as Button).pressed.emit()
 	_check(_calls == ["play", "how", "quit"], "each button calls its own action")

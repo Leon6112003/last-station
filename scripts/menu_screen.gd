@@ -20,6 +20,8 @@ const INTRO_END_PAUSE := 0.6
 const FLICKER_MIN_SECONDS := 2.5
 const FLICKER_MAX_SECONDS := 6.0
 
+signal settings_requested   ## the Settings button (top right) was pressed
+
 ## Shown under the title; set by main.gd each time the menu opens.
 var best_label: Label
 
@@ -40,6 +42,7 @@ var _flicker_timer: float = 3.0
 var _flicker_left: int = 0
 var _level_buttons: Array[Button] = []
 var _level_blurb: Label
+var _settings_button: Button
 var _modifier_buttons: Array[Button] = []
 var _modifier_line: Label
 
@@ -138,6 +141,17 @@ func _build(on_play: Callable, on_how_to_play: Callable, on_quit: Callable, play
 	_column.add_child(_make_button("Quit", on_quit, false))
 
 	_build_status_panel()
+
+	# A small Settings button in the top right corner (the centre column has no room for one more).
+	_settings_button = _make_button("Settings", func() -> void: settings_requested.emit(), false)
+	_settings_button.custom_minimum_size = Vector2(130, 40)
+	_settings_button.add_theme_font_size_override("font_size", 18)
+	_settings_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_settings_button.offset_left = -150
+	_settings_button.offset_right = -20
+	_settings_button.offset_top = 16
+	_settings_button.offset_bottom = 56
+	add_child(_settings_button)
 
 	# Intro: typed lines over a dark screen; the menu appears afterwards.
 	_intro_label = _make_label("", 30, Rules.COLOR_CYAN)
@@ -335,6 +349,8 @@ func _button_style(fill: Color, border: Color) -> StyleBoxFlat:
 func _set_menu_visible(shown: bool) -> void:
 	_column.visible = shown
 	_status_panel.visible = shown
+	if _settings_button != null:
+		_settings_button.visible = shown
 	_warning_label.visible = shown
 
 

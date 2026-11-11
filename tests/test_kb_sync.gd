@@ -6,7 +6,7 @@ extends SceneTree
 const REQUIRED_IDS := [
 	"objective", "protocols", "help_topics", "first_steps", "hints", "controls", "reserve_timer", "scoring", "retry_rules",
 	"power_overview", "power_order", "oxygen_overview", "oxygen_table",
-	"comms_overview", "comms_formula", "cooling_overview", "cooling_formula", "cryo_bay", "hazards_grow", "modifiers", "mistake_penalties", "reboot_terminal",
+	"comms_overview", "comms_formula", "cooling_overview", "cooling_formula", "cryo_bay", "hazards_grow", "modifiers", "settings", "mistake_penalties", "reboot_terminal",
 	"oracle_limits", "offline_setup", "privacy",
 ]
 

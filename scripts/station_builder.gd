@@ -96,6 +96,7 @@ const FONT_SMALL := 22
 ##   "reboot": Interactable,
 ##   "room_lights": {room_id: OmniLight3D},
 ##   "door_labels": {room_id: Label3D},          # the room name on its header sign
+##   "door_icons": {room_id: {"fault": Node3D, "ok": Node3D}},   # an X (faulted) and a tick (repaired) beside each name: a shape cue for colour-blind players
 ##   "door_status": {room_id: StandardMaterial3D}, # frame and light: red, then cyan when repaired
 ##   "doors": {room_id: DoorGate},               # sliding doors (oxygen, comms) locked in order
 ##   "hazards": Array[HazardZone],               # the two gas vents in the corridor
@@ -153,6 +154,7 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 	var room_lights := {}
 	var door_labels := {}
 	var door_status := {}
+	var door_icons := {}
 	var door_gates := {}
 	var room_floors := {}
 	var room_strips := {}
@@ -180,6 +182,7 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 			_add_glow_box(parent, Vector3(x + side * (DOOR_HALF_WIDTH - 0.04), DOOR_HEIGHT * 0.5, face_z), Vector3(0.06, DOOR_HEIGHT, 0.02), status)
 		_add_screen(parent, Vector3(x, DOOR_HEIGHT + header_height * 0.55, HUB_FACE_Z - PLATE_OFFSET), Vector2(1.7, 0.46))
 		door_labels[room_id] = _add_label(parent, ROOM_LABELS[room_id], Vector3(x, DOOR_HEIGHT + header_height * 0.55, HUB_FACE_Z), FONT_TITLE, Rules.COLOR_FAULT)
+		door_icons[room_id] = _add_status_icons(parent, Vector3(x + 0.77, DOOR_HEIGHT + header_height * 0.55, HUB_FACE_Z + 0.02), status)
 
 		# A sliding door that stays locked until the system before this room is repaired.
 		if DOOR_REQUIRES[room_id] != "":
@@ -350,6 +353,7 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 		"reboot": reboot,
 		"room_lights": room_lights,
 		"door_labels": door_labels,
+		"door_icons": door_icons,
 		"door_status": door_status,
 		"doors": door_gates,
 		"hazards": hazards,
@@ -673,6 +677,39 @@ static func _add_cryo_bay(parent: Node3D, theme: Dictionary, interactables: Arra
 		interactables.append(terminal)
 		_add_label(parent, "CREW\nLOG %d" % (n + 1), Vector3(terminal_x, 1.35, ROOM_BACK_Z + 0.4 + 0.2 + 0.01), 28, Color(0.06, 0.05, 0.12), 0.0, 0)
 	return pods
+
+
+## Two little shapes beside a room's name, drawn from bars: a cross (faulted) and a tick
+## (repaired). They share the door's status material, so they also follow its colour, but the
+## shape says the same thing without it. main.gd shows one of them (or neither) at a time.
+static func _add_status_icons(parent: Node3D, at: Vector3, material: Material) -> Dictionary:
+	var cross := Node3D.new()
+	cross.name = "FaultIcon"
+	cross.position = at
+	parent.add_child(cross)
+	for angle in [45.0, -45.0]:
+		var bar := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(0.22, 0.05, 0.02)
+		bar.mesh = mesh
+		bar.material_override = material
+		bar.rotation.z = deg_to_rad(angle)
+		cross.add_child(bar)
+	var tick := Node3D.new()
+	tick.name = "OkIcon"
+	tick.position = at
+	parent.add_child(tick)
+	for part in [[-0.05, -0.035, -50.0, 0.09], [0.045, 0.015, 40.0, 0.19]]:
+		var bar := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(float(part[3]), 0.05, 0.02)
+		bar.mesh = mesh
+		bar.material_override = material
+		bar.position = Vector3(float(part[0]), float(part[1]), 0.0)
+		bar.rotation.z = deg_to_rad(float(part[2]))
+		tick.add_child(bar)
+	tick.visible = false
+	return {"fault": cross, "ok": tick}
 
 
 static func _add_beacons(parent: Node3D, center_x: float, lit_count: int) -> void:

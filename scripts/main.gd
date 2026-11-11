@@ -21,7 +21,6 @@ const GAS_HISS_INTERVAL_SECONDS := 0.45
 const DANGER_RESERVE_SECONDS := 120.0     # a low reserve alone makes the music fully tense by 0 s
 const DANGER_AT_START := 0.2              # the music is already a little tense when a shift begins
 const HIT_DANGER_DECAY_PER_SECOND := 0.2
-const HELP_TEXT := "WASD Move  ·  E Interact  ·  V View  ·  C Front  ·  M Manuals  ·  H ORACLE  ·  Esc Pause  ·  Hold R Retry"
 const NOTICE_SECONDS := 2.5
 const AMBIENT_ENERGY := 0.65        # a little darker than before, for mood
 const TICK_INTERVAL_SECONDS := 1.0       # clock tick spacing when reserve is low
@@ -65,7 +64,10 @@ change with the station PROTOCOL shown at the top left.
 
 CONTROLS
 WASD move  ·  Mouse look  ·  E interact  ·  M manuals
-H ask ORACLE  ·  Esc pause  ·  Hold R for 1 second to retry"""
+H ask ORACLE  ·  Esc pause  ·  Hold R for 1 second to retry
+(These are the default keys. Volume, mouse speed, key changes and
+colour-blind options are in Settings: the main menu, top right, or
+the pause menu.)"""
 
 const MISTAKE_TEXT := {
 	"power": "POWER SURGE",
@@ -115,7 +117,12 @@ var _systems_label: Label
 var _checklist_label: Label
 var _coach_label: Label
 var _reserve_label: Label
+var _help_label: Label
+var _settings_layer: CanvasLayer
+var _settings_panel: SettingsPanel
 var _par_label: Label
+var _caption_label: Label
+var _captions: Array[Dictionary] = []   # {text, until}: the sound captions on screen
 var _pause_retry_button: Button
 var _prompt_label: Label
 var _notice_label: Label
@@ -156,8 +163,8 @@ func _ready() -> void:
 	# The world and the GameManager are explicitly pausable.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_rng.randomize()
-	_setup_input()
 	save = SaveManager.new(save_path)
+	_setup_input()
 	Rules.level = save.difficulty
 	Rules.mods = save.modifiers
 	_records = KnowledgeBase.load_records()
@@ -174,7 +181,10 @@ func _ready() -> void:
 	sound = SoundBank.new()
 	sound.name = "SoundBank"
 	sound.load_music = DisplayServer.get_name() != "headless"
+	sound.music_volume = save.music_volume
+	sound.sfx_volume = save.sfx_volume
 	add_child(sound)
+	sound.played.connect(_on_sound_played)
 
 	# ORACLE: read-only help. It sees only the sanitized snapshot below.
 	oracle = OracleController.new()
@@ -346,6 +356,50 @@ func _danger_level(delta: float) -> float:
 
 ## Speedrun: "PAR 03:00" under the reserve while the shift runs. Gold while you are inside par
 ## (the reserve you have spent is at most half the shift's start), red once it is missed.
+## Which sounds get a caption, and the words for each.
+const SOUND_CAPTIONS := {
+	"alarm": "ALARM: the station is failing",
+	"gasleak": "GAS VENTING nearby",
+	"spark": "SPARKS: a live laser grid is near",
+	"creak": "(metal groans)",
+	"thud": "(a distant bang)",
+	"heartbeat": "(your heartbeat)",
+	"door_slide": "(a door slides open)",
+	"door_lock": "(a locked door clunks)",
+	"fan_down": "(the fans slow down)",
+	"fan_up": "(the fans spin up)",
+	"buzz": "(error buzz)",
+	"chime": "(a system is repaired)",
+}
+const CAPTION_SECONDS := 2.6
+const CAPTION_LINES := 3
+
+
+## A caption for a sound, when captions are on, or sound is muted or the effects volume is 0.
+func _on_sound_played(sound_name: String) -> void:
+	var wanted := save.captions or sound.muted or sound.sfx_volume <= 0.001
+	if not wanted or not SOUND_CAPTIONS.has(sound_name) or gm.state != GameManager.State.PLAYING:
+		return
+	var text: String = SOUND_CAPTIONS[sound_name]
+	var until := Time.get_ticks_msec() / 1000.0 + CAPTION_SECONDS
+	for line in _captions:
+		if line["text"] == text:
+			line["until"] = until   # the same sound again just keeps its line alive
+			return
+	_captions.append({"text": text, "until": until})
+	while _captions.size() > CAPTION_LINES:
+		_captions.pop_front()
+
+
+func _update_captions() -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	_captions = _captions.filter(func(line: Dictionary) -> bool: return float(line["until"]) > now)
+	var lines: Array[String] = []
+	for line in _captions:
+		lines.append(line["text"])
+	_caption_label.text = "\n".join(lines)
+
+
 func _update_par_label() -> void:
 	var show := Rules.has_mod(Rules.MOD_SPEEDRUN) and gm.state == GameManager.State.PLAYING
 	_par_label.visible = show
@@ -371,10 +425,11 @@ func _process(delta: float) -> void:
 	if is_instance_valid(_player) and _player.waking:
 		_fade.color.a = _player.wake_blink
 	var seconds_left := int(ceil(gm.reserve))
-	_reserve_label.text = "RESERVE %02d:%02d" % [floori(seconds_left / 60.0), seconds_left % 60]
+	_reserve_label.text = "RESERVE %02d:%02d%s" % [floori(seconds_left / 60.0), seconds_left % 60, "  LOW" if save.cues and gm.reserve < 60.0 else ""]
 	_reserve_label.add_theme_color_override(
 		"font_color", Rules.COLOR_FAULT if gm.reserve < 60.0 else Color.WHITE)
 	_update_par_label()
+	_update_captions()
 	_systems_label.text = "SYSTEMS %d/%d" % [gm.repaired_count(), Rules.SYSTEMS_TOTAL]
 	_shift_label.text = "SHIFT %02d" % gm.run_number
 	var checklist := _checklist_text()
@@ -388,6 +443,10 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("pause_game") and _settings_panel != null:
+		_close_settings()   # (a key being rebound is handled by the panel first, and Esc cancels it)
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("pause_game"):
 		if gm.state == GameManager.State.MENU or _modal_layer != null:
 			return
@@ -422,7 +481,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_front_view = not (_third_person and _front_view)
 			_third_person = true
 			_player.set_third_person(_third_person, _front_view)
-			_show_notice("FRONT VIEW: PRESS C TO GO BACK" if _front_view else "THIRD PERSON VIEW")
+			_show_notice("FRONT VIEW: PRESS %s TO GO BACK" % KeyBindings.key_text(int(save.bindings["flip_view"])) if _front_view else "THIRD PERSON VIEW")
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("toggle_music"):
 		sound.set_music_enabled(not sound.music_enabled)
@@ -443,6 +502,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 
+## The player's current key for an action, as text (for messages).
+func _key(action: String) -> String:
+	return KeyBindings.key_text(int(save.bindings[action]))
+
+
 ## Shift 1 is a guided shift: one line says what to do next. Empty on later shifts.
 func _coach_text() -> String:
 	if gm.run_number != 1 or gm.state != GameManager.State.PLAYING:
@@ -454,13 +518,13 @@ func _coach_text() -> String:
 			continue
 		match id:
 			"power":
-				return "NEXT: leave the crew quarters and go east to the POWER room (first door). Read LOAD MODE and the breaker voltages, then press H and ask ORACLE which breaker first."
+				return "NEXT: leave the crew quarters and go east to the POWER room (first door). Read LOAD MODE and the breaker voltages, then press %s and ask ORACLE which breaker first." % _key("toggle_oracle")
 			"oxygen":
-				return "NEXT: the OXYGEN room (second door, now unlocked). Mind the gas vent on the way. Read STATION MODE, then press H and ask ORACLE for the valve settings."
+				return "NEXT: the OXYGEN room (second door, now unlocked). Mind the gas vent on the way. Read STATION MODE, then press %s and ask ORACLE for the valve settings." % _key("toggle_oracle")
 			"comms":
-				return "NEXT: the COMMS room (third door, now unlocked). Mind the laser grid on the way (use a wall switch to turn it off). Count the lit beacons, then press H and ask ORACLE for the frequency."
+				return "NEXT: the COMMS room (third door, now unlocked). Mind the laser grid on the way (use a wall switch to turn it off). Count the lit beacons, then press %s and ask ORACLE for the frequency." % _key("toggle_oracle")
 			_:
-				return "NEXT: the COOLING room (fourth door, now unlocked). Read the CORE TEMP and the REACTOR state, then press H and ask ORACLE for the coolant flow."
+				return "NEXT: the COOLING room (fourth door, now unlocked). Read the CORE TEMP and the REACTOR state, then press %s and ask ORACLE for the coolant flow." % _key("toggle_oracle")
 	return ""
 
 
@@ -490,20 +554,9 @@ func _can_open_overlay() -> bool:
 
 # --- Input map ----------------------------------------------------------
 
+## Registers every key (the player's own bindings from the save file, Escape fixed).
 func _setup_input() -> void:
-	_add_action("move_forward", [KEY_W, KEY_UP])
-	_add_action("move_backward", [KEY_S, KEY_DOWN])
-	_add_action("move_left", [KEY_A, KEY_LEFT])
-	_add_action("move_right", [KEY_D, KEY_RIGHT])
-	_add_action("interact", [KEY_E])
-	_add_action("pause_game", [KEY_ESCAPE])
-	_add_action("retry_level", [KEY_R])
-	_add_action("toggle_manuals", [KEY_M])
-	_add_action("toggle_oracle", [KEY_H])     # used from Milestone 4
-	_add_action("toggle_view", [KEY_V])       # first / third person camera
-	_add_action("flip_view", [KEY_C])         # third person: camera in front of the character
-	_add_action("toggle_music", [KEY_B])      # theme song on / off
-	_add_action("toggle_sound", [KEY_N])      # mute / unmute sound effects
+	KeyBindings.apply(save.bindings)
 
 
 func _add_action(action: StringName, keys: Array) -> void:
@@ -631,6 +684,7 @@ func _rebuild_world() -> void:
 
 	_station = StationBuilder.build(_world, gm.puzzles, _theme, gm.run_number)
 	_update_pods()
+	_update_cues()
 
 	_player = PlayerController.new()
 	_player.name = "Player"
@@ -641,6 +695,7 @@ func _rebuild_world() -> void:
 	for laser in _station["lasers"]:
 		(laser as LaserGrid).touched.connect(_on_laser_touched)
 		(laser as LaserGrid).state_changed.connect(_on_laser_state_changed.bind(laser))
+	_player.mouse_sensitivity = Rules.MOUSE_SENSITIVITY * save.mouse_sens
 	_world.add_child(_player)
 	_player.target_changed.connect(_on_target_changed)
 	_player.first_move.connect(gm.begin_clock)
@@ -773,6 +828,12 @@ func _build_hud() -> void:
 	_par_label.offset_right = -24
 	_par_label.visible = false
 	_hud_layer.add_child(_par_label)
+	# Sound captions: short lines of text for the sounds that warn of something.
+	_caption_label = _make_label("", 18, 0.50, 0.78, Color(1, 1, 1, 0.92), HORIZONTAL_ALIGNMENT_LEFT)
+	_caption_label.offset_left = 24
+	_caption_label.anchor_right = 0.5
+	_caption_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	_hud_layer.add_child(_caption_label)
 
 	_prompt_label = _make_label("", 22, 0.56, 0.62, Rules.COLOR_GOLD)
 	_hud_layer.add_child(_prompt_label)
@@ -780,7 +841,8 @@ func _build_hud() -> void:
 	_notice_label = _make_label("", 22, 0.09, 0.15, Rules.COLOR_CYAN)
 	_hud_layer.add_child(_notice_label)
 
-	_hud_layer.add_child(_make_label(HELP_TEXT, 15, 0.94, 0.99, Color(1, 1, 1, 0.75)))
+	_help_label = _make_label(KeyBindings.help_text(save.bindings), 15, 0.94, 0.99, Color(1, 1, 1, 0.75))
+	_hud_layer.add_child(_help_label)
 
 	# Hold-R progress indicator, shown only while R is held.
 	_retry_box = CenterContainer.new()
@@ -860,6 +922,7 @@ func _build_menu() -> void:
 		_set_modifier,
 		save.modifiers)
 	_menu_screen.name = "MenuScreen"
+	_menu_screen.settings_requested.connect(_open_settings)
 	_menu_layer.add_child(_menu_screen)
 	_menu_best_label = _menu_screen.best_label
 
@@ -909,6 +972,7 @@ func _build_pause_overlay() -> void:
 	column.add_child(_make_menu_button("Resume", func() -> void: _set_paused(false)))
 	_pause_retry_button = _make_menu_button("Retry Shift", _retry)
 	column.add_child(_pause_retry_button)
+	column.add_child(_make_menu_button("Settings", _open_settings))
 	column.add_child(_make_menu_button("Main Menu", _go_to_menu))
 	column.add_child(_make_menu_button("Quit", func() -> void: get_tree().quit()))
 
@@ -987,6 +1051,70 @@ func _close_manuals() -> void:
 		_manuals = null
 		get_tree().paused = _paused
 	_refresh_input_state()
+
+
+## The Settings window, on top of the menu or the pause menu. Changes are saved at once.
+func _open_settings() -> void:
+	if _settings_panel != null:
+		return
+	_settings_layer = CanvasLayer.new()
+	_settings_layer.name = "SettingsLayer"
+	_settings_layer.layer = 25
+	add_child(_settings_layer)
+	var root_control := Control.new()
+	root_control.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_settings_layer.add_child(root_control)
+	var dim := ColorRect.new()
+	dim.color = Color(Rules.COLOR_NAVY, 0.92)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root_control.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root_control.add_child(center)
+	_settings_panel = SettingsPanel.create(save)
+	# The list scrolls, so the window always fits: leave room for the title, message and Close.
+	var window_height := get_viewport().get_visible_rect().size.y
+	(_settings_panel.find_children("*", "ScrollContainer", true, false)[0] as ScrollContainer).custom_minimum_size.y = clampf(window_height - 230.0, 150.0, 560.0)
+	_settings_panel.changed.connect(_apply_settings)
+	_settings_panel.closed.connect(_close_settings)
+	_settings_panel.preview_sound.connect(func() -> void: sound.play("click"))
+	center.add_child(_settings_panel)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+func _close_settings() -> void:
+	if _settings_panel != null:
+		_settings_layer.queue_free()
+		_settings_layer = null
+		_settings_panel = null
+		_apply_settings()
+		_refresh_input_state()
+
+
+## The colour-blind cues: a cross or a tick beside each room's name (shown or hidden by the
+## setting), and the words beside the gas lamps. Looks only.
+func _update_cues() -> void:
+	if _station.is_empty():
+		return
+	for room_id in _station["door_icons"]:
+		var icons: Dictionary = _station["door_icons"][room_id]
+		var fixed: bool = gm.repaired.get(room_id, false)
+		(icons["fault"] as Node3D).visible = save.cues and not fixed
+		(icons["ok"] as Node3D).visible = save.cues and fixed
+	for zone in _station["hazards"]:
+		(zone as HazardZone).cues = save.cues
+
+
+## Pushes the saved settings into the running game: volumes, mouse speed, keys and the help line.
+func _apply_settings() -> void:
+	sound.music_volume = save.music_volume
+	sound.sfx_volume = save.sfx_volume
+	KeyBindings.apply(save.bindings)
+	if _help_label != null:
+		_help_label.text = KeyBindings.help_text(save.bindings)
+	if is_instance_valid(_player):
+		_player.mouse_sensitivity = Rules.MOUSE_SENSITIVITY * save.mouse_sens
+	_update_cues()
 
 
 ## A crew log from the Cryo Bay. Like the manuals it pauses the game, so reading is free.
@@ -1190,7 +1318,7 @@ func _fade_in() -> void:
 # --- Signals from the world -------------------------------------------------
 
 func _on_target_changed(target: Interactable) -> void:
-	_prompt_label.text = "E — %s" % target.prompt if target != null else ""
+	_prompt_label.text = "%s — %s" % [KeyBindings.key_text(int(save.bindings["interact"])), target.prompt] if target != null else ""
 
 
 func _on_interacted(item: Interactable, _player_node: Node) -> void:
@@ -1260,6 +1388,7 @@ func _on_system_repaired(system_id: String) -> void:
 	(_station["room_floors"][system_id] as StandardMaterial3D).emission_energy_multiplier = StationBuilder.FLOOR_ENERGY_ON
 	var label: Label3D = _station["door_labels"][system_id]
 	label.modulate = Rules.COLOR_CYAN
+	_update_cues()
 	# The door frame and light turn from red to cyan.
 	var status: StandardMaterial3D = _station["door_status"][system_id]
 	status.albedo_color = Rules.COLOR_CYAN
