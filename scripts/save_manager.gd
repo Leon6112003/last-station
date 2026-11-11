@@ -16,6 +16,7 @@ var sfx_volume: float = 1.0          # 0 to 1
 var mouse_sens: float = 1.0          # a multiplier on the normal mouse speed, 0.25 to 3
 var cues: bool = true                # text beside colours (for colour-blind players)
 var captions: bool = false           # a caption when an alarm or hazard sounds
+var adaptive: bool = true            # the next shift adapts to how the last one went
 var bindings: Dictionary = KeyBindings.default_keys()
 const SENS_MIN := 0.25
 const SENS_MAX := 3.0
@@ -41,6 +42,7 @@ func load_data() -> void:
 	mouse_sens = clampf(float(config.get_value(SECTION, "mouse_sens", 1.0)), SENS_MIN, SENS_MAX)
 	cues = bool(config.get_value(SECTION, "cues", true))
 	captions = bool(config.get_value(SECTION, "captions", false))
+	adaptive = bool(config.get_value(SECTION, "adaptive", true))
 	var loaded := {}
 	for entry in KeyBindings.ACTIONS:
 		loaded[entry["id"]] = int(config.get_value(SECTION, "key_" + String(entry["id"]), entry["key"]))
@@ -61,6 +63,7 @@ func save_data() -> bool:
 	config.set_value(SECTION, "mouse_sens", mouse_sens)
 	config.set_value(SECTION, "cues", cues)
 	config.set_value(SECTION, "captions", captions)
+	config.set_value(SECTION, "adaptive", adaptive)
 	for action in bindings:
 		config.set_value(SECTION, "key_" + String(action), int(bindings[action]))
 	config.set_value(SECTION, "logs_read", logs_read)

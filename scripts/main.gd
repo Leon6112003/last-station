@@ -171,6 +171,7 @@ func _ready() -> void:
 	_setup_input()
 	Rules.level = save.difficulty
 	Rules.mods = save.modifiers
+	Rules.adaptive = save.adaptive
 	_records = KnowledgeBase.load_records()
 
 	gm = GameManager.new()
@@ -762,10 +763,14 @@ func _rebuild_world() -> void:
 		_show_notice("YOU WAKE UP. SOMETHING IS WRONG WITH THE STATION.", 4.0)
 	else:
 		var growth := ""
-		if gm.run_number == Rules.SECOND_LASER_FROM_SHIFT:
+		if gm.second_laser_new:
 			growth = "  ·  A SECOND LASER GRID"
 		elif gm.run_number > 1:
 			growth = "  ·  HAZARDS GROW"
+		if gm.adapt_steps > 0:
+			growth += "  ·  ADAPTED: HARDER"
+		elif gm.adapt_steps < 0:
+			growth += "  ·  ADAPTED: EASIER"
 		_show_notice("SHIFT %02d  ·  %s WING%s" % [gm.run_number, _theme["name"], growth])
 	_refresh_input_state()
 
@@ -1149,6 +1154,7 @@ func _update_cues() -> void:
 
 ## Pushes the saved settings into the running game: volumes, mouse speed, keys and the help line.
 func _apply_settings() -> void:
+	Rules.adaptive = save.adaptive
 	sound.music_volume = save.music_volume
 	sound.sfx_volume = save.sfx_volume
 	KeyBindings.apply(save.bindings)
@@ -1494,6 +1500,14 @@ func _on_shift_won(result: Dictionary) -> void:
 		result["base"], result["time_bonus"], result["retry_penalty"],
 		speed_line, Rules.level_name(), (" + " + Rules.mods_text()) if Rules.mods != 0 else "", result["multiplier"],
 		result["final"], best_line, run_line, result["next_reserve"], result["seed"]]
+	# The adaptation goes first: it is what the player most wants to know about the next shift.
+	var adaptation: Dictionary = result["adaptation"]
+	if adaptation["enabled"]:
+		body = "ADAPTIVE DIFFICULTY: next shift %s\nYou used %d%% of the reserve (%d%% averaged with your last shift), with %d mistakes and %d retries.\n%s\n\n%s" % [
+			AdaptiveDifficulty.label(int(adaptation["decision"])), int(round(float(adaptation["ratio"]) * 100.0)), int(round(float(adaptation["average"]) * 100.0)),
+			result["mistakes"], result["retries"], adaptation["reason"], body]
+	else:
+		body = "%s\n\n%s" % [adaptation["reason"], body]
 	_show_modal("STATION REBOOTED", Rules.COLOR_CYAN, body, [
 		{"label": "Next Shift", "action": _next_shift},
 		{"label": "Main Menu", "action": _go_to_menu},

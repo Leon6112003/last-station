@@ -6,7 +6,7 @@ extends SceneTree
 const REQUIRED_IDS := [
 	"objective", "protocols", "help_topics", "first_steps", "hints", "controls", "reserve_timer", "scoring", "retry_rules",
 	"power_overview", "power_order", "oxygen_overview", "oxygen_table",
-	"comms_overview", "comms_formula", "cooling_overview", "cooling_formula", "reboot_code", "hazard_links", "cryo_bay", "hazards_grow", "modifiers", "settings", "mistake_penalties", "reboot_terminal",
+	"comms_overview", "comms_formula", "cooling_overview", "cooling_formula", "reboot_code", "hazard_links", "adaptive_difficulty", "cryo_bay", "hazards_grow", "modifiers", "settings", "mistake_penalties", "reboot_terminal",
 	"oracle_limits", "offline_setup", "privacy",
 ]
 
@@ -69,6 +69,14 @@ func _initialize() -> void:
 	_has("cooling_formula", str(Rules.COOLING_BASE_K))
 	_has("reboot_code", "reverse order")
 	_has("hazard_links", "first laser grid")
+	_has("adaptive_difficulty", "more than %d%%" % int(round(AdaptiveDifficulty.RATIO_EASIER * 100.0)))
+	_has("adaptive_difficulty", "%d retries" % AdaptiveDifficulty.RETRIES_EASIER)
+	_has("adaptive_difficulty", "%d mistakes" % AdaptiveDifficulty.MISTAKES_EASIER)
+	_has("adaptive_difficulty", "under %d%%" % int(round(AdaptiveDifficulty.RATIO_HARDER * 100.0)))
+	_has("adaptive_difficulty", "at most %d retry" % AdaptiveDifficulty.RETRIES_HARDER)
+	_has("adaptive_difficulty", "%d mistakes" % AdaptiveDifficulty.MISTAKES_HARDER)
+	_has("adaptive_difficulty", "%d seconds of reserve" % Rules.RESERVE_STEP_SECONDS)
+	_has("adaptive_difficulty", "up to %d steps easier or %d harder" % [-AdaptiveDifficulty.STEPS_MIN, AdaptiveDifficulty.STEPS_MAX])
 	_has("hazard_links", "SURGE")
 	_has("reboot_code", "half a hint (%d seconds" % Rules.replay_cost())
 	_has("reboot_code", "penalty (%d seconds" % Rules.WRONG_CONFIRM_PENALTY_SECONDS)

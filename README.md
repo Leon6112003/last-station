@@ -58,6 +58,22 @@ A wrong breaker costs 15 s; wrong valves, a wrong frequency or a wrong coolant f
 | Esc | Pause, or close a panel |
 | Hold R (1 s) | Retry this shift (same station, **new puzzle values**) |
 
+## Adaptive difficulty (rule-based)
+
+After every shift you clear, the game decides whether the **next shift is harder, easier or the same**, with a fixed rule (`scripts/adaptive_difficulty.gd`). It is **not machine learning**: there is no training, no model and no randomness; the same inputs always give the same decision. This is the classic game technique called dynamic difficulty adjustment.
+
+The rule looks at the share of the shift's reserve that was used (averaged with the previous shift of the same run, so one lucky or unlucky shift does not swing the game), your mistakes and your retries. Strict priority:
+
+| Result | Condition |
+|---|---|
+| **Easier** | used more than 80% of the reserve, **or** 3 or more retries, **or** 6 or more mistakes |
+| **Harder** | used under 40% of the reserve **and** at most 1 retry **and** at most 2 mistakes |
+| Same | anything else |
+
+Each "step" moves the next shift one shift along the normal difficulty curve: a harder step is 45 s less reserve and one shift's worth of hazard growth (wider and longer gas, shorter laser switch-off time, the second laser grid and the longer reboot code arriving earlier); an easier step undoes one. The adaptation is limited to 2 steps easier and 3 steps harder than the normal curve, an easier step can never make a shift easier than the level's starting shift, and the reserve never goes below the level's floor. A retry keeps the same adaptation; a new run and the main menu clear it.
+
+The results screen starts with the decision and the numbers behind it, in plain words, and the next shift's notice says "ADAPTED: HARDER" or "ADAPTED: EASIER". It can be switched off in **Settings** (it is on by default). The thresholds are estimates chosen by reasoning and have not been tuned by play. This is on top of the player's chosen level; it adapts within it.
+
 ## Levels
 
 Pick **Rookie**, **Engineer** or **Survivor** on the main menu (your choice is saved). Engineer is the standard game; every other number in this README and in the manuals is Engineer's. A shift score is multiplied by the level, so a harder level is worth more, and the level is shown at the top of the objectives and on the win screen.
@@ -179,7 +195,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 ```
 ./tests/run_all.sh        # needs `godot` on PATH
 ```
-29 headless test files, 1191 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
+30 headless test files, 1259 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
 
 ## Changes since the original spec
 
@@ -191,6 +207,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 - **Redesigned look (after playtesting feedback):** every door has a header sign, a frame and a light that turn from red to cyan when its system is repaired; two matching boards flank the middle door (the protocol, and how to get help); each room has a tinted floor and a ceiling strip, and the room lights up (bright cyan strip and floor) when repaired; the hub light flickers, and under a minute of reserve the station pulses red with a red screen-edge vignette (visual only, rules unchanged); breaker ratings are printed on the breakers; each room has one tidy display panel; the reboot terminal is labelled and turns cyan when ready.
 - **Visual polish (added later):** generated wall, floor and ceiling textures, lamp fixtures and room props (see "Look of the station").
 - **The reboot code and hazard links (added later):** a memory-and-rule puzzle at the reboot terminal, and repairs that switch off lasers and seal vents and leaks (see "The reboot code" and "The walk").
+- **Adaptive difficulty (added later):** a fixed, rule-based adaptation of the next shift to how the last one went (see "Adaptive difficulty").
 - **Settings and accessibility (added later):** volume sliders, mouse speed, key rebinding, colour-blind cues and sound captions (see "Settings and accessibility").
 - **Modifiers (added later):** Blackout, Hardcore and Speedrun switches on the menu (see "Modifiers").
 - **Cryo Bay (added later):** an optional room with the sleeping crew and four story logs (see "The Cryo Bay").

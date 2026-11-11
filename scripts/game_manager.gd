@@ -40,6 +40,13 @@ var tuner_mhz: int = Rules.COMMS_MIN_MHZ
 var coolant_flow: int = 0
 var reboot_progress: Array[int] = []   # the pads pressed so far for the reboot code
 var reboot_code_done: bool = false     # the reboot code was entered correctly
+## Adaptive difficulty (see AdaptiveDifficulty): the steps in force this shift, the steps decided for
+## the next shift once this one is cleared, and the previous shift's ratio for smoothing.
+var adapt_steps: int = 0
+var pending_adapt: int = 0
+var previous_ratio: float = -1.0
+var second_laser_new: bool = false   # this shift is the first with a second laser grid
+var _laser_count_seen: int = 1
 var reboot_free_view_used: bool = false   # the one free showing of the sequence has been used
 var reboot_paid_views: int = 0         # times the sequence was shown again on request (each costs reserve)
 
@@ -50,6 +57,10 @@ var reboot_paid_views: int = 0         # times the sequence was shown again on r
 func enter_menu() -> void:
 	state = State.MENU
 	clock_running = false
+	adapt_steps = 0   # the adaptation belongs to a run: the menu starts clean
+	pending_adapt = 0
+	previous_ratio = -1.0
+	Rules.adapt = 0
 
 
 ## Starts a brand new shift: new seed, attempt 0, retries cleared.
@@ -60,6 +71,16 @@ func start_shift(new_seed: int, run: int) -> void:
 	retry_count = 0
 	if run <= 1:
 		run_score = 0  # a new run starts from zero
+		adapt_steps = 0
+		pending_adapt = 0
+		previous_ratio = -1.0
+		_laser_count_seen = 1
+	else:
+		adapt_steps = pending_adapt   # what the last cleared shift decided
+	Rules.adapt = adapt_steps
+	var lasers := Rules.laser_count(run)
+	second_laser_new = run > 1 and lasers > _laser_count_seen
+	_laser_count_seen = lasers
 	_reset_attempt()
 
 
@@ -240,7 +261,11 @@ func try_reboot() -> bool:
 	run_score += int(result["final"])
 	result["run_total"] = run_score
 	result["hints"] = hints_used
-	result["next_reserve"] = Rules.reserve_for_shift(run_number + 1)
+	var adaptation := AdaptiveDifficulty.evaluate(spent, float(Rules.reserve_for_shift(run_number)), mistakes, retry_count, previous_ratio, adapt_steps, Rules.adaptive)
+	pending_adapt = int(adaptation["steps"])
+	previous_ratio = float(adaptation["ratio"])
+	result["adaptation"] = adaptation
+	result["next_reserve"] = Rules.reserve_for(run_number + 1, pending_adapt)
 	result["reserve_remaining"] = int(floor(reserve))
 	result["mistakes"] = mistakes
 	result["retries"] = retry_count

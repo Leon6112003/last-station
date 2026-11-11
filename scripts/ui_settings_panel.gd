@@ -60,6 +60,8 @@ func _build() -> void:
 	var reset := _button("Reset keys to default", _on_reset_keys)
 	column.add_child(reset)
 
+	column.add_child(_section("GAMEPLAY"))
+	column.add_child(_check("Adaptive difficulty (the next shift gets harder or easier depending on how you did)", _save.adaptive, _on_adaptive))
 	column.add_child(_section("ACCESSIBILITY"))
 	column.add_child(_check("Colour-blind cues (a word beside each red / cyan signal)", _save.cues, _on_cues))
 	column.add_child(_check("Sound captions (a line of text when an alarm or hazard sounds)", _save.captions, _on_captions))
@@ -163,6 +165,12 @@ func _on_sensitivity(value: float) -> void:
 
 func _on_cues(on: bool) -> void:
 	_save.cues = on
+	_save.save_settings()
+	changed.emit()
+
+
+func _on_adaptive(on: bool) -> void:
+	_save.adaptive = on
 	_save.save_settings()
 	changed.emit()
 

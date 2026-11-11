@@ -86,12 +86,14 @@ func _test_run_score() -> void:
 	_solve(gm)
 	gm.try_reboot()
 	_check(results[0]["final"] == 480 and results[0]["run_total"] == 480, "shift 1 instant clear scores 480 and starts the run total")
-	_check(results[0]["next_reserve"] == 315, "the result names the next shift's reserve (315 s)")
+	# An instant clear is a strong performance, so the game adapts: the next shift is one step harder
+	# (the normal 315 s, 45 s less).
+	_check(results[0]["next_reserve"] == 270 and results[0]["adaptation"]["decision"] == AdaptiveDifficulty.HARDER, "the result names the next shift's reserve (270 s: 315 s, one step harder after an instant clear)")
 
 	gm.start_shift(2, 2)
 	_solve(gm)
 	gm.try_reboot()
-	var expected_second := 300 + 315 / 2
+	var expected_second := 300 + 270 / 2   # shift 2 started one adaptation step harder
 	_check(results[1]["final"] == expected_second, "shift 2 instant clear scores %d" % expected_second)
 	_check(results[1]["run_total"] == 480 + expected_second, "the run total adds the shifts up (%d)" % results[1]["run_total"])
 
@@ -192,14 +194,14 @@ func _test_in_game() -> void:
 	var text := ""
 	for label in labels:
 		text += (label as Label).text + "\n"
-	_check(text.contains("Run total after shift 1: 480") and text.contains("Hints: 0") and text.contains("Next shift: 315 s"), "the win screen shows the run total, hints and the next shift's reserve")
+	_check(text.contains("Run total after shift 1: 480") and text.contains("Hints: 0") and text.contains("Next shift: 270 s") and text.contains("ADAPTIVE DIFFICULTY: next shift HARDER"), "the win screen shows the run total, hints and the next shift's reserve")
 	_check(main.save.best_run == 480, "the best run is saved")
 
-	# Shift 2: no coach, reserve 315, board follows the protocol.
+	# Shift 2: no coach, reserve 270 (adapted), board follows the protocol.
 	main._next_shift()
 	await process_frame
 	_check(main._coach_text().is_empty(), "no coach line after shift 1")
-	_check(is_equal_approx(gm.reserve, 315.0), "shift 2 starts with 315 s")
+	_check(is_equal_approx(gm.reserve, 270.0), "shift 2 starts with 270 s (315 s, one adaptation step harder after an instant clear)")
 	_check(main._station["protocol_board"].text == "PROTOCOL %s" % gm.puzzles["protocol"], "the hub board shows the current protocol")
 
 	# The hint button in the ORACLE window.

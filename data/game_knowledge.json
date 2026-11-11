@@ -502,6 +502,28 @@
   ]
  },
  {
+  "id": "adaptive_difficulty",
+  "title": "Adaptive difficulty",
+  "text": "After each cleared shift the game adapts the next with a fixed rule, not machine learning. It uses the share of the reserve used (averaged with your last shift), mistakes and retries. Easier: more than 80% used, or 3 retries or 6 mistakes. Harder: under 40% used, at most 1 retry and 2 mistakes. Otherwise balanced. A step is 45 seconds of reserve plus one shift of hazard growth, up to 2 steps easier or 3 harder. Settings can switch it off.",
+  "keywords": [
+   "adaptive",
+   "adaptation",
+   "adapt",
+   "adapts",
+   "difficulty",
+   "harder",
+   "easier",
+   "balanced",
+   "next",
+   "shift",
+   "rule",
+   "machine",
+   "learning",
+   "settings",
+   "performance"
+  ]
+ },
+ {
   "id": "oracle_limits",
   "title": "About ORACLE",
   "text": "ORACLE quotes these manuals exactly for rules and numbers. It cannot see your rooms: not the load mode, the station mode, the number of lit beacons, the core temperature, the breaker voltages or the protocol. Tell it what you read (the breaker voltages, the protocol and the mode) and it works out the order. It cannot change the game. Press H to open it.",

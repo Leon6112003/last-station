@@ -156,6 +156,8 @@ func _test_panel() -> void:
 	panel._on_cues(false)
 	panel._on_captions(true)
 	_check(not save.cues and save.captions, "the accessibility switches are saved")
+	panel._on_adaptive(false)
+	_check(not save.adaptive and not SaveManager.new(SAVE_PATH).adaptive, "the adaptive difficulty switch is saved")
 	(panel.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).text.begins_with("Close"))[0] as Button).pressed.emit()
 	_check(closed[0] == 1, "Close closes the window")
 	panel.free()

@@ -13,6 +13,7 @@ Format from `AGENTS.md` section 8. Everything here is something that was actuall
 - **ORACLE**, an offline help assistant: keyword retrieval over 30 written manual entries, exact answers in code for rules and numbers, an optional local model (Ollama) for general questions, and the exact manual text always shown. **The AI never changes the game** (the boundary is in code, with injection tests). It is rule-based retrieval, not machine learning.
 
 **Extras**
+- **Adaptive difficulty:** a fixed, rule-based rule (not machine learning) makes the next shift harder, easier or the same from how the last one went (reserve used, mistakes, retries), shown on the results screen and switchable in Settings.
 - Three levels (Rookie, Engineer, Survivor) and three optional modifiers (Blackout, Hardcore, Speedrun) with score multipliers.
 - Settings: separate music and effects volume, mouse speed, rebindable keys, colour-blind cues (a cross or tick, words by the gas lamps) and sound captions (also shown when sound is muted).
 - Generated sound effects and a two-layer theme song that gets more tense with danger (no audio files), a wake-up-in-bed opening, an astronaut character with a front view, an optional Cryo Bay with four story logs, and a textured station with props.
@@ -27,7 +28,7 @@ cd LAST_STATION && godot --path .
 - Everything works offline. ORACLE's local model is optional: see `docs/OFFLINE_AI_SETUP.md`. Windows steps: `docs/WINDOWS_SETUP.md`.
 
 ## TESTED
-- **29 headless test files, 1191 checks, all passing** on the development Mac (Godot 4.7.2). They cover the puzzles and scoring, determinism, the retriever and the ORACLE injection boundary, the real main scene through whole shifts and menu round trips, layout at 1280x720, 1024x576 and 1920x1080, saving, settings and rebinding, and every feature added later.
+- **30 headless test files, 1259 checks, all passing** on the development Mac (Godot 4.7.2). They cover the puzzles and scoring, determinism, the retriever and the ORACLE injection boundary, the real main scene through whole shifts and menu round trips, layout at 1280x720, 1024x576 and 1920x1080, saving, settings and rebinding, and every feature added later.
 - **Rendered screenshots** of the station, menu, Settings, the reboot panel and the new rooms were reviewed (`tools/*.gd`), and several layout problems were found and fixed this way.
 - **Measured in a real window** on an Apple M3 (`tools/perf_probe.gd`): about 8 to 9 ms per frame in five views.
 - **Played by the project owner:** earlier versions throughout the project, and a ten-minute route covering the newest features, reported as fine.
@@ -38,7 +39,7 @@ cd LAST_STATION && godot --path .
 - **Frame rate on a weaker laptop** is not measured.
 - **The local model after the manuals grew to 30 entries** was not re-run. The built-in manual mode needs no model and is tested.
 - **How it sounds:** audio was never judged by me (I cannot hear it). The project owner's feedback on the music was mixed, and the latest version was not rated separately.
-- **Balance:** the reserve, hazard growth, level and modifier numbers and the Speedrun par are estimates, not tuned by play.
+- **Balance:** the reserve, hazard growth, level and modifier numbers, the Speedrun par and the adaptive-difficulty thresholds are estimates, not tuned by play.
 - **Colour-blind cues** were not checked by a colour-blind player, and key rebinding was tested with simulated key events.
 
 ## LIMITATIONS

@@ -53,8 +53,10 @@ const LASER_OFF_MIN_FRACTION := 0.5   # never less than half of the level's swit
 const SECOND_LASER_FROM_SHIFT := 3
 
 
+## How far along the difficulty curve a shift is: one step per shift, moved by the adaptation
+## (`adapt`: steps the game has made the next shifts easier or harder, see AdaptiveDifficulty).
 static func _growth(run: int) -> int:
-	return maxi(run, 1) - 1
+	return maxi(maxi(run, 1) - 1 + adapt, 0)
 
 
 static func gas_off_seconds(run: int = 1) -> float:
@@ -85,7 +87,7 @@ static func replay_cost() -> int:
 
 
 static func laser_count(run: int = 1) -> int:
-	return 2 if run >= SECOND_LASER_FROM_SHIFT else 1
+	return 2 if _growth(run) >= SECOND_LASER_FROM_SHIFT - 1 else 1
 
 
 # --- Difficulty levels -----------------------------------------------------
@@ -124,10 +126,22 @@ static func level_name() -> String:
 	return LEVEL_NAMES[clampi(level, LEVEL_ROOKIE, LEVEL_SURVIVOR)]
 
 
+## The adaptation in force for the current shift, in steps (negative = easier, positive = harder).
+## Set by GameManager when a shift starts; 0 means the normal curve.
+static var adapt: int = 0
+## Adaptive difficulty switched on (the Settings option).
+static var adaptive: bool = true
+
+
 ## Oxygen reserve at the start of a shift: the level's starting reserve (Engineer: 360 s),
 ## 45 s less each shift, never below the level's floor (Engineer: 180 s).
 static func reserve_for_shift(run: int) -> int:
-	return maxi(int(_value("min")), reserve_start() - RESERVE_STEP_SECONDS * (maxi(run, 1) - 1))
+	return reserve_for(run, adapt)
+
+
+## The same for a given adaptation, so the results screen can show the next shift's reserve.
+static func reserve_for(run: int, steps: int) -> int:
+	return maxi(int(_value("min")), reserve_start() - RESERVE_STEP_SECONDS * maxi(maxi(run, 1) - 1 + steps, 0))
 
 
 static func reserve_start() -> int:
