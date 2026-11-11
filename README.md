@@ -2,7 +2,7 @@
 
 A short first-person repair puzzler for Godot 4 (GDScript only). The station is failing: you have 6 minutes of oxygen reserve (on the standard level; see Levels) to repair **Power**, **Oxygen**, **Comms** and **Cooling**, then reboot the station. An offline help assistant, **ORACLE**, answers questions from the station manuals.
 
-Built as a two-day-scope prototype. Specification: `AGENTS.md` and `REQUIREMENTS.md`. Test evidence: `docs/TEST_REPORT.md`.
+Built as a two-day-scope prototype. Specification: `AGENTS.md` and `REQUIREMENTS.md`. Test evidence: `docs/TEST_REPORT.md`. Handoff report: `docs/HANDOFF.md`. Demo script: `docs/DEMO_SCRIPT.md`.
 
 ## Run
 
