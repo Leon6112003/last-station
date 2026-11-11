@@ -18,6 +18,8 @@ var height: float = 2.8
 var _off_left: float = 0.0
 var _touch_latched: bool = false      # the player is still against the beams after a touch
 var _flicker_time: float = 0.0
+## How long a wall switch keeps this grid off (shorter on later shifts).
+var off_seconds: float = Rules.laser_off()
 var _barrier: StaticBody3D
 var _sensor: Area3D
 var _beams: Array[MeshInstance3D] = []
@@ -27,8 +29,9 @@ var _light: OmniLight3D
 var _label: Label3D
 
 
-static func create(at: Vector3, width: float, wall_height: float) -> LaserGrid:
+static func create(at: Vector3, width: float, wall_height: float, shift: int = 1) -> LaserGrid:
 	var grid := LaserGrid.new()
+	grid.off_seconds = Rules.laser_off_for(shift)
 	grid.name = "LaserGrid"
 	grid.position = at
 	grid.corridor_width = width
@@ -106,11 +109,11 @@ func _build() -> void:
 	_refresh_visuals()
 
 
-## Turns the grid off for LASER_OFF_SECONDS (pressing the switch again starts the time over).
+## Turns the grid off for `off_seconds` (pressing the switch again starts the time over).
 func switch_off() -> void:
 	var was_armed := armed
 	armed = false
-	_off_left = Rules.laser_off()
+	_off_left = off_seconds
 	_barrier.collision_layer = 0
 	if was_armed:
 		state_changed.emit(false)

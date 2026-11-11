@@ -91,7 +91,8 @@ The station is one long corridor (about 58 m) with the crew quarters, Power, Oxy
 
 - **Doors in order:** the Oxygen door stays locked until Power is repaired, the Comms door until Oxygen is repaired, and the Cooling door until Comms is repaired. Each shows what it needs and slides open when its system is repaired.
 - **Two gas vents** (one between the quarters and Power, one between Power and Oxygen): a lamp above each is grey (quiet), amber (warning) or red (venting). Standing in venting gas costs 12 reserve seconds per second. Wait for grey.
-- **Laser grid** (between Oxygen and Comms): six red beams that are a solid wall, so you cannot walk through. Touching them costs 10 reserve seconds. A **wall switch** on each side (press **E**) turns the grid off for 10 seconds; it flickers before it switches back on, and it waits while anyone stands in the beams.
+- **Hazards grow with the shift:** each later shift the gas vents are quiet 0.5 s less (to a floor of 1.5 s), vent 0.5 s longer (to 9 s) and spread 1 m further (to 10 m), and a wall switch keeps a laser grid off 1 s less (never under half its time). From shift 3 a **second laser grid** blocks the corridor between Comms and Cooling, with its own two switches. Shift 1 is exactly as before. The notice at the start of a shift says "HAZARDS GROW", or "A SECOND LASER GRID" on shift 3.
+- **Laser grid** (between Oxygen and Comms; the second one, from shift 3, is between Comms and Cooling): six red beams that are a solid wall, so you cannot walk through. Touching them costs 10 reserve seconds. A **wall switch** on each side (press **E**) turns the grid off for 10 seconds; it flickers before it switches back on, and it waits while anyone stands in the beams.
 - **ORACLE costs time:** every question asked to ORACLE costs 5 reserve seconds (never the last second). The manuals (**M**) and the hint button's own 20 s cost are separate; the manuals are free.
 - Hazards use the shift's real reserve and are not counted as puzzle mistakes. They start in a fixed state each attempt, so a retry plays the same walk.
 - **Waking up in bed:** a new run starts with you lying in the lower bunk, eyes shut, looking up at the bunk above. Your eyes open, you blink, sit up, turn toward the room and stand, facing the door, about 6 seconds in all, with a pulsing red alarm. Movement, looking and interacting are locked until you are up; a key press skips it after 2 seconds. Only the very first shift of a run does this: after a shift, or on a retry, you are already awake and simply fade in standing by the bunk.
@@ -140,7 +141,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 ```
 ./tests/run_all.sh        # needs `godot` on PATH
 ```
-22 headless test files, 885 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
+23 headless test files, 934 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
 
 ## Changes since the original spec
 
@@ -150,6 +151,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 - **Guided first shift and protocol board:** shift 1 is always Protocol A with a "what to do next" line; a big sign in the crew quarters shows the protocol.
 - **The walk (added after playtesting feedback):** the compact hub became a bedroom start, a long corridor, far rooms, doors that unlock in order, and gas and spark hazards (see "The walk").
 - **Redesigned look (after playtesting feedback):** every door has a header sign, a frame and a light that turn from red to cyan when its system is repaired; two matching boards flank the middle door (the protocol, and how to get help); each room has a tinted floor and a ceiling strip, and the room lights up (bright cyan strip and floor) when repaired; the hub light flickers, and under a minute of reserve the station pulses red with a red screen-edge vignette (visual only, rules unchanged); breaker ratings are printed on the breakers; each room has one tidy display panel; the reboot terminal is labelled and turns cyan when ready.
+- **Hazards that grow (added later):** vents and laser switches get harsher each shift, and a second laser grid appears from shift 3 (see "The walk").
 - **Fourth system, Cooling (added later):** a reactor room past Comms with a CORE TEMP and a REACTOR state; the coolant flow is a formula that differs by protocol, and the core cools from orange to cyan when repaired. Reboot now needs 4/4.
 - **Hints:** ORACLE's Get a hint button costs reserve time (20 s on Engineer). The hint is computed by the game, not the AI.
 - **Harder walk (after a friend found it easy):** a laser grid blocks the corridor until a wall switch turns it off, gas is harsher, and ORACLE questions cost reserve time.
@@ -158,6 +160,10 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 - **Look:** a classic astronaut character (third person, **V**, and a front view, **C**), a proper bunk bed, and a station look with windows onto a planet, ceiling pipes, ribs and floor guide lights.
 - **Waking up:** you wake in bed only on the first shift of a run; later shifts and retries start you already awake.
 - **Smoother play:** anti-aliasing, a soft glow, and acceleration on movement.
+
+## Developer launch option
+
+`godot --path . -- --shift=3` starts a new game on shift 3 (any shift from 1 to 99), so the later, harder shifts can be tried without winning the earlier ones. It is not shown anywhere in the game.
 
 ## Developer tools
 

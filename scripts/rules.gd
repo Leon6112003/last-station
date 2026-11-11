@@ -37,6 +37,47 @@ const LASER_WARN_SECONDS := 2.0       # it flickers this long before switching b
 const LASER_TOUCH_PENALTY_SECONDS := 10.0   # reserve seconds lost for touching the laser
 const LASER_TOUCH_COOLDOWN_SECONDS := 1.5
 
+# --- Hazards that grow with the shift -------------------------------------------
+# Shift 1 uses the base numbers above. Each later shift makes the corridor a little worse:
+# the vents are quiet for less time and vent for longer and over a wider stretch, the laser
+# switches keep the grid off for less time, and from shift 3 a second laser grid guards the
+# Cooling door. All the growth stops at the caps below, so the game stays fair.
+const GAS_OFF_STEP := 0.5
+const GAS_OFF_MIN := 1.5
+const GAS_ON_STEP := 0.5
+const GAS_ON_MAX := 9.0
+const GAS_LENGTH_STEP := 1.0
+const GAS_LENGTH_MAX := 10.0
+const LASER_OFF_STEP := 1.0
+const LASER_OFF_MIN_FRACTION := 0.5   # never less than half of the level's switch-off time
+const SECOND_LASER_FROM_SHIFT := 3
+
+
+static func _growth(run: int) -> int:
+	return maxi(run, 1) - 1
+
+
+static func gas_off_seconds(run: int = 1) -> float:
+	return maxf(GAS_OFF_MIN, GAS_OFF_SECONDS - GAS_OFF_STEP * _growth(run))
+
+
+static func gas_on_seconds(run: int = 1) -> float:
+	return minf(GAS_ON_MAX, GAS_ON_SECONDS + GAS_ON_STEP * _growth(run))
+
+
+static func gas_length(run: int = 1) -> float:
+	return minf(GAS_LENGTH_MAX, 6.0 + GAS_LENGTH_STEP * _growth(run))
+
+
+## How long a wall switch keeps a laser grid off on this shift (the level's time, shortened).
+static func laser_off_for(run: int = 1) -> float:
+	return maxf(laser_off() * LASER_OFF_MIN_FRACTION, laser_off() - LASER_OFF_STEP * _growth(run))
+
+
+static func laser_count(run: int = 1) -> int:
+	return 2 if run >= SECOND_LASER_FROM_SHIFT else 1
+
+
 # --- Difficulty levels -----------------------------------------------------
 # The player picks a level on the main menu. ENGINEER is the standard game and uses the
 # values above; ROOKIE is gentler and SURVIVOR is harsher. Everything that depends on the

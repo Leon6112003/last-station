@@ -47,8 +47,10 @@ THE WALK
 The doors open in order: Oxygen after Power, Comms after Oxygen,
 Cooling after Comms. In the corridor, GAS VENTS drain your
 reserve fast while they vent (red lamp): wait for a grey lamp. A LASER
-GRID blocks the way to Comms and Cooling and costs time if you touch it: press E
-on a wall switch beside it to turn it off for a short time.
+GRID blocks the corridor and costs time if you touch it: press E on a
+wall switch beside it to turn it off for a short time. Later shifts are
+worse: wider, longer gas vents, a shorter switch-off time, and from
+shift 3 a second laser grid before the Cooling room.
 
 COSTS
 Every question to ORACLE (H) costs some reserve time (none on Rookie,
@@ -121,6 +123,8 @@ var _pause_overlay: Control
 var _menu_layer: CanvasLayer
 var _menu_best_label: Label
 var _menu_screen: MenuScreen
+## The shift a new game starts on. Always 1, except for the developer launch option --shift=N.
+var dev_start_shift: int = 1
 ## Plays the typed wake-up intro when the game first opens. Off in headless runs (tests).
 var boot_intro: bool = DisplayServer.get_name() != "headless"
 ## Plays the wake-up-in-bed sequence at the start of a shift. Off in headless runs (tests).
@@ -138,6 +142,11 @@ var _retry_locked: bool = false
 
 func _ready() -> void:
 	_ambience_rng.randomize()
+	# Developer launch option (after "--"): --shift=3 starts a new game on shift 3, to try the
+	# later, harder shifts without winning the earlier ones. Not shown anywhere in the game.
+	for argument in OS.get_cmdline_user_args():
+		if argument.begins_with("--shift="):
+			dev_start_shift = clampi(int(argument.substr("--shift=".length())), 1, 99)
 	# Main keeps running while the tree is paused so Esc can resume.
 	# The world and the GameManager are explicitly pausable.
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -237,8 +246,11 @@ func _update_ambience(delta: float) -> void:
 		if _alarm_timer <= 0.0:
 			_alarm_timer = ALARM_INTERVAL_SECONDS
 			sound.play("alarm")
-	var laser: LaserGrid = _station["laser"]
-	if laser.armed and is_instance_valid(_player) and absf(_player.global_position.x - StationBuilder.LASER_X) < SPARK_HEARING_METRES:
+	var near_live_laser := false
+	for laser in _station["lasers"]:
+		if (laser as LaserGrid).armed and is_instance_valid(_player) and absf(_player.global_position.x - (laser as LaserGrid).position.x) < SPARK_HEARING_METRES:
+			near_live_laser = true
+	if near_live_laser:
 		_spark_timer -= delta
 		if _spark_timer <= 0.0:
 			_spark_timer = _ambience_rng.randf_range(0.8, 2.2)
@@ -304,9 +316,9 @@ func _danger_level(delta: float) -> float:
 		if (zone as HazardZone).is_active():
 			var distance := absf(player_x - (zone as HazardZone).global_position.x)
 			danger = maxf(danger, 0.85 if distance < 3.5 else (0.5 if distance < 7.0 else 0.0))
-	var laser: LaserGrid = _station["laser"]
-	if laser.armed:
-		danger = maxf(danger, 0.65 if absf(player_x - StationBuilder.LASER_X) < 5.0 else 0.0)
+	for laser in _station["lasers"]:
+		if (laser as LaserGrid).armed:
+			danger = maxf(danger, 0.65 if absf(player_x - (laser as LaserGrid).position.x) < 5.0 else 0.0)
 	return maxf(danger, _hit_danger)
 
 
@@ -469,7 +481,7 @@ func _set_level(level: int) -> void:
 func _start_new_game() -> void:
 	_menu_layer.visible = false
 	_hud_layer.visible = true
-	gm.start_shift(_new_seed(), 1)
+	gm.start_shift(_new_seed(), dev_start_shift)
 	_rebuild_world()
 	if not save.intro_seen:
 		_show_how_to_play(true)
@@ -558,7 +570,7 @@ func _rebuild_world() -> void:
 	world_environment.environment = environment
 	_world.add_child(world_environment)
 
-	_station = StationBuilder.build(_world, gm.puzzles, _theme)
+	_station = StationBuilder.build(_world, gm.puzzles, _theme, gm.run_number)
 
 	_player = PlayerController.new()
 	_player.name = "Player"
@@ -566,9 +578,9 @@ func _rebuild_world() -> void:
 	_player.rotation.y = deg_to_rad(float(_station["spawn_yaw"]))
 	for zone in _station["hazards"]:
 		(zone as HazardZone).hit.connect(_on_hazard_zone_hit)
-	var laser: LaserGrid = _station["laser"]
-	laser.touched.connect(_on_laser_touched)
-	laser.state_changed.connect(_on_laser_state_changed)
+	for laser in _station["lasers"]:
+		(laser as LaserGrid).touched.connect(_on_laser_touched)
+		(laser as LaserGrid).state_changed.connect(_on_laser_state_changed.bind(laser))
 	_world.add_child(_player)
 	_player.target_changed.connect(_on_target_changed)
 	_player.first_move.connect(gm.begin_clock)
@@ -594,7 +606,12 @@ func _rebuild_world() -> void:
 	if gm.run_number == 1 and gm.retry_count == 0:
 		_show_notice("YOU WAKE UP. SOMETHING IS WRONG WITH THE STATION.", 4.0)
 	else:
-		_show_notice("SHIFT %02d  ·  %s WING" % [gm.run_number, _theme["name"]])
+		var growth := ""
+		if gm.run_number == Rules.SECOND_LASER_FROM_SHIFT:
+			growth = "  ·  A SECOND LASER GRID"
+		elif gm.run_number > 1:
+			growth = "  ·  HAZARDS GROW"
+		_show_notice("SHIFT %02d  ·  %s WING%s" % [gm.run_number, _theme["name"], growth])
 	_refresh_input_state()
 
 
@@ -937,9 +954,10 @@ func _on_laser_touched(seconds: float) -> void:
 	_show_notice("LASER!  -%d s. Use a wall switch to turn the grid off." % int(seconds))
 
 
-func _on_laser_state_changed(armed: bool) -> void:
+func _on_laser_state_changed(armed: bool, grid: LaserGrid) -> void:
 	for laser_switch in _station["laser_switches"]:
-		(laser_switch as Interactable).set_color(Rules.COLOR_VIOLET if armed else Rules.COLOR_CYAN)
+		if (laser_switch as Interactable).get_meta("laser_grid") == grid:
+			(laser_switch as Interactable).set_color(Rules.COLOR_VIOLET if armed else Rules.COLOR_CYAN)
 	if armed:
 		sound.play("tick")
 
@@ -1079,8 +1097,9 @@ func _on_interacted(item: Interactable, _player_node: Node) -> void:
 		_handle_breaker(int(id.substr("breaker_".length())))
 	elif id.begins_with("laser_switch"):
 		sound.play("click")
-		(_station["laser"] as LaserGrid).switch_off()
-		_show_notice("LASER GRID OFF FOR %d s. Walk through now." % int(Rules.laser_off()), 3.0)
+		var grid: LaserGrid = item.get_meta("laser_grid")
+		grid.switch_off()
+		_show_notice("LASER GRID OFF FOR %d s. Walk through now." % int(grid.off_seconds), 3.0)
 	elif id == "oxygen_console":
 		sound.play("hiss")
 		_open_panel("oxygen")

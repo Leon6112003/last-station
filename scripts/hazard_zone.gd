@@ -14,6 +14,7 @@ const KIND_GAS := "gas"
 var kind: String = KIND_GAS
 var size: Vector3 = Vector3(6.0, 2.8, 3.0)
 
+var run: int = 1                     # the shift: later shifts have shorter quiet spells and longer venting
 var _time: float = 0.0
 var _exposed: bool = false           # already reported damage during this stay
 var _cloud_material: StandardMaterial3D
@@ -22,8 +23,9 @@ var _light: OmniLight3D
 
 
 ## `phase_offset` shifts where in its cycle the vent starts, in seconds.
-static func create(zone_size: Vector3, at: Vector3, phase_offset: float) -> HazardZone:
+static func create(zone_size: Vector3, at: Vector3, phase_offset: float, shift: int = 1) -> HazardZone:
 	var zone := HazardZone.new()
+	zone.run = shift
 	zone.size = zone_size
 	zone.position = at
 	zone._time = phase_offset
@@ -33,14 +35,14 @@ static func create(zone_size: Vector3, at: Vector3, phase_offset: float) -> Haza
 
 
 func cycle_seconds() -> float:
-	return Rules.GAS_OFF_SECONDS + Rules.GAS_WARN_SECONDS + Rules.GAS_ON_SECONDS
+	return Rules.gas_off_seconds(run) + Rules.GAS_WARN_SECONDS + Rules.gas_on_seconds(run)
 
 
 func phase() -> Phase:
 	var t := fposmod(_time, cycle_seconds())
-	if t < Rules.GAS_OFF_SECONDS:
+	if t < Rules.gas_off_seconds(run):
 		return Phase.OFF
-	if t < Rules.GAS_OFF_SECONDS + Rules.GAS_WARN_SECONDS:
+	if t < Rules.gas_off_seconds(run) + Rules.GAS_WARN_SECONDS:
 		return Phase.WARN
 	return Phase.ON
 

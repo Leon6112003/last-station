@@ -381,6 +381,29 @@
   ]
  },
  {
+  "id": "hazards_grow",
+  "title": "Hazards grow",
+  "text": "The corridor gets worse with every shift. Each gas vent is quiet for 0.5 seconds less (down to 1.5) and vents for 0.5 seconds longer (up to 9), and its cloud is 1 metre longer (up to 10). A wall switch keeps a laser grid off 1 second less, never below half its time. From shift 3 a second laser grid blocks the corridor between Comms and Cooling, with its own two switches.",
+  "keywords": [
+   "hazards",
+   "grow",
+   "harder",
+   "worse",
+   "later",
+   "shifts",
+   "shift",
+   "gas",
+   "vent",
+   "laser",
+   "second",
+   "grid",
+   "switch",
+   "corridor",
+   "longer",
+   "shorter"
+  ]
+ },
+ {
   "id": "oracle_limits",
   "title": "About ORACLE",
   "text": "ORACLE quotes these manuals exactly for rules and numbers. It cannot see your rooms: not the load mode, the station mode, the number of lit beacons, the core temperature, the breaker voltages or the protocol. Tell it what you read (the breaker voltages, the protocol and the mode) and it works out the order. It cannot change the game. Press H to open it.",

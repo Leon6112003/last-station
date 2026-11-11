@@ -58,7 +58,8 @@ const PLATE_OFFSET := 0.03                  # plates sit this far behind their t
 const GAS_XS := [6.0, 18.0]                 # gas vents: Bedroom-Power and Power-Oxygen
 const GAS_PHASE_OFFSETS := [8.0, 4.5]       # seconds into each cycle when a shift starts
 const GAS_LENGTH := 6.0
-const LASER_X := 30.0                       # laser grid between Oxygen and Comms
+const LASER_X := 30.0                       # the first laser grid, between Oxygen and Comms
+const LASER_XS := [30.0, 42.0]              # ...and the second, between Comms and Cooling (from shift 3)
 const LASER_SWITCH_DISTANCE := 3.5          # the two off-switches stand this far either side
 
 const WINDOW_XS := [12.0, 24.0, 36.0, 48.0]        # viewports onto space in the corridor's south wall
@@ -95,7 +96,8 @@ const FONT_SMALL := 22
 ##   "door_status": {room_id: StandardMaterial3D}, # frame and light: red, then cyan when repaired
 ##   "doors": {room_id: DoorGate},               # sliding doors (oxygen, comms) locked in order
 ##   "hazards": Array[HazardZone],               # the two gas vents in the corridor
-##   "laser": LaserGrid,                         # the laser barrier between Oxygen and Comms
+##   "laser": LaserGrid,                         # the first laser barrier, between Oxygen and Comms
+##   "lasers": Array[LaserGrid],                 # every laser barrier (a second one from shift 3)
 ##   "laser_switches": Array[Interactable],      # the two wall switches that turn it off
 ##   "protocol_board": Label3D,                  # big "PROTOCOL A/B" sign in the bedroom
 ##   "room_floors": {room_id: StandardMaterial3D}, # tinted floor patch; brightens when repaired
@@ -103,7 +105,7 @@ const FONT_SMALL := 22
 ##   "hub_light": OmniLight3D,                   # corridor emergency light; main.gd flickers/pulses it
 ##   "alarm_light": OmniLight3D,                 # red alarm light in the bedroom
 ## }
-static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}) -> Dictionary:
+static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, run_number: int = 1) -> Dictionary:
 	if theme.is_empty():
 		theme = ShiftTheme.for_shift(1)
 	var wall_color: Color = theme["wall"]
@@ -294,25 +296,31 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}) -
 	var hazards: Array[HazardZone] = []
 	for i in GAS_XS.size():
 		var gas_x: float = GAS_XS[i]
-		var gas := HazardZone.create(Vector3(GAS_LENGTH, 2.8, 3.0), Vector3(gas_x, 1.4, 0.0), GAS_PHASE_OFFSETS[i])
+		var gas := HazardZone.create(Vector3(Rules.gas_length(run_number), 2.8, 3.0), Vector3(gas_x, 1.4, 0.0), GAS_PHASE_OFFSETS[i], run_number)
 		parent.add_child(gas)
 		hazards.append(gas)
 		# A warning sign on the wall beside the vent (readable from the corridor).
 		_add_screen(parent, Vector3(gas_x, 1.9, HUB_FACE_Z - PLATE_OFFSET - 0.1), Vector2(2.2, 0.55))
 		_add_label(parent, "GAS VENT\nWAIT FOR GREY LAMP", Vector3(gas_x, 1.9, HUB_FACE_Z - 0.1), 18, Color(0.5, 1.0, 0.6))
 
-	var laser := LaserGrid.create(Vector3(LASER_X, 0.0, 0.0), HUB_FRONT_Z - HUB_BACK_Z, Rules.WALL_HEIGHT)
-	parent.add_child(laser)
-	# Two switches on the south wall, one each side of the grid, that turn it off for a while.
+	# Laser grids (one, and a second from shift 3), each with two wall switches that turn it off for a while.
+	var lasers: Array[LaserGrid] = []
 	var laser_switches: Array[Interactable] = []
-	for side in [-1.0, 1.0]:
-		var switch_x: float = LASER_X + side * LASER_SWITCH_DISTANCE
-		var laser_switch := _add_interactable(
-			parent, "laser_switch_%s" % ("west" if side < 0.0 else "east"), "TURN LASER GRID OFF (%d s)" % int(Rules.laser_off()),
-			Vector3(switch_x, TERMINAL_HEIGHT * 0.5, HUB_FRONT_Z - 0.25), Vector3(0.9, TERMINAL_HEIGHT, 0.5), Rules.COLOR_VIOLET)
-		laser_switches.append(laser_switch)
-		interactables.append(laser_switch)
-		_add_label(parent, "LASER\nGRID", Vector3(switch_x, 1.35, HUB_FRONT_Z - 0.25 - 0.25 - 0.01), 28, Rules.COLOR_GOLD, 180.0)
+	for grid_index in Rules.laser_count(run_number):
+		var grid_x: float = LASER_XS[grid_index]
+		var laser := LaserGrid.create(Vector3(grid_x, 0.0, 0.0), HUB_FRONT_Z - HUB_BACK_Z, Rules.WALL_HEIGHT, run_number)
+		parent.add_child(laser)
+		lasers.append(laser)
+		for side in [-1.0, 1.0]:
+			var switch_x: float = grid_x + side * LASER_SWITCH_DISTANCE
+			var switch_id := "laser_switch_%s%s" % ["" if grid_index == 0 else "%d_" % (grid_index + 1), "west" if side < 0.0 else "east"]
+			var laser_switch := _add_interactable(
+				parent, switch_id, "TURN LASER GRID OFF (%d s)" % int(laser.off_seconds),
+				Vector3(switch_x, TERMINAL_HEIGHT * 0.5, HUB_FRONT_Z - 0.25), Vector3(0.9, TERMINAL_HEIGHT, 0.5), Rules.COLOR_VIOLET)
+			laser_switch.set_meta("laser_grid", laser)
+			laser_switches.append(laser_switch)
+			interactables.append(laser_switch)
+			_add_label(parent, "LASER\nGRID", Vector3(switch_x, 1.35, HUB_FRONT_Z - 0.25 - 0.25 - 0.01), 28, Rules.COLOR_GOLD, 180.0)
 
 	return {
 		"spawn": SPAWN_POSITION,
@@ -328,7 +336,8 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}) -
 		"door_status": door_status,
 		"doors": door_gates,
 		"hazards": hazards,
-		"laser": laser,
+		"laser": lasers[0],
+		"lasers": lasers,
 		"laser_switches": laser_switches,
 		"protocol_board": protocol_board,
 		"room_floors": room_floors,
