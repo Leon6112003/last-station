@@ -105,7 +105,7 @@ func tick(delta: float, player_inside: bool) -> void:
 	if not player_inside:
 		_exposed = false
 	if player_inside and is_active():
-		hit.emit(kind, Rules.GAS_DRAIN_PER_SECOND * delta, not _exposed)
+		hit.emit(kind, Rules.gas_drain() * delta, not _exposed)
 		_exposed = true
 	_update_visuals()
 

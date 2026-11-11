@@ -110,7 +110,7 @@ func _build() -> void:
 func switch_off() -> void:
 	var was_armed := armed
 	armed = false
-	_off_left = Rules.LASER_OFF_SECONDS
+	_off_left = Rules.laser_off()
 	_barrier.collision_layer = 0
 	if was_armed:
 		state_changed.emit(false)
@@ -137,7 +137,7 @@ func tick(delta: float, player_near: bool) -> void:
 			_touch_latched = false
 		elif not _touch_latched:
 			_touch_latched = true
-			touched.emit(Rules.LASER_TOUCH_PENALTY_SECONDS)
+			touched.emit(Rules.laser_penalty())
 	else:
 		# It stays off while someone stands in the beams, rather than switching on around them.
 		if _off_left > 0.0:

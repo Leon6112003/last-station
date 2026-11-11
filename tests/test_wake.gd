@@ -133,13 +133,18 @@ func _test_real_scene() -> void:
 	_check(main._fade.color.a > 0.9, "the screen starts black (eyes shut)")
 	_check(not main._player._wake_short, "the first shift of a run gets the full wake-up")
 
-	# Retrying while still waking must never leave the screen black.
+	# Retrying while still waking must never leave the screen black, and a retry does not
+	# wake you up again (you are already awake).
 	main._retry()
 	await process_frame
-	_check(main._player.waking and main._player._wake_short, "a retry gets the short wake-up")
-	main._player.skip_wake()
+	_check(not main._player.waking, "a retry does not wake the player up again")
+	await create_timer(main.FADE_IN_SECONDS + 0.4).timeout
+	_check(main._fade.color.a < 0.01, "after the retry the screen is clear")
+	# Next Shift: also no waking up.
+	main.gm.run_number = 2
+	main._rebuild_world()
 	await process_frame
-	_check(main._fade.color.a < 0.01, "after waking the screen is clear")
+	_check(not main._player.waking and main._player.input_enabled, "a later shift starts with the player already awake and in control")
 	main._go_to_menu()
 	await process_frame
 	_check(main._fade.color.a < 0.01, "going to the menu mid-wake leaves no black screen")

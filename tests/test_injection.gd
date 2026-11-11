@@ -48,7 +48,7 @@ func _test_pure_helpers() -> void:
 	_check(clean.keys().size() == OracleLogic.SNAPSHOT_KEYS.size(), "the snapshot has exactly the allowed keys")
 	for key in clean:
 		_check(OracleLogic.SNAPSHOT_KEYS.has(key), "snapshot key '%s' is allowed" % key)
-	_check(clean["reserve_seconds"] == Rules.RESERVE_START_SECONDS, "reserve is clamped to its maximum")
+	_check(clean["reserve_seconds"] == Rules.RESERVE_MAX_SECONDS, "reserve is clamped to its maximum")
 	_check(clean["mistakes"] == 0 and clean["retry_count"] == 0, "negative and non-numeric values become 0")
 	_check(not clean.has("power") and not clean.has("solution") and not clean.has("lit"), "puzzle values cannot get into the snapshot")
 

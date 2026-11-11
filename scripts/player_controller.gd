@@ -32,12 +32,14 @@ var _wake_short: bool = false
 var _lying_local: Vector3 = Vector3.ZERO   # where the eyes are while lying, relative to the body (facing north)
 var _camera_base_y: float = 0.0
 var third_person: bool = false
+var front_view: bool = false   # third person only: the camera is in front, looking back at the face
 var _avatar: Node3D
 var _legs: Array[Node3D] = []
 var _arms: Array[Node3D] = []
 
 # Third person: an over-the-shoulder camera behind the avatar.
 const THIRD_OFFSET := Vector3(0.7, 0.1, 2.7)   # right, up, back from the eye (before pitch)
+const FRONT_OFFSET := Vector3(0.0, 0.15, -2.6)  # the front view: in front of the head, looking back at it
 const THIRD_AIM_DISTANCE := 3.0                 # the camera turns to look at the point this far ahead of the eye
 const CAMERA_WALL_MARGIN := 0.25                # keep the camera this far in front of a wall
 const AVATAR_MIN_CAMERA_DISTANCE := 2.2   # closer than this and the body is hidden
@@ -45,6 +47,8 @@ const LEG_SWING := 0.6                          # radians
 const BOB_HEIGHT := 0.03           # metres up and down while walking
 const BOB_STRIDE := 3.2            # metres per full stride (two steps: left, then right)
 const BOB_BLEND_SPEED := 8.0
+const ACCELERATION := 38.0         # m/s^2: speeding up to full pace takes about 0.13 s
+const DECELERATION := 30.0         # m/s^2: and a short glide to a stop, instead of an instant halt
 const WAKE_EYES_OPEN_AT := 0.7      # seconds: eyes start to open
 const WAKE_EYES_OPEN_DONE := 1.7
 const WAKE_BLINK_AT := 2.4          # a second, quick blink
@@ -85,21 +89,27 @@ func _ready() -> void:
 	set_third_person(false)
 
 
-## A space station worker built from simple shapes: white helmet with a glowing visor,
-## orange work suit with a chest panel, gloves and boots.
-## Drawn only in third person (no collision). Origin is the capsule centre; y values are
-## measured up from the floor. The figure is as tall as the player capsule.
+## A classic astronaut, built from simple shapes: a bulky white pressure suit, a big round
+## helmet with a gold reflective visor, a chest control box with hoses, flag and mission
+## patches, grey cuffs and rings, thick gloves and chunky boots (no backpack). Drawn only
+## in third person (no collision). Origin is the capsule centre; y values are metres up
+## from the floor, and the figure is as tall as the player capsule (1.7 m).
 func _build_avatar() -> void:
 	_avatar = Node3D.new()
 	_avatar.name = "Avatar"
 	_avatar.position.y = -Rules.PLAYER_HEIGHT * 0.5
 	add_child(_avatar)
-	var u := Rules.PLAYER_HEIGHT / 5.0   # one unit; the figure is 5 units tall
-	var suit := _avatar_material(Color8(236, 112, 34), 0.0)     # work-suit orange
-	var helmet := _avatar_material(Color8(236, 238, 245), 0.0)  # white helmet
-	var visor := _avatar_material(Rules.COLOR_CYAN, 1.3)
-	var dark := _avatar_material(Color8(38, 40, 52), 0.0)       # gloves and boots
-	var stripe := _avatar_material(Rules.COLOR_GOLD, 0.5)       # reflective trim
+	var suit := _avatar_material(Color8(238, 240, 247), 0.0)       # white pressure suit
+	var grey := _avatar_material(Color8(160, 166, 182), 0.0)       # joints, cuffs, collar
+	var dark_grey := _avatar_material(Color8(78, 84, 100), 0.0)    # control box, hoses, boots
+	var helmet := _avatar_material(Color8(246, 247, 252), 0.0)
+	var visor := _avatar_material(Color8(232, 170, 50), 0.4)       # gold reflective glass
+	var visor_dark := _avatar_material(Color8(110, 70, 20), 0.0)   # the visor's darker lower edge
+	var shine := _avatar_material(Color(1, 1, 1), 1.2)             # a reflection on the visor
+	var red := _avatar_material(Color8(220, 50, 50), 0.4)
+	var blue := _avatar_material(Color8(40, 80, 200), 0.3)
+	var cyan := _avatar_material(Rules.COLOR_CYAN, 1.5)
+	var gold := _avatar_material(Rules.COLOR_GOLD, 1.3)
 	# A soft warm light travels with the figure so its colours read in the dim station.
 	var glow := OmniLight3D.new()
 	glow.position = Vector3(0.0, 2.4, 1.6)
@@ -108,56 +118,55 @@ func _build_avatar() -> void:
 	glow.omni_range = 4.0
 	_avatar.add_child(glow)
 
-	# Torso with a chest panel and a belt stripe.
-	_avatar_box(Vector3(1.5 * u, 2.0 * u, 0.85 * u), Vector3(0.0, 3.0 * u, 0.0), suit)
-	_avatar_box(Vector3(0.6 * u, 0.4 * u, 0.06 * u), Vector3(0.0, 3.45 * u, -0.45 * u), visor)   # chest panel
-	_avatar_box(Vector3(1.56 * u, 0.12 * u, 0.9 * u), Vector3(0.0, 2.25 * u, 0.0), stripe)       # belt
-	# Helmet: a white sphere with a glowing visor on the front (-Z).
-	var dome := SphereMesh.new()
-	dome.radius = 0.68 * u
-	dome.height = 1.36 * u
-	_avatar_part(dome, Vector3(0.0, 4.5 * u, 0.0), helmet)
-	_avatar_box(Vector3(0.9 * u, 0.46 * u, 0.12 * u), Vector3(0.0, 4.52 * u, -0.57 * u), visor)
-	_avatar_box(Vector3(0.5 * u, 0.2 * u, 0.5 * u), Vector3(0.0, 4.0 * u, 0.0), helmet)         # collar
-	# Arms (suit, glove at the end) and legs (suit, boot at the end) hang from pivots.
+	# Torso: a thick white suit with a belt ring, a chest control box with buttons and
+	# hoses, a mission patch, and a plain panel on the back (no backpack).
+	_avatar_shape(BoxMesh.new(), Vector3(0.0, 1.15, 0.0), Vector3(0.5, 0.6, 0.3), suit)
+	_avatar_shape(BoxMesh.new(), Vector3(0.0, 0.88, 0.0), Vector3(0.52, 0.07, 0.32), grey)                       # belt ring
+	_avatar_shape(BoxMesh.new(), Vector3(0.0, 1.27, -0.17), Vector3(0.28, 0.17, 0.06), dark_grey)                 # control box
+	_avatar_shape(BoxMesh.new(), Vector3(0.0, 1.3, -0.205), Vector3(0.14, 0.05, 0.01), cyan)                      # its display
+	for button_x in [-0.08, 0.0, 0.08]:
+		var button: Material = [red, gold, blue][int(round(button_x / 0.08)) + 1]
+		_avatar_shape(BoxMesh.new(), Vector3(button_x, 1.23, -0.205), Vector3(0.04, 0.03, 0.01), button)           # its buttons
 	for side in [-1.0, 1.0]:
-		_limb(Vector3(side * 1.05 * u, 4.0 * u, 0.0), 2.0 * u, 0.58 * u, suit, dark, _arms)
-		_limb(Vector3(side * 0.38 * u, 2.0 * u, 0.0), 2.0 * u, 0.7 * u, suit, dark, _legs)
+		_avatar_shape(CylinderMesh.new(), Vector3(side * 0.11, 1.02, -0.17), Vector3(0.035, 0.32, 0.035), dark_grey)   # hoses
+	_avatar_shape(SphereMesh.new(), Vector3(0.15, 1.38, -0.17), Vector3(0.08, 0.08, 0.02), blue)                  # mission patch
+	_avatar_shape(BoxMesh.new(), Vector3(0.0, 1.17, 0.17), Vector3(0.3, 0.36, 0.05), grey)                        # back panel
+	_avatar_shape(BoxMesh.new(), Vector3(0.0, 1.2, 0.2), Vector3(0.1, 0.04, 0.02), cyan)                          # back status light
+	# Collar ring and a big round helmet: a gold visor with a darker edge and a reflection.
+	_avatar_shape(CylinderMesh.new(), Vector3(0.0, 1.44, 0.0), Vector3(0.24, 0.07, 0.24), grey)
+	_avatar_shape(SphereMesh.new(), Vector3(0.0, 1.53, 0.0), Vector3(0.35, 0.34, 0.36), helmet)
+	_avatar_shape(SphereMesh.new(), Vector3(0.0, 1.51, -0.1), Vector3(0.27, 0.21, 0.2), visor_dark)
+	_avatar_shape(SphereMesh.new(), Vector3(0.0, 1.525, -0.105), Vector3(0.25, 0.19, 0.19), visor)
+	_avatar_shape(SphereMesh.new(), Vector3(-0.06, 1.57, -0.2), Vector3(0.07, 0.035, 0.02), shine)
+	# Arms (white, with a flag patch on the left shoulder) and legs (white, with knee rings).
+	_avatar_shape(BoxMesh.new(), Vector3(-0.3, 1.31, -0.0), Vector3(0.02, 0.05, 0.09), red)
+	_avatar_shape(BoxMesh.new(), Vector3(-0.3, 1.26, -0.0), Vector3(0.02, 0.03, 0.09), helmet)
+	_avatar_shape(BoxMesh.new(), Vector3(-0.3, 1.22, -0.0), Vector3(0.02, 0.04, 0.09), blue)
+	for side in [-1.0, 1.0]:
+		_limb(Vector3(side * 0.32, 1.4, 0.0), 0.6, Vector3(0.15, 0.6, 0.15), suit, Vector3(0.15, 0.12, 0.16), grey, 0.0, _arms, grey, true)
+		_limb(Vector3(side * 0.13, 0.9, 0.0), 0.8, Vector3(0.19, 0.8, 0.19), suit, Vector3(0.2, 0.14, 0.34), dark_grey, -0.07, _legs, grey, true)
 
 
-## One limb: a box hanging from a pivot, with a dark cap (glove or boot) at the end and a
-## reflective band above it.
-func _limb(pivot_at: Vector3, length: float, width: float, material: Material, cap_material: Material, group: Array[Node3D]) -> void:
+## One limb: a capsule hanging from a pivot, with a box at the end (a glove or a boot,
+## pushed forward by `cap_forward`) and optionally a trim: a band (sleeve) or a pad (knee). The pivot swings the limb.
+func _limb(pivot_at: Vector3, length: float, size: Vector3, material: Material, cap_size: Vector3, cap_material: Material, cap_forward: float, group: Array[Node3D], trim_material: Material = null, trim_is_band: bool = false) -> void:
 	var pivot := Node3D.new()
 	pivot.position = pivot_at
 	_avatar.add_child(pivot)
-	var segment := BoxMesh.new()
-	segment.size = Vector3(width, length, width)
-	var segment_mesh := MeshInstance3D.new()
-	segment_mesh.mesh = segment
-	segment_mesh.material_override = material
-	segment_mesh.position.y = -length * 0.5
-	pivot.add_child(segment_mesh)
-	var cap := BoxMesh.new()
-	cap.size = Vector3(width + 0.03, length * 0.22, width + 0.03)
-	var cap_mesh := MeshInstance3D.new()
-	cap_mesh.mesh = cap
-	cap_mesh.material_override = cap_material
-	cap_mesh.position.y = -length + cap.size.y * 0.5
-	pivot.add_child(cap_mesh)
+	var limb := _avatar_shape(CapsuleMesh.new(), Vector3(0.0, -length * 0.5, 0.0), size, material, pivot)
+	limb.name = "Limb"
+	_avatar_shape(BoxMesh.new(), Vector3(0.0, -length + cap_size.y * 0.3, cap_forward), cap_size, cap_material, pivot)
+	if trim_material != null and trim_is_band:
+		_avatar_shape(CylinderMesh.new(), Vector3(0.0, -length * 0.35, 0.0), Vector3(size.x * 1.06, 0.06, size.z * 1.06), trim_material, pivot)   # a band round the sleeve
+	elif trim_material != null:
+		_avatar_shape(BoxMesh.new(), Vector3(0.0, -length * 0.5, -size.z * 0.5), Vector3(size.x * 0.85, 0.13, 0.04), trim_material, pivot)        # a knee pad
 	group.append(pivot)
-
-
-func _avatar_box(size: Vector3, at: Vector3, material: Material) -> void:
-	var box := BoxMesh.new()
-	box.size = size
-	_avatar_part(box, at, material)
 
 
 func _avatar_material(color: Color, glow: float) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
-	material.roughness = 0.8
+	material.roughness = 0.85
 	if glow > 0.0:
 		material.emission_enabled = true
 		material.emission = color
@@ -165,21 +174,36 @@ func _avatar_material(color: Color, glow: float) -> StandardMaterial3D:
 	return material
 
 
-func _avatar_part(mesh: Mesh, at: Vector3, material: Material) -> MeshInstance3D:
+## Adds one part. `size` is its full width, height and depth; the stock meshes are made
+## unit-sized and then scaled, so any shape can be squashed or stretched.
+func _avatar_shape(mesh: Mesh, at: Vector3, size: Vector3, material: Material, parent: Node3D = null) -> MeshInstance3D:
+	if mesh is SphereMesh:
+		(mesh as SphereMesh).radius = 0.5
+		(mesh as SphereMesh).height = 1.0
+	elif mesh is CapsuleMesh:
+		(mesh as CapsuleMesh).radius = 0.5
+		(mesh as CapsuleMesh).height = 1.0
+	elif mesh is CylinderMesh:
+		(mesh as CylinderMesh).top_radius = 0.5
+		(mesh as CylinderMesh).bottom_radius = 0.5
+		(mesh as CylinderMesh).height = 1.0
 	var instance := MeshInstance3D.new()
 	instance.mesh = mesh
 	instance.material_override = material
 	instance.position = at
-	_avatar.add_child(instance)
+	instance.scale = size
+	(parent if parent != null else _avatar).add_child(instance)
 	return instance
 
 
 ## Switches between first person (eye camera, body hidden) and third person
 ## (over-the-shoulder camera, body shown). Only the view changes; the body, its
 ## collider and the interaction reach are identical in both.
-func set_third_person(enabled: bool) -> void:
+func set_third_person(enabled: bool, front: bool = false) -> void:
 	third_person = enabled
+	front_view = enabled and front
 	_avatar.visible = enabled
+	_ray.enabled = not front_view   # the front view looks back at the player, so nothing can be aimed at
 	# The ray starts at the camera, so in third person it needs the extra distance
 	# back to the eye; _update_target still rejects anything out of reach of the eye.
 	var back := THIRD_OFFSET.length() if enabled else 0.0
@@ -215,7 +239,7 @@ func _finish_wake() -> void:
 	_pitch = 0.0
 	_camera.rotation.x = 0.0
 	rotation.y = -PI   # facing south, toward the bedroom door
-	set_third_person(third_person)
+	set_third_person(third_person, front_view)
 	_update_bob(0.0, 0.0)
 	woke_up.emit()
 
@@ -293,8 +317,13 @@ func _physics_process(delta: float) -> void:
 		direction = Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
 
 	var wish := transform.basis * Vector3(direction.x, 0.0, direction.y)
-	velocity.x = wish.x * move_speed
-	velocity.z = wish.z * move_speed
+	# Ease towards the wanted velocity so starting and stopping feel smooth, not abrupt.
+	var wanted := Vector2(wish.x, wish.z) * move_speed
+	var horizontal := Vector2(velocity.x, velocity.z)
+	var rate := ACCELERATION if wanted.length() > 0.01 else DECELERATION
+	horizontal = horizontal.move_toward(wanted, rate * delta)
+	velocity.x = horizontal.x
+	velocity.z = horizontal.y
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 	else:
@@ -329,8 +358,13 @@ func _update_bob(delta: float, horizontal_speed: float) -> void:
 	for i in _arms.size():
 		_arms[i].rotation.x = swing * LEG_SWING * (-1.0 if i == 0 else 1.0)   # arms swing against the legs
 	var eye := Vector3(0.0, _camera_base_y, 0.0)
-	if third_person:
-		_camera.position = _third_person_position(eye)
+	if front_view:
+		# In front of the character, turned round to look back at the face.
+		_camera.position = _third_person_position(eye, Basis(Vector3.RIGHT, -_pitch) * FRONT_OFFSET)
+		_camera.rotation.y = PI
+		_avatar.visible = _camera.position.distance_to(eye) > AVATAR_MIN_CAMERA_DISTANCE
+	elif third_person:
+		_camera.position = _third_person_position(eye, Basis(Vector3.RIGHT, _pitch) * THIRD_OFFSET)
 		# Turn the camera a little toward the middle so the reticle (and the interaction
 		# ray, which follows the camera) lands about where the character is facing.
 		_camera.rotation.y = atan(THIRD_OFFSET.x / (THIRD_OFFSET.z + THIRD_AIM_DISTANCE))
@@ -346,8 +380,8 @@ func _update_bob(delta: float, horizontal_speed: float) -> void:
 
 ## Camera spot for third person: behind and beside the head, turned by the pitch, and
 ## pulled in front of any wall between the head and that spot so it never clips.
-func _third_person_position(eye_local: Vector3) -> Vector3:
-	var wanted := eye_local + Basis(Vector3.RIGHT, _pitch) * THIRD_OFFSET
+func _third_person_position(eye_local: Vector3, offset: Vector3) -> Vector3:
+	var wanted := eye_local + offset
 	if not is_inside_tree():
 		return wanted
 	var space := get_world_3d().direct_space_state

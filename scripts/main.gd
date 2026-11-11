@@ -4,7 +4,24 @@ extends Node
 ## Milestone 3: Main Menu, how-to-play card, hold-R retry, Manuals panel and a
 ## saved best score. ORACLE (the chatbot) arrives in Milestone 4.
 
-const HELP_TEXT := "WASD Move  ·  E Interact  ·  V View  ·  M Manuals  ·  H ORACLE  ·  Esc Pause  ·  Hold R Retry"
+const AMBIENT_MIN_SECONDS := 9.0         # distant groans and bangs come this far apart
+const AMBIENT_MAX_SECONDS := 21.0
+const ALARM_INTERVAL_SECONDS := 14.0
+const SPARK_HEARING_METRES := 7.0
+const HEARTBEAT_BELOW_SECONDS := 45.0
+const HEARTBEAT_INTERVAL_SECONDS := 1.05
+const BREATH_CALM_SPACING_SECONDS := 2.2   # helmet breathing: time between inhale and exhale
+const BREATH_PANIC_SPACING_SECONDS := 0.85
+const FAN_MIN_SECONDS := 18.0
+const FAN_MAX_SECONDS := 32.0
+const DOOR_BUMP_DEPTH_METRES := 1.1      # how close to a locked door the clunk plays
+const DOOR_CLUNK_COOLDOWN_SECONDS := 2.5
+const GAS_HEARING_METRES := 6.0
+const GAS_HISS_INTERVAL_SECONDS := 0.45
+const DANGER_RESERVE_SECONDS := 120.0     # a low reserve alone makes the music fully tense by 0 s
+const DANGER_AT_START := 0.2              # the music is already a little tense when a shift begins
+const HIT_DANGER_DECAY_PER_SECOND := 0.2
+const HELP_TEXT := "WASD Move  ·  E Interact  ·  V View  ·  C Front  ·  M Manuals  ·  H ORACLE  ·  Esc Pause  ·  Hold R Retry"
 const NOTICE_SECONDS := 2.5
 const AMBIENT_ENERGY := 0.65        # a little darker than before, for mood
 const TICK_INTERVAL_SECONDS := 1.0       # clock tick spacing when reserve is low
@@ -31,11 +48,11 @@ The Oxygen door stays locked until Power is repaired, and the Comms
 door until Oxygen is repaired. In the corridor, GAS VENTS drain your
 reserve fast while they vent (red lamp): wait for a grey lamp. A LASER
 GRID blocks the way to Comms and costs time if you touch it: press E
-on a wall switch beside it to turn it off for 10 seconds.
+on a wall switch beside it to turn it off for a short time.
 
 COSTS
-Every question to ORACLE (H) costs 5 seconds of reserve. The manuals
-(M) are free.
+Every question to ORACLE (H) costs some reserve time (none on Rookie,
+5 s on Engineer, 10 s on Survivor). The manuals (M) are free.
 
 HOW
 There are no instructions in the rooms. Read the panels, then ask
@@ -68,6 +85,19 @@ var _environment: Environment
 var _theme: Dictionary = ShiftTheme.for_shift(1)
 var sound: SoundBank
 var _third_person: bool = false   # kept across shifts until changed
+var _front_view: bool = false
+var _hit_danger: float = 0.0   # music only: jumps to 1 when the player is hurt, then fades
+var _fade_tween: Tween
+var _ambience_rng := RandomNumberGenerator.new()   # sound timing only; never used for game rules
+var _creak_timer: float = 8.0
+var _alarm_timer: float = 4.0
+var _spark_timer: float = 0.0
+var _heartbeat_timer: float = 0.0
+var _breath_timer: float = 3.0
+var _breath_in_next: bool = true
+var _fan_timer: float = 12.0
+var _door_clunk_timer: float = 0.0
+var _gas_hiss_timer: float = 0.0
 var _tick_timer: float = 0.0
 var _tick_is_tock: bool = false
 var _fade: ColorRect
@@ -106,12 +136,14 @@ var _retry_locked: bool = false
 
 
 func _ready() -> void:
+	_ambience_rng.randomize()
 	# Main keeps running while the tree is paused so Esc can resume.
 	# The world and the GameManager are explicitly pausable.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_rng.randomize()
 	_setup_input()
 	save = SaveManager.new(save_path)
+	Rules.level = save.difficulty
 	_records = KnowledgeBase.load_records()
 
 	gm = GameManager.new()
@@ -153,6 +185,7 @@ func _update_mood(delta: float) -> void:
 	# The theme song plays over the opening intro and the menu, and carries on into the
 	# shift without restarting. It is silent while paused and on the win and lose screens.
 	sound.set_music_active(gm.state == GameManager.State.MENU or (running and not _station.is_empty()))
+	sound.set_music_danger(_danger_level(delta))
 	if _environment == null or _station.is_empty():
 		return
 	_mood_time += delta
@@ -185,6 +218,95 @@ func _update_mood(delta: float) -> void:
 		_tick_timer = 0.0
 	if _low_vignette != null:
 		_low_vignette.modulate.a = urgency * (0.55 + 0.35 * pulse)
+	if running:
+		_update_ambience(delta)
+
+
+## Survival atmosphere, played now and then (never a constant drone): the station groans
+## and bangs in the distance, an alarm sounds until the first system is repaired, the laser
+## grid crackles when you are near it, and a heartbeat starts when the reserve is nearly gone.
+## This only plays sounds; it has no effect on the rules.
+func _update_ambience(delta: float) -> void:
+	_creak_timer -= delta
+	if _creak_timer <= 0.0:
+		_creak_timer = _ambience_rng.randf_range(AMBIENT_MIN_SECONDS, AMBIENT_MAX_SECONDS)
+		sound.play("creak" if _ambience_rng.randf() < 0.55 else "thud")
+	if gm.repaired_count() == 0:
+		_alarm_timer -= delta
+		if _alarm_timer <= 0.0:
+			_alarm_timer = ALARM_INTERVAL_SECONDS
+			sound.play("alarm")
+	var laser: LaserGrid = _station["laser"]
+	if laser.armed and is_instance_valid(_player) and absf(_player.global_position.x - StationBuilder.LASER_X) < SPARK_HEARING_METRES:
+		_spark_timer -= delta
+		if _spark_timer <= 0.0:
+			_spark_timer = _ambience_rng.randf_range(0.8, 2.2)
+			sound.play("spark")
+	_update_station_sounds(delta)
+	if gm.reserve < HEARTBEAT_BELOW_SECONDS:
+		_heartbeat_timer -= delta
+		if _heartbeat_timer <= 0.0:
+			_heartbeat_timer = HEARTBEAT_INTERVAL_SECONDS
+			sound.play("heartbeat")
+	else:
+		_heartbeat_timer = 0.0
+
+
+## More station sounds, also only played, never affecting the rules: breathing inside the
+## helmet (faster as the reserve runs low), the ventilation fans dying while the station is
+## broken and whooshing once it is repaired, a heavy clunk when you walk up to a locked
+## door, and a steady hiss while a gas vent is open near you.
+func _update_station_sounds(delta: float) -> void:
+	if not is_instance_valid(_player) or _player.waking:
+		return
+	var panic := clampf(1.0 - gm.reserve / LOW_RESERVE_SECONDS, 0.0, 1.0)
+	_breath_timer -= delta
+	if _breath_timer <= 0.0:
+		_breath_timer = BREATH_CALM_SPACING_SECONDS - (BREATH_CALM_SPACING_SECONDS - BREATH_PANIC_SPACING_SECONDS) * panic
+		sound.play("breath_in" if _breath_in_next else "breath_out")
+		_breath_in_next = not _breath_in_next
+	_fan_timer -= delta
+	if _fan_timer <= 0.0:
+		_fan_timer = _ambience_rng.randf_range(FAN_MIN_SECONDS, FAN_MAX_SECONDS)
+		sound.play("fan_down" if gm.repaired_count() == 0 else "vent")
+	_door_clunk_timer -= delta
+	var player_x := _player.global_position.x
+	if _door_clunk_timer <= 0.0 and _player.global_position.z < StationBuilder.HUB_BACK_Z + DOOR_BUMP_DEPTH_METRES:
+		for room_id in _station["doors"]:
+			var gate: DoorGate = _station["doors"][room_id]
+			if gate.locked and absf(player_x - gate.global_position.x) < StationBuilder.DOOR_HALF_WIDTH:
+				_door_clunk_timer = DOOR_CLUNK_COOLDOWN_SECONDS
+				sound.play("door_lock")
+				break
+	_gas_hiss_timer -= delta
+	if _gas_hiss_timer <= 0.0:
+		for zone in _station["hazards"]:
+			if (zone as HazardZone).is_active() and absf(player_x - (zone as HazardZone).global_position.x) < GAS_HEARING_METRES:
+				_gas_hiss_timer = GAS_HISS_INTERVAL_SECONDS
+				sound.play("gasleak")
+				break
+
+
+## How much danger the player is in, 0 to 1, for the music: the shift wearing on, a low reserve, a vent that is
+## open nearby, the laser grid close by, or a hit that just happened. Sound only.
+func _danger_level(delta: float) -> float:
+	_hit_danger = maxf(0.0, _hit_danger - HIT_DANGER_DECAY_PER_SECOND * delta)
+	if gm.state != GameManager.State.PLAYING or _station.is_empty() or not is_instance_valid(_player) or _player.waking:
+		return 0.0
+	# Tension builds with the shift: some from the very start, rising steadily as the reserve
+	# drains, and always at least what a low reserve alone would give.
+	var start_reserve := float(Rules.reserve_for_shift(gm.run_number))
+	var danger := DANGER_AT_START + (1.0 - DANGER_AT_START) * clampf(1.0 - gm.reserve / start_reserve, 0.0, 1.0)
+	danger = maxf(danger, clampf(1.0 - gm.reserve / DANGER_RESERVE_SECONDS, 0.0, 1.0))
+	var player_x := _player.global_position.x
+	for zone in _station["hazards"]:
+		if (zone as HazardZone).is_active():
+			var distance := absf(player_x - (zone as HazardZone).global_position.x)
+			danger = maxf(danger, 0.85 if distance < 3.5 else (0.5 if distance < 7.0 else 0.0))
+	var laser: LaserGrid = _station["laser"]
+	if laser.armed:
+		danger = maxf(danger, 0.65 if absf(player_x - StationBuilder.LASER_X) < 5.0 else 0.0)
+	return maxf(danger, _hit_danger)
 
 
 func _process(delta: float) -> void:
@@ -230,8 +352,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("toggle_view"):
 		if gm.state == GameManager.State.PLAYING and _player != null and not _paused and _modal_layer == null:
 			_third_person = not _third_person
-			_player.set_third_person(_third_person)
+			_front_view = false
+			_player.set_third_person(_third_person, _front_view)
 			_show_notice("THIRD PERSON VIEW" if _third_person else "FIRST PERSON VIEW")
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("flip_view"):
+		# C swings the camera round to the front, to see the character's face (and back again).
+		if gm.state == GameManager.State.PLAYING and _player != null and not _paused and _modal_layer == null:
+			_front_view = not (_third_person and _front_view)
+			_third_person = true
+			_player.set_third_person(_third_person, _front_view)
+			_show_notice("FRONT VIEW: PRESS C TO GO BACK" if _front_view else "THIRD PERSON VIEW")
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("toggle_music"):
 		sound.set_music_enabled(not sound.music_enabled)
@@ -275,7 +406,7 @@ func _coach_text() -> String:
 func _checklist_text() -> String:
 	var rooms := {"power": "1st room", "oxygen": "2nd room", "comms": "3rd room"}
 	var protocol: String = gm.puzzles.get("protocol", "A")
-	var lines: Array[String] = ["REPAIR THE STATION  ·  PROTOCOL %s" % protocol]
+	var lines: Array[String] = ["REPAIR THE STATION  ·  PROTOCOL %s  ·  %s" % [protocol, Rules.level_name().to_upper()]]
 	for id in GameManager.SYSTEM_IDS:
 		var mark := "[x]" if gm.repaired.get(id, false) else "[ ]"
 		lines.append("%s %s (%s)" % [mark, id.capitalize(), rooms[id]])
@@ -308,6 +439,7 @@ func _setup_input() -> void:
 	_add_action("toggle_manuals", [KEY_M])
 	_add_action("toggle_oracle", [KEY_H])     # used from Milestone 4
 	_add_action("toggle_view", [KEY_V])       # first / third person camera
+	_add_action("flip_view", [KEY_C])         # third person: camera in front of the character
 	_add_action("toggle_music", [KEY_B])      # theme song on / off
 	_add_action("toggle_sound", [KEY_N])      # mute / unmute sound effects
 
@@ -322,6 +454,12 @@ func _add_action(action: StringName, keys: Array) -> void:
 
 
 # --- Game flow ------------------------------------------------------------
+
+## The level picked on the menu: used from the next Play, and remembered in the save file.
+func _set_level(level: int) -> void:
+	Rules.level = clampi(level, Rules.LEVEL_ROOKIE, Rules.LEVEL_SURVIVOR)
+	save.set_difficulty(Rules.level)
+
 
 ## Main Menu > Play: a brand new run with a new seed. The intro card is shown
 ## once, the first time the game is played.
@@ -353,6 +491,7 @@ func _go_to_menu() -> void:
 	if save.best_run > 0:
 		best_parts.append("Best run: %d" % save.best_run)
 	_menu_best_label.text = "   ·   ".join(best_parts)
+	_menu_screen.set_level(Rules.level)
 	_menu_layer.visible = true
 	_refresh_input_state()
 
@@ -364,6 +503,8 @@ func _free_world() -> void:
 		_world = null
 	_player = null
 	_station = {}
+	if _fade_tween != null:
+		_fade_tween.kill()   # a running fade-in would bring the black back
 	_fade.color.a = 0.0   # never leave the screen black if the player was still waking up
 
 
@@ -402,6 +543,13 @@ func _rebuild_world() -> void:
 	environment.fog_enabled = true
 	environment.fog_light_color = _theme["fog"]
 	environment.fog_density = 0.012
+	# A soft bloom on the emissive lights and a filmic tone curve smooth the harsh edges.
+	environment.glow_enabled = true
+	environment.glow_intensity = 0.7
+	environment.glow_bloom = 0.1
+	environment.glow_hdr_threshold = 0.9
+	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	environment.tonemap_white = 6.0
 	_environment = environment
 	var world_environment := WorldEnvironment.new()
 	world_environment.environment = environment
@@ -422,12 +570,13 @@ func _rebuild_world() -> void:
 	_player.target_changed.connect(_on_target_changed)
 	_player.first_move.connect(gm.begin_clock)
 	_player.stepped.connect(sound.play.bind("step"))
-	_player.set_third_person(_third_person)
+	_player.set_third_person(_third_person, _front_view)
 	_player.wake_bed_position = _station["bed_position"]
 	_player.woke_up.connect(_on_player_woke_up)
-	if play_wake_sequence:
-		# The first shift of a run wakes you up in bed; retries and later shifts are shorter.
-		_player.play_wake_up(gm.run_number == 1 and gm.retry_count == 0)
+	if play_wake_sequence and gm.run_number == 1 and gm.retry_count == 0:
+		# Only the very first shift of a run wakes you up in bed. After that you are already
+		# awake, so retries and later shifts simply fade in with you standing by the bunk.
+		_player.play_wake_up(true)
 	else:
 		_fade_in()
 
@@ -620,7 +769,9 @@ func _build_menu() -> void:
 		_start_new_game,
 		func() -> void: _show_how_to_play(false),
 		func() -> void: get_tree().quit(),
-		boot_intro)
+		boot_intro,
+		_set_level,
+		save.difficulty)
 	_menu_screen.name = "MenuScreen"
 	_menu_layer.add_child(_menu_screen)
 	_menu_best_label = _menu_screen.best_label
@@ -777,6 +928,7 @@ func _close_oracle() -> void:
 ## The player touched the laser grid while it was on.
 func _on_laser_touched(seconds: float) -> void:
 	gm.hazard_damage("laser", seconds)
+	_hit_danger = 1.0
 	_flash_fault()
 	sound.play("buzz")
 	_show_notice("LASER!  -%d s. Use a wall switch to turn the grid off." % int(seconds))
@@ -903,8 +1055,10 @@ func _on_player_woke_up() -> void:
 ## Fades the screen in from black when a shift (or a retry) begins.
 func _fade_in() -> void:
 	_fade.color.a = 1.0
-	var tween := create_tween()
-	tween.tween_property(_fade, "color:a", 0.0, FADE_IN_SECONDS)
+	if _fade_tween != null:
+		_fade_tween.kill()
+	_fade_tween = create_tween()
+	_fade_tween.tween_property(_fade, "color:a", 0.0, FADE_IN_SECONDS)
 
 
 # --- Signals from the world -------------------------------------------------
@@ -923,7 +1077,7 @@ func _on_interacted(item: Interactable, _player_node: Node) -> void:
 	elif id.begins_with("laser_switch"):
 		sound.play("click")
 		(_station["laser"] as LaserGrid).switch_off()
-		_show_notice("LASER GRID OFF FOR %d s. Walk through now." % int(Rules.LASER_OFF_SECONDS), 3.0)
+		_show_notice("LASER GRID OFF FOR %d s. Walk through now." % int(Rules.laser_off()), 3.0)
 	elif id == "oxygen_console":
 		sound.play("hiss")
 		_open_panel("oxygen")
@@ -952,6 +1106,7 @@ func _handle_breaker(index: int) -> void:
 
 func _on_system_repaired(system_id: String) -> void:
 	sound.play("chime")
+	sound.play("fan_up")   # the ventilation spins back up
 	# Doors that were waiting for this system slide open.
 	for room_id in _station["doors"]:
 		var gate: DoorGate = _station["doors"][room_id]
@@ -959,6 +1114,7 @@ func _on_system_repaired(system_id: String) -> void:
 		gate.refresh(gm.repaired)
 		if was_locked and not gate.locked:
 			_show_notice("%s DOOR UNLOCKED" % String(room_id).to_upper(), 3.0)
+			sound.play("door_slide")
 	var light: OmniLight3D = _station["room_lights"][system_id]
 	light.light_color = Rules.COLOR_CYAN
 	light.light_energy = StationBuilder.ROOM_LIGHT_ENERGY_ON
@@ -989,6 +1145,7 @@ func _on_system_repaired(system_id: String) -> void:
 ## A hazard zone saw the player inside while active. GameManager applies the cost.
 func _on_hazard_zone_hit(kind: String, seconds: float, first: bool) -> void:
 	gm.hazard_damage(kind, seconds)
+	_hit_danger = 1.0
 	if first:
 		_flash_fault()
 		sound.play("hiss")
@@ -1008,9 +1165,10 @@ func _on_shift_won(result: Dictionary) -> void:
 	var best_line := "Best shift score: %d%s" % [save.best_score, "   NEW BEST!" if is_new_best else ""]
 	var run_line := "Run total after shift %d: %d     Best run: %d%s" % [
 		result["run_number"], result["run_total"], save.best_run, "   NEW BEST!" if is_new_run_best else ""]
-	var body := "Reserve remaining: %d s\nSystems repaired: 3/3\nMistakes: %d     Retries: %d     Hints: %d\n\nBase points: %d\nTime bonus: +%d\nRetry penalty: -%d\n\nSHIFT SCORE: %d\n%s\n%s\n\nNext shift: %d s of reserve     Seed: %d" % [
+	var body := "Reserve remaining: %d s\nSystems repaired: 3/3\nMistakes: %d     Retries: %d     Hints: %d\n\nBase points: %d\nTime bonus: +%d\nRetry penalty: -%d\nLevel: %s (score x%.1f)\n\nSHIFT SCORE: %d\n%s\n%s\n\nNext shift: %d s of reserve     Seed: %d" % [
 		result["reserve_remaining"], result["mistakes"], result["retries"], result["hints"],
 		result["base"], result["time_bonus"], result["retry_penalty"],
+		Rules.level_name(), result["multiplier"],
 		result["final"], best_line, run_line, result["next_reserve"], result["seed"]]
 	_show_modal("STATION REBOOTED", Rules.COLOR_CYAN, body, [
 		{"label": "Next Shift", "action": _next_shift},

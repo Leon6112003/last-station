@@ -49,14 +49,34 @@ A wrong breaker costs 15 s; wrong valves or a wrong frequency cost 10 s.
 | M | Manuals (pauses the game) |
 | H | ORACLE help chat (pauses the game) |
 | V | Switch first / third person view |
+| C | Swing the camera in front of the character to see its face (press again to go back) |
 | B | Theme song on / off |
 | N | All sound on / off |
 | Esc | Pause, or close a panel |
 | Hold R (1 s) | Retry this shift (same station, **new puzzle values**) |
 
+## Levels
+
+Pick **Rookie**, **Engineer** or **Survivor** on the main menu (your choice is saved). Engineer is the standard game; every other number in this README and in the manuals is Engineer's. A shift score is multiplied by the level, so a harder level is worth more, and the level is shown at the top of the objectives and on the win screen.
+
+| | Rookie | Engineer | Survivor |
+|---|---|---|---|
+| Starting reserve (shift 1) | 480 s | 360 s | 270 s |
+| Less each later shift, to a floor of | 45 s, 240 s | 45 s, 180 s | 45 s, 150 s |
+| Gas drain | 6 s per second | 12 s per second | 20 s per second |
+| Laser touch / laser stays off | 5 s / 15 s | 10 s / 10 s | 20 s / 6 s |
+| ORACLE question | free | 5 s | 10 s |
+| Hint | 10 s | 20 s | 40 s |
+| Wrong breaker / wrong valves or frequency | 8 s / 5 s | 15 s / 10 s | 30 s / 20 s |
+| Score multiplier | x0.6 | x1.0 | x1.4 |
+
+All the numbers live in `scripts/rules.gd` (`LEVELS`); the manuals have a "Levels" entry that `tests/test_kb_sync.gd` keeps in sync with it. The numbers are estimates and have not been tuned by play.
+
 ## Sound and feel
 
-**Theme song:** a 29-second, 100 BPM loop with a survival mood plays over the opening intro and the menu and carries on into the shift without restarting. It builds in three stages: quiet dread (a heartbeat, a rasping string pad on clashing chords, a metal impact with long echoes, thin bells), then a stalking eighth-note ostinato built on a flat second and a tritone, then pressure (doubled heartbeat, ticking hi-hats, a distant two-tone alarm, a swelling hiss) before it drops back and loops. It is composed and synthesised in code when the game opens (about half a second, no audio file); every pitched note is A3 or higher and there is no sustained low tone, only short heartbeat thumps. It fades in and stops in pause and on the results screens. **B** turns it off, **N** mutes everything. It is verified by tests for length, loop seam, loudness and pitch range; how it sounds has not been judged by a person yet.
+**Theme song:** a 29-second, 100 BPM loop in two layers that play in sync. The calm layer is always on: a slow heartbeat, a rasping string pad on clashing chords, thin bells and a metal impact with long echoes. The tense layer is already faintly there when a shift begins and swells in as the danger rises (the reserve draining, a gas vent open near you, the live laser grid close, or a hit you just took) and fades out again when you are safe: a stalking ostinato built on a flat second and a tritone, a second heartbeat, hi-hat ticks, a distant alarm and a rising hiss. It plays over the opening intro and the menu (calm only) and carries on into the shift without restarting. It is composed and synthesised in code when the game opens (about half a second, no audio file); every pitched note is A3 or higher and there is no sustained low tone, only short heartbeat thumps. It fades in and stops in pause and on the results screens. **B** turns it off, **N** mutes everything. It is verified by tests for length, loop seam, loudness and pitch range; how it sounds has not been judged by a person yet.
+
+**Survival atmosphere:** on top of the music the station makes sounds now and then, never as a constant drone: metal groans and distant bangs every 9 to 21 seconds, a harsh two-beep alarm every 14 seconds until the first system is repaired, electric crackle when you are near the live laser grid, a frightened heartbeat in the last 45 seconds of reserve (on top of the clock tick), breathing inside the helmet (faster as the reserve runs low), ventilation fans that wind down while the station is broken and spin up and whoosh once you repair it, a heavy sliding sound when a door unlocks and a dull clunk if you walk up to a locked one, and a steady hiss while a gas vent is open near you. All are generated in code, quiet, and switched off by **N**. They have no effect on the rules.
 
 All sound is generated in code when the game starts (no audio files): no background hum or any continuous sound, only short effects: click on a correct breaker, hiss when a console opens, chime when a system is repaired, buzz on a mistake, rising notes on a win, a falling tone on a loss, footsteps, and a soft clock tick-tock once a second when the reserve is under a minute (twice as fast under 20 seconds). **N** mutes everything. Sound is feedback only; no rule depends on it.
 
@@ -71,7 +91,7 @@ The station is one long corridor (about 46 m) with the crew quarters, Power, Oxy
 - **Laser grid** (between Oxygen and Comms): six red beams that are a solid wall, so you cannot walk through. Touching them costs 10 reserve seconds. A **wall switch** on each side (press **E**) turns the grid off for 10 seconds; it flickers before it switches back on, and it waits while anyone stands in the beams.
 - **ORACLE costs time:** every question asked to ORACLE costs 5 reserve seconds (never the last second). The manuals (**M**) and the hint button's own 20 s cost are separate; the manuals are free.
 - Hazards use the shift's real reserve and are not counted as puzzle mistakes. They start in a fixed state each attempt, so a retry plays the same walk.
-- **Waking up in bed:** a new run starts with you lying in the lower bunk, eyes shut, looking up at the bunk above. Your eyes open, you blink, sit up, turn toward the room and stand, facing the door, about 6 seconds in all, with a pulsing red alarm. Movement, looking and interacting are locked until you are up; a key press skips it after 2 seconds. Retries and later shifts use a shorter version (about 3 seconds).
+- **Waking up in bed:** a new run starts with you lying in the lower bunk, eyes shut, looking up at the bunk above. Your eyes open, you blink, sit up, turn toward the room and stand, facing the door, about 6 seconds in all, with a pulsing red alarm. Movement, looking and interacting are locked until you are up; a key press skips it after 2 seconds. Only the very first shift of a run does this: after a shift, or on a retry, you are already awake and simply fade in standing by the bunk.
 
 Not tuned yet: made harder after a friend found it easy (shorter reserve, harsher gas, a blocking laser, paid ORACLE questions). The new numbers were chosen by reasoning, not by playing; walking the corridor takes about 10 s one way.
 
@@ -85,7 +105,7 @@ A survival-style title screen drawn in code: drifting stars, a dark planet with 
 
 ## Third person view and shift themes
 
-**V** switches between first person (default) and an over-the-shoulder third person view with a space station worker built from simple shapes (white helmet with a glowing visor, orange work suit with a chest panel, gloves and boots). Only the camera changes: collision, reach and rules are identical. The camera is pulled in front of walls so it never clips, and the body is hidden when a wall squeezes the camera against it. Your choice is kept across shifts and retries.
+**V** switches between first person (default) and an over-the-shoulder third person view with a classic astronaut built from simple shapes (bulky white pressure suit, big round helmet with a gold reflective visor, chest control box with buttons and hoses, flag and mission patches, grey cuffs and knee rings, thick gloves and chunky boots; no backpack). Only the camera changes: collision, reach and rules are identical. The camera is pulled in front of walls so it never clips, and the body is hidden when a wall squeezes the camera against it. **C** puts the camera in front of the character, looking back at its face (you can still walk, but nothing can be aimed at or used in that view). Your choice is kept across shifts and retries.
 
 Each shift has its own colour theme (walls, floor, ceiling, haze and hub light): Midnight, Emerald, Ember, Orchid, Steel, then repeating. A retry keeps the shift's theme. Meaning colours never change: red is faulted, cyan is repaired. The theme name appears briefly at the start of the shift.
 
@@ -116,7 +136,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 ```
 ./tests/run_all.sh        # needs `godot` on PATH
 ```
-20 headless test files, 725 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
+21 headless test files, 828 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
 
 ## Changes since the original spec
 

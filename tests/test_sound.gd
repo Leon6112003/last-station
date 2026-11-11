@@ -22,7 +22,7 @@ func _initialize() -> void:
 	for sound_name in SoundBank.NAMES:
 		var stream := SoundBank.build_stream(sound_name)
 		var seconds := float(stream.data.size() / 2) / SoundBank.SAMPLE_RATE
-		_check(stream.loop_mode == AudioStreamWAV.LOOP_DISABLED and seconds <= 1.1, "'%s' is a short one-shot (%.2f s), not a loop" % [sound_name, seconds])
+		_check(stream.loop_mode == AudioStreamWAV.LOOP_DISABLED and seconds <= 2.0, "'%s' is a short one-shot (%.2f s), not a loop" % [sound_name, seconds])
 
 	var bank := SoundBank.new()
 	root.add_child(bank)

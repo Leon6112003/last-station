@@ -23,7 +23,7 @@ var seed_value: int = 0
 var run_number: int = 1
 var attempt: int = 0
 var retry_count: int = 0
-var reserve: float = float(Rules.RESERVE_START_SECONDS)
+var reserve: float = float(Rules.reserve_start())
 var mistakes: int = 0
 var hints_used: int = 0
 var hazard_seconds: float = 0.0   # reserve lost to corridor hazards this attempt
@@ -120,7 +120,7 @@ func flip_breaker(index: int) -> String:
 			return "repaired"
 		return "ok"
 	breakers_latched.clear()
-	_penalize("power", Rules.SURGE_PENALTY_SECONDS)
+	_penalize("power", Rules.surge_penalty())
 	return "surge"
 
 
@@ -138,7 +138,7 @@ func confirm_oxygen() -> bool:
 	if PuzzleValidators.oxygen_matches(puzzles["oxygen"], oxygen_values):
 		_mark_repaired("oxygen")
 		return true
-	_penalize("oxygen", Rules.WRONG_CONFIRM_PENALTY_SECONDS)
+	_penalize("oxygen", Rules.confirm_penalty())
 	return false
 
 
@@ -156,7 +156,7 @@ func transmit() -> bool:
 	if PuzzleValidators.comms_matches(puzzles["comms"], tuner_mhz):
 		_mark_repaired("comms")
 		return true
-	_penalize("comms", Rules.WRONG_CONFIRM_PENALTY_SECONDS)
+	_penalize("comms", Rules.confirm_penalty())
 	return false
 
 
@@ -198,13 +198,13 @@ func use_hint() -> Dictionary:
 			break
 	if next.is_empty():
 		return {"ok": true, "text": "All systems are repaired. Walk back west along the corridor and press E on the reboot terminal.", "cost": 0}
-	if reserve <= float(Rules.HINT_COST_SECONDS):
+	if reserve <= float(Rules.hint_cost()):
 		return {"ok": false, "text": "Not enough oxygen reserve left for a hint.", "cost": 0}
-	reserve -= float(Rules.HINT_COST_SECONDS)
+	reserve -= float(Rules.hint_cost())
 	hints_used += 1
 	reserve_changed.emit(reserve)
-	hint_used.emit(Rules.HINT_COST_SECONDS)
-	return {"ok": true, "text": _hint_text(next), "cost": Rules.HINT_COST_SECONDS}
+	hint_used.emit(Rules.hint_cost())
+	return {"ok": true, "text": _hint_text(next), "cost": Rules.hint_cost()}
 
 
 func _hint_text(system_id: String) -> String:
@@ -231,7 +231,7 @@ func _hint_text(system_id: String) -> String:
 func charge_oracle_question() -> int:
 	if state != State.PLAYING:
 		return 0
-	var cost := mini(Rules.ORACLE_QUESTION_COST_SECONDS, maxi(0, int(floor(reserve)) - 1))
+	var cost := mini(Rules.oracle_cost(), maxi(0, int(floor(reserve)) - 1))
 	if cost <= 0:
 		return 0
 	reserve -= float(cost)

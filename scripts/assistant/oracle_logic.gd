@@ -53,7 +53,7 @@ static func sanitize_snapshot(raw: Dictionary) -> Dictionary:
 	var limits := {
 		"systems_repaired": [0, Rules.SYSTEMS_TOTAL],
 		"systems_total": [0, Rules.SYSTEMS_TOTAL],
-		"reserve_seconds": [0, Rules.RESERVE_START_SECONDS],
+		"reserve_seconds": [0, Rules.RESERVE_MAX_SECONDS],
 		"mistakes": [0, 9999],
 		"retry_count": [0, 9999],
 		"run_number": [0, 9999],

@@ -1,13 +1,14 @@
 class_name ThemeMusic
 extends RefCounted
-## The game's theme song, composed and synthesised in code (no audio files).
-## Survival mood: urgent and dangerous rather than ambient. It builds in three stages over
-## twelve bars at 100 BPM (about 29 seconds), then drops back and loops:
-##   bars 1-4   quiet dread: a heartbeat (lub-dub), a rasping string pad on clashing chords,
-##              a metal impact with long echoes, thin bells leaning on the semitone;
-##   bars 5-8   a tense, stalking eighth-note ostinato enters, built on a flat second and a
-##              tritone (A, Bb, Eb), with the heartbeat now closer;
-##   bars 9-12  pressure: the heartbeat doubles, ticking hi-hats, a distant two-tone alarm
+## The game's theme song, composed and synthesised in code (no audio files). It is made of
+## two layers that play in sync: a calm one, always on, and a tense one that the game fades
+## in as danger rises (low reserve, gas, the laser). Played together they are the full song.
+## Survival mood: dread that turns to panic.
+##   calm layer (12 bars at 100 BPM, about 29 seconds, looping): a slow heartbeat (lub-dub),
+##              a rasping string pad on clashing chords, thin bells leaning on the semitone
+##              and a metal impact with long echoes;
+##   tense layer: a stalking eighth-note ostinato built on a flat second and a tritone
+##              (A, Bb, Eb), a second heartbeat, ticking hi-hats, a distant two-tone alarm
 ##              (a tritone apart), and a hiss that swells and cuts out before the loop restarts.
 ## There is no sustained low tone or sub-bass (a constant low hum is tiring): every pitched
 ## note is at or above A3, and the heartbeat is a short thump, not a drone. Every note rings
@@ -63,11 +64,43 @@ static func hz(semitones: int) -> float:
 	return A3_HZ * pow(2.0, float(semitones) / 12.0)
 
 
-## Renders the whole loop. Takes a second or two, so the game does it after the first frame.
+## Renders the whole song as one stream. Takes a second or two, so the game does it after
+## the first frame.
 static func build() -> AudioStreamWAV:
+	var layers := _render_layers()
 	var total := total_samples()
 	var mix := PackedFloat32Array()
 	mix.resize(total)
+	for i in total:
+		mix[i] = layers[0][i] + layers[1][i]
+	return _to_stream(mix, total, _scale_for(mix))
+
+
+## Renders the song as two layers of the same length, so they can play in sync:
+##   [0] the calm layer (always on): pad, slow heartbeat, bells and the metal impacts;
+##   [1] the tense layer: the stalking ostinato, extra heartbeat, hi-hat ticks, the alarm
+##       and the rising hiss. The game fades it in as the danger rises.
+## Both use the loudness scale of the full mix, so together they sound like build().
+static func build_layers() -> Array[AudioStreamWAV]:
+	var layers := _render_layers()
+	var total := total_samples()
+	var mix := PackedFloat32Array()
+	mix.resize(total)
+	for i in total:
+		mix[i] = layers[0][i] + layers[1][i]
+	var scale := _scale_for(mix)
+	var streams: Array[AudioStreamWAV] = []
+	streams.append(_to_stream(layers[0], total, scale))
+	streams.append(_to_stream(layers[1], total, scale))
+	return streams
+
+
+static func _render_layers() -> Array:
+	var total := total_samples()
+	var calm := PackedFloat32Array()
+	calm.resize(total)
+	var tense := PackedFloat32Array()
+	tense.resize(total)
 	var cache := {}
 	var bar_samples := BEAT_SAMPLES * BEATS_PER_BAR
 	var eighth := BEAT_SAMPLES / 2
@@ -77,40 +110,36 @@ static func build() -> AudioStreamWAV:
 		var chord: Array = CHORDS[(bar / BARS_PER_CHORD) % CHORDS.size()]
 		var bar_start := bar * bar_samples
 		for semitone in chord:
-			_add_pad(mix, bar_start, bar_samples, int(semitone), cache)
-		_add_heartbeat(mix, bar, bar_start, cache)
-		if bar >= OSTINATO_FIRST_BAR:
-			var level := 1.0 if bar >= PRESSURE_FIRST_BAR else 0.6
-			for step in OSTINATO.size():
-				var tone: int = int(chord[0]) + int(OSTINATO[step][0])
-				var gain: float = float(OSTINATO[step][1]) * level
-				_add_wave(mix, bar_start + step * eighth, _saw_pluck(tone, cache), OSTINATO_GAIN * gain)
-		if bar >= PRESSURE_FIRST_BAR:
-			for step in range(1, 8, 2):   # hi-hat ticks on the off eighths
-				_add_wave(mix, bar_start + step * eighth, _tick(cache), TICK_GAIN)
-			for beat in 2:
-				var note: int = ALARM_SEMITONES[beat]
-				_add_wave(mix, bar_start + beat * BEAT_SAMPLES, _alarm(note, cache), ALARM_GAIN)
+			_add_pad(calm, bar_start, bar_samples, int(semitone), cache)
+		_add_heartbeat(calm, bar_start, [0.0, 2.0], cache)
+		_add_heartbeat(tense, bar_start, [1.0, 3.0], cache)
+		for step in OSTINATO.size():
+			var tone: int = int(chord[0]) + int(OSTINATO[step][0])
+			var gain: float = float(OSTINATO[step][1])
+			_add_wave(tense, bar_start + step * eighth, _saw_pluck(tone, cache), OSTINATO_GAIN * gain)
+		for step in range(1, 8, 2):   # hi-hat ticks on the off eighths
+			_add_wave(tense, bar_start + step * eighth, _tick(cache), TICK_GAIN)
+		for beat in 2:
+			var note: int = ALARM_SEMITONES[beat]
+			_add_wave(tense, bar_start + beat * BEAT_SAMPLES, _alarm(note, cache), ALARM_GAIN)
 	for note in MELODY:
 		var start := int(note[0]) * bar_samples + int(float(note[1]) * BEAT_SAMPLES)
-		_add_wave(mix, start, _bell(int(note[2]), cache), MELODY_GAIN)
-		_add_wave(mix, start + echo, _bell(int(note[2]), cache), MELODY_GAIN * 0.3)
+		_add_wave(calm, start, _bell(int(note[2]), cache), MELODY_GAIN)
+		_add_wave(calm, start + echo, _bell(int(note[2]), cache), MELODY_GAIN * 0.3)
 	for hit in IMPACTS:
 		var start := int(hit[0]) * bar_samples + int(float(hit[1]) * BEAT_SAMPLES)
 		var gain: float = IMPACT_GAIN * float(hit[2])
-		_add_wave(mix, start, _impact(cache), gain)
-		_add_wave(mix, start + echo, _impact(cache), gain * 0.35)
-		_add_wave(mix, start + 2 * echo, _impact(cache), gain * 0.12)
+		_add_wave(calm, start, _impact(cache), gain)
+		_add_wave(calm, start + echo, _impact(cache), gain * 0.35)
+		_add_wave(calm, start + 2 * echo, _impact(cache), gain * 0.12)
 	# A hiss swells through the last bar of each half; the second drops away before the loop restarts.
-	_add_riser(mix, 7 * bar_samples, bar_samples)
-	_add_riser(mix, 11 * bar_samples, bar_samples)
+	_add_riser(tense, 7 * bar_samples, bar_samples)
+	_add_riser(tense, 11 * bar_samples, bar_samples)
+	return [calm, tense]
 
-	return _to_stream(mix, total)
 
-
-## The heartbeat: a "lub-dub" on beats 1 and 3, doubling to every beat in the pressure section.
-static func _add_heartbeat(mix: PackedFloat32Array, bar: int, bar_start: int, cache: Dictionary) -> void:
-	var beats := [0.0, 1.0, 2.0, 3.0] if bar >= PRESSURE_FIRST_BAR else [0.0, 2.0]
+## A "lub-dub" heartbeat on each of the given beats of a bar.
+static func _add_heartbeat(mix: PackedFloat32Array, bar_start: int, beats: Array, cache: Dictionary) -> void:
 	var dub_delay := int(0.42 * BEAT_SAMPLES)
 	for beat in beats:
 		var start := bar_start + int(float(beat) * BEAT_SAMPLES)
@@ -285,11 +314,15 @@ static func _add_wave(mix: PackedFloat32Array, start: int, wave: PackedFloat32Ar
 		mix[(start + i) % total] += wave[i] * gain
 
 
-static func _to_stream(mix: PackedFloat32Array, total: int) -> AudioStreamWAV:
+## The loudness scale that brings a mix to PEAK.
+static func _scale_for(mix: PackedFloat32Array) -> float:
 	var peak := 0.0001
-	for i in total:
+	for i in mix.size():
 		peak = maxf(peak, absf(mix[i]))
-	var scale := PEAK / peak
+	return PEAK / peak
+
+
+static func _to_stream(mix: PackedFloat32Array, total: int, scale: float) -> AudioStreamWAV:
 	var bytes := PackedByteArray()
 	bytes.resize(total * 2)
 	for i in total:

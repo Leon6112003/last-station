@@ -170,9 +170,18 @@ func _third_person_view() -> void:
 	var target: Interactable = player._target
 	_check(target != null and target.id == "oxygen_console", "aiming at the console works in third person")
 
+	# The front view puts the camera in front of the face, looking back at it, with nothing to aim at.
+	player.position = Vector3(10.0, 0.9, 0.0)
+	player.rotation.y = deg_to_rad(90.0)
+	player.set_third_person(true, true)
+	await physics_frame
+	await physics_frame
+	_check(player.front_view and avatar.visible and camera.position.z < -1.5, "the front view puts the camera in front of the character (z=%.2f)" % camera.position.z)
+	_check(absf(absf(camera.rotation.y) - PI) < 0.01 and player._target == null, "the front view looks back at the character and aims at nothing")
+
 	player.set_third_person(false)
 	await physics_frame
-	_check(not avatar.visible and absf(camera.position.z) < 0.01, "switching back restores the first-person view")
+	_check(not player.front_view and not avatar.visible and absf(camera.position.z) < 0.01, "switching back restores the first-person view")
 
 	world.queue_free()
 	await process_frame

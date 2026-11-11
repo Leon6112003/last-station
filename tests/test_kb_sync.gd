@@ -48,6 +48,14 @@ func _initialize() -> void:
 	_has("reserve_timer", str(Rules.RESERVE_STEP_SECONDS))
 	_has("reserve_timer", str(Rules.RESERVE_MIN_SECONDS))
 	_has("hints", str(Rules.HINT_COST_SECONDS))
+	for level in Rules.LEVELS.size():
+		# The levels entry lists every non-standard level's numbers; they must match rules.gd.
+		if level == Rules.LEVEL_ENGINEER:
+			continue
+		var values: Dictionary = Rules.LEVELS[level]
+		_has("difficulty", "%d s reserve" % int(values["reserve"]))
+		_has("difficulty", "x%s" % str(values["score"]))
+		_has("difficulty", "hint %d s" % int(values["hint"]))
 	_has("protocols", "Shift 1 always uses Protocol A")
 	_has("scoring", str(Rules.BASE_POINTS))
 	_has("scoring", str(Rules.RETRY_PENALTY_STEP))

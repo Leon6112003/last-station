@@ -107,14 +107,14 @@ func _on_confirm_oxygen() -> void:
 	if _gm.confirm_oxygen():
 		solved.emit()
 	else:
-		_message.text = "PRESSURE MISMATCH  -%d s" % Rules.WRONG_CONFIRM_PENALTY_SECONDS
+		_message.text = "PRESSURE MISMATCH  -%d s" % Rules.confirm_penalty()
 
 
 func _on_transmit() -> void:
 	if _gm.transmit():
 		solved.emit()
 	else:
-		_message.text = "NO SIGNAL  -%d s" % Rules.WRONG_CONFIRM_PENALTY_SECONDS
+		_message.text = "NO SIGNAL  -%d s" % Rules.confirm_penalty()
 
 
 func _make_label(text: String, font_size: int, color: Color) -> Label:

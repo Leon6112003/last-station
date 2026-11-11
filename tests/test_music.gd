@@ -42,6 +42,21 @@ func _initialize() -> void:
 	# Deterministic: building twice gives the same song.
 	_check(ThemeMusic.build().data == stream.data, "the song is identical every time it is built")
 
+	# The two layers: same length, in sync, and together they are the full song.
+	var layers := ThemeMusic.build_layers()
+	_check(layers.size() == 2 and layers[0].data.size() == stream.data.size() and layers[1].data.size() == stream.data.size(), "the calm and tense layers are as long as the song")
+	var sum_ok := true
+	for i in range(0, stream.data.size(), 2 * 997):
+		var together: int = layers[0].data.decode_s16(i) + layers[1].data.decode_s16(i)
+		sum_ok = sum_ok and absi(together - stream.data.decode_s16(i)) <= 2
+	_check(sum_ok, "the two layers add up to the full song")
+	var tense_energy := 0.0
+	var calm_energy := 0.0
+	for i in range(0, stream.data.size(), 2):
+		tense_energy += absf(float(layers[1].data.decode_s16(i)))
+		calm_energy += absf(float(layers[0].data.decode_s16(i)))
+	_check(tense_energy > 0.0 and calm_energy > 0.0, "both layers have sound in them")
+
 	# The bank: the music only plays while a shift runs, and the switches work.
 	var bank := SoundBank.new()
 	bank.load_music = true
@@ -55,6 +70,16 @@ func _initialize() -> void:
 	_check(not bank.is_music_playing(), "the music switch turns it off")
 	bank.set_music_enabled(true)
 	_check(bank.is_music_playing(), "the music switch turns it back on")
+	# The tense layer plays with the calm one and follows the danger.
+	bank.set_music_danger(0.0)
+	for i in 120:
+		await process_frame
+	var quiet_db: float = bank._music_tense.volume_db
+	bank.set_music_danger(1.0)
+	for i in 300:
+		await process_frame
+	_check(bank._music_tense.playing and bank._music_tense.volume_db > quiet_db + 20.0, "the tense layer plays with the calm one and swells as the danger rises (%.0f dB to %.0f dB)" % [quiet_db, bank._music_tense.volume_db])
+	bank.set_music_danger(0.0)
 	bank.set_muted(true)
 	_check(not bank.is_music_playing(), "mute silences the music too")
 	bank.set_muted(false)

@@ -281,7 +281,7 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}) -
 	for side in [-1.0, 1.0]:
 		var switch_x: float = LASER_X + side * LASER_SWITCH_DISTANCE
 		var laser_switch := _add_interactable(
-			parent, "laser_switch_%s" % ("west" if side < 0.0 else "east"), "TURN LASER GRID OFF (%d s)" % int(Rules.LASER_OFF_SECONDS),
+			parent, "laser_switch_%s" % ("west" if side < 0.0 else "east"), "TURN LASER GRID OFF (%d s)" % int(Rules.laser_off()),
 			Vector3(switch_x, TERMINAL_HEIGHT * 0.5, HUB_FRONT_Z - 0.25), Vector3(0.9, TERMINAL_HEIGHT, 0.5), Rules.COLOR_VIOLET)
 		laser_switches.append(laser_switch)
 		interactables.append(laser_switch)
@@ -464,15 +464,25 @@ static func _add_station_details(parent: Node3D, theme: Dictionary) -> void:
 	_add_pipe(parent, Vector3(centre_x, h - 0.12, 0.8), length, 0.05, cable_material)
 	_add_pipe(parent, Vector3(centre_x, h - 0.12, 0.65), length, 0.05, cable_material)
 
-	# Guide lights along the foot of both walls, and a hazard-striped kerb below them.
+	# Guide lights along the foot of both walls, and a hazard-striped kerb beside them. On the
+	# wall with the doors they stop at each doorway instead of running across the opening.
 	var guide := _glow_material(Rules.COLOR_CYAN, 1.1)
-	var stripes := _hazard_material(length / 0.9)
-	for face in [north_face + 0.02, south_face - 0.02]:
-		_add_glow_box(parent, Vector3(centre_x, 0.3, face), Vector3(length, 0.04, 0.04), guide)
-	for edge_z in [HUB_BACK_Z + 0.4, HUB_FRONT_Z - 0.4]:
-		_add_glow_box(parent, Vector3(centre_x, 0.012, edge_z), Vector3(length, 0.02, 0.22), stripes)
+	var door_xs: Array = [BEDROOM_X] + ROOM_CENTERS_X.values()
+	var runs: Array = []   # [from_x, to_x] stretches of that wall between the doorways
+	var run_start := X_WEST
+	for door_x in door_xs:
+		runs.append([run_start, float(door_x) - DOOR_HALF_WIDTH - 0.1])
+		run_start = float(door_x) + DOOR_HALF_WIDTH + 0.1
+	runs.append([run_start, X_EAST])
+	for run in runs:
+		var run_length: float = float(run[1]) - float(run[0])
+		var run_centre: float = (float(run[0]) + float(run[1])) * 0.5
+		_add_glow_box(parent, Vector3(run_centre, 0.3, north_face + 0.02), Vector3(run_length, 0.04, 0.04), guide)
+		_add_glow_box(parent, Vector3(run_centre, 0.012, HUB_BACK_Z + 0.4), Vector3(run_length, 0.02, 0.22), _hazard_material(run_length / 0.9))
+	_add_glow_box(parent, Vector3(centre_x, 0.3, south_face - 0.02), Vector3(length, 0.04, 0.04), guide)
+	_add_glow_box(parent, Vector3(centre_x, 0.012, HUB_FRONT_Z - 0.4), Vector3(length, 0.02, 0.22), _hazard_material(length / 0.9))
 
-	# Panel seams down the corridor walls and across the floor, like bolted plates.
+	# Panel seams down the corridor walls, like bolted plates.
 	var seam_x := X_WEST + 3.0
 	while seam_x < X_EAST:
 		var near_door := false
@@ -485,7 +495,6 @@ static func _add_station_details(parent: Node3D, theme: Dictionary) -> void:
 			_add_glow_box(parent, Vector3(seam_x, h * 0.5, north_face + 0.01), Vector3(0.06, h, 0.02), seam_material)
 		if not near_window:
 			_add_glow_box(parent, Vector3(seam_x, h * 0.5, south_face - 0.01), Vector3(0.06, h, 0.02), seam_material)
-		_add_glow_box(parent, Vector3(seam_x, 0.008, 0.0), Vector3(0.05, 0.016, HUB_FRONT_Z - HUB_BACK_Z - 0.9), seam_material)
 		seam_x += 3.0
 
 	# Rooms: ceiling beams and a pipe, so they match the corridor.

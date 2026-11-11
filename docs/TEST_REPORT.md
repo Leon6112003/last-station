@@ -7,14 +7,14 @@ Nothing here is claimed unless it was actually run.
 
 ## 1. Automated tests (headless)
 
-Run with `./tests/run_all.sh` (needs `godot` on PATH). All 20 files ended with `ALL PASS`: **725 checks, 0 failures**. Headless runs that actually play a sound can print an `ObjectDB instances were leaked at exit` warning from Godot's audio server after the test has passed; the tests that count nodes (`test_menu_flow`) show no node leak. The game itself exits cleanly in a plain launch-and-quit run.
+Run with `./tests/run_all.sh` (needs `godot` on PATH). All 21 files ended with `ALL PASS`: **828 checks, 0 failures**. Headless runs that actually play a sound can print an `ObjectDB instances were leaked at exit` warning from Godot's audio server after the test has passed; the tests that count nodes (`test_menu_flow`) show no node leak. The game itself exits cleanly in a plain launch-and-quit run.
 
 | File | Checks | What it covers |
 |---|---:|---|
 | `test_puzzles.gd` | 51 | 100 seeds × 3 attempts generate valid puzzles (both protocols occur); each puzzle has exactly one accepted answer; protocol B rules for all three systems; determinism; retry re-rolls (100/100 seeds changed); penalties (15 s / 10 s); reserve clamps at 0; win, fail, retry rules |
 | `test_score.gd` | 15 | 450 / 310 / 150 / 540 examples, caps, never negative |
 | `test_retrieval.gd` | 34 | right manual ranks first for 10 questions (incl. "hello", "I am stuck"); max 3 results; stable; sorted; unrelated question returns nothing; tie order; 450-char excerpts; Basic Manual Mode answers pick the right protocol/mode sentence and never show only one protocol when none is named |
-| `test_kb_sync.gd` | 81 | 20 manual entries; every number in `rules.gd` (both protocols, including each oxygen table row) appears in the matching entry; no run-specific values; loader survives bad input |
+| `test_kb_sync.gd` | 87 | 21 manual entries; the Levels entry matches `rules.gd`; every number in `rules.gd` (both protocols, including each oxygen table row) appears in the matching entry; no run-specific values; loader survives bad input |
 | `test_injection.gd` | 98 | snapshot has only allowed keys; 4 injection strings change no game state; fake source ids never shown; 1,200-char question cut to 300; prompt delimiters cannot be spoofed; system prompt is fixed; busy lock; every failure path falls back; answers cut at 800 chars |
 | `test_oracle_ui.gd` | 23 | H opens ORACLE with a real key event; pauses game and reserve; answers shown with manual excerpts; BBCode shown literally; Send disabled while "thinking"; R and M ignored while open; Esc and Close work; leaving for the menu closes it |
 | `test_ollama_down.gd` | 8 | the REAL Ollama client against `127.0.0.1:11434`. It handles both cases: with no server it must fail cleanly and fall back (this was run and passed before Ollama was installed); with the server running it must return a labelled local answer within 800 characters (run and passed on 2026-11-11 with qwen2.5:1.5b) |
@@ -22,15 +22,16 @@ Run with `./tests/run_all.sh` (needs `godot` on PATH). All 20 files ended with `
 | `test_flow.gd` | 41 | a full shift through the real main scene: early reboot refused, surge, three repairs, win, best score saved, Next Shift, fail, Retry, pause/resume, checklist ticks, repaired room lights its ceiling strip and floor, low-reserve vignette on/off, V toggles the view and it survives a retry, the low-reserve clock ticks and tocks |
 | `test_menu_flow.gd` | 58 | starts in the Main Menu; **3 consecutive cycles** (play, win, Next Shift, fail, retry, pause, Main Menu) with identical node counts (40, 40, 40) and 0 orphans; hold-R retry (short press cancels, 1 s retries once); Manuals pause the reserve; real M and Esc key events; intro card once |
 | `test_save.gd` | 10 | best score, intro flag, persistence, corrupt file, unwritable path |
+| `test_levels.gd` | 25 | the three levels: every number per level, harder from Rookie to Survivor, out-of-range levels clamped, the score multiplier, the saved choice, the menu selector buttons and highlight, and that a chosen level reaches the real game (starting reserve, ORACLE cost) |
 | `test_layout.gd` | 27 | at 1280×720, 1024×576 and 1920×1080 (the game runs inside a sized viewport, because headless ignores window size): every button of How to Play, the intro card, pause, win, fail and the main menu is inside the window; the Manuals and ORACLE panels fit; How to Play fully hides the menu behind it. Added after a bug pushed the Back button off the bottom of the How to Play page |
 | `test_smoke.gd` | 33 | station builds: 9 interactables, lights, solid bodies, player; a header above each doorway with 2 m headroom; door status materials start red; one protocol sign showing the shift's protocol; each breaker has its rating on it; each room has a ceiling strip and floor patch; hub emergency light |
-| `test_music.gd` | 15 | theme song: renders in about half a second, loops with no seam, moderate loudness without clipping, no tone below 150 Hz, deterministic; plays only during a shift; B and mute switch it off |
+| `test_music.gd` | 19 | theme song: renders in about half a second, loops with no seam, moderate loudness without clipping, no tone below 150 Hz, deterministic; plays only during a shift; B and mute switch it off |
 | `test_menu_screen.gd` | 9 | animated menu: three buttons call their actions, the typed intro hides the buttons until it ends or is skipped, any key skips it |
-| `test_sound.gd` | 48 | every generated sound has audio data, is audible, does not clip and is identical each build; no sound loops and all are short one-shots; mute and unknown names are safe |
+| `test_sound.gd` | 113 | every generated sound has audio data, is audible, does not clip and is identical each build; no sound loops and all are short one-shots; mute and unknown names are safe |
 | `test_theme.gd` | 24 | every shift has a complete, distinct, readable colour theme; they cycle; the builder uses the theme; a retry keeps it and the next shift changes it |
 | `test_corridor.gd` | 53 | gas cycles and drain, the laser grid (solid, one touch per approach, switch-off timer, waits while someone stands in it), hazard and ORACLE costs are never mistakes or fatal, doors unlock in order, the manuals explain it and ORACLE finds it |
-| `test_wake.gd` | 24 | the wake-up in bed: eyes start shut in the lower bunk looking up, locked until awake, sit up and stand, a key press skips it after 2 s, short version for retries, never leaves the screen black |
-| `test_walk.gd` | 27 | third-person camera (behind the head, never through a wall, body hidden when squeezed, aiming still works); physics: footsteps and a small camera bob while walking; walks through a doorway, stopped by north and west walls, stays on the floor, aiming selects the console |
+| `test_wake.gd` | 25 | the wake-up in bed: eyes start shut in the lower bunk looking up, locked until awake, sit up and stand, a key press skips it after 2 s, retries and later shifts do not wake you again, never leaves the screen black |
+| `test_walk.gd` | 29 | third-person camera (behind the head, never through a wall, body hidden when squeezed, aiming still works); physics: footsteps and a small camera bob while walking; walks through a doorway, stopped by north and west walls, stays on the floor, aiming selects the console |
 
 Some tests print an `ERROR` or `WARNING` line on purpose (they feed corrupt or missing files to the loaders). The test still passes.
 

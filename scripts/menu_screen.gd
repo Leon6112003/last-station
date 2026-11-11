@@ -38,16 +38,32 @@ var _intro_active: bool = false
 var _intro_time: float = 0.0
 var _flicker_timer: float = 3.0
 var _flicker_left: int = 0
+var _level_buttons: Array[Button] = []
+var _level_blurb: Label
 
 
 ## Builds the menu. `play_intro` is true only in a real window on launch.
-static func create(on_play: Callable, on_how_to_play: Callable, on_quit: Callable, play_intro: bool) -> MenuScreen:
+## With `on_level` (a callable taking the chosen level number) the menu also shows the
+## difficulty selector, starting on `level`.
+static func create(on_play: Callable, on_how_to_play: Callable, on_quit: Callable, play_intro: bool, on_level: Callable = Callable(), level: int = Rules.LEVEL_ENGINEER) -> MenuScreen:
 	var screen := MenuScreen.new()
-	screen._build(on_play, on_how_to_play, on_quit, play_intro)
+	screen._build(on_play, on_how_to_play, on_quit, play_intro, on_level, level)
 	return screen
 
 
-func _build(on_play: Callable, on_how_to_play: Callable, on_quit: Callable, play_intro: bool) -> void:
+## Shows which level is in use. The buttons are not highlighted when the menu opens; a
+## button lights up only once the player clicks it (`highlight`). The line under the buttons
+## always names the level in use.
+func set_level(level: int, highlight: bool = false) -> void:
+	if _level_buttons.is_empty():
+		return
+	var index := clampi(level, 0, Rules.LEVEL_NAMES.size() - 1)
+	for i in _level_buttons.size():
+		_level_buttons[i].set_pressed_no_signal(highlight and i == index)
+	_level_blurb.text = "%s: %s" % [Rules.LEVEL_NAMES[index], Rules.LEVEL_BLURBS[index]]
+
+
+func _build(on_play: Callable, on_how_to_play: Callable, on_quit: Callable, play_intro: bool, on_level: Callable, level: int) -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	var rng := RandomNumberGenerator.new()
@@ -91,7 +107,7 @@ func _build(on_play: Callable, on_how_to_play: Callable, on_quit: Callable, play
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
 	_column = VBoxContainer.new()
-	_column.add_theme_constant_override("separation", 14)
+	_column.add_theme_constant_override("separation", 10)
 	center.add_child(_column)
 
 	_title = _make_label("LAST STATION", 92, Rules.COLOR_CYAN)
@@ -107,9 +123,11 @@ func _build(on_play: Callable, on_how_to_play: Callable, on_quit: Callable, play
 	best_label = _make_label("", 22, Rules.COLOR_GOLD)
 	_column.add_child(best_label)
 	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 8)
+	gap.custom_minimum_size = Vector2(0, 2)
 	_column.add_child(gap)
 
+	if on_level.is_valid():
+		_build_level_selector(on_level, level)
 	var play := _make_button("Play", on_play, true)
 	_column.add_child(play)
 	_column.add_child(_make_button("How to Play", on_how_to_play, false))
@@ -205,6 +223,35 @@ func _make_label(text: String, size: int, color: Color) -> Label:
 	label.add_theme_color_override("font_color", color)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
+
+
+## Three level choices side by side (Rookie, Engineer, Survivor) and a one-line
+## description of the chosen level.
+func _build_level_selector(on_level: Callable, level: int) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_column.add_child(row)
+	var group := ButtonGroup.new()
+	for i in Rules.LEVEL_NAMES.size():
+		var button := _make_button(Rules.LEVEL_NAMES[i], func() -> void: pass, false)
+		button.custom_minimum_size = Vector2(150, 42)
+		button.add_theme_font_size_override("font_size", 20)
+		button.toggle_mode = true
+		button.button_group = group
+		var chosen := _button_style(Color(Rules.COLOR_GOLD, 0.35), Rules.COLOR_GOLD)
+		button.add_theme_stylebox_override("pressed", chosen)
+		button.add_theme_stylebox_override("hover_pressed", chosen)
+		button.focus_mode = Control.FOCUS_NONE   # only the chosen level lights up, not the focused one
+		button.add_theme_color_override("font_pressed_color", Rules.COLOR_GOLD)
+		button.pressed.connect(func() -> void:
+			on_level.call(i)
+			set_level(i, true))
+		row.add_child(button)
+		_level_buttons.append(button)
+	_level_blurb = _make_label("", 18, Color(1, 1, 1, 0.7))
+	_column.add_child(_level_blurb)
+	set_level(level)
 
 
 func _make_button(text: String, action: Callable, primary: bool) -> Button:

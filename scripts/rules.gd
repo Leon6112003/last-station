@@ -37,9 +37,83 @@ const LASER_WARN_SECONDS := 2.0       # it flickers this long before switching b
 const LASER_TOUCH_PENALTY_SECONDS := 10.0   # reserve seconds lost for touching the laser
 const LASER_TOUCH_COOLDOWN_SECONDS := 1.5
 
-## Oxygen reserve at the start of a shift: 360 s on shift 1, 45 s less each shift, never below 180 s.
+# --- Difficulty levels -----------------------------------------------------
+# The player picks a level on the main menu. ENGINEER is the standard game and uses the
+# values above; ROOKIE is gentler and SURVIVOR is harsher. Everything that depends on the
+# level is read through the functions below, so no other script holds a level number.
+const LEVEL_ROOKIE := 0
+const LEVEL_ENGINEER := 1
+const LEVEL_SURVIVOR := 2
+const LEVEL_NAMES: Array[String] = ["Rookie", "Engineer", "Survivor"]
+const LEVEL_BLURBS: Array[String] = [
+	"More time, weaker gas and laser, free ORACLE questions.",
+	"The standard game.",
+	"Less time, deadly gas and laser, costly help.",
+]
+const RESERVE_MAX_SECONDS := 480      # the largest starting reserve of any level
+const LEVELS: Array[Dictionary] = [
+	{"reserve": 480, "min": 240, "gas": 6.0, "laser_penalty": 5.0, "laser_off": 15.0,
+		"oracle": 0, "hint": 10, "surge": 8, "confirm": 5, "score": 0.6},
+	{"reserve": RESERVE_START_SECONDS, "min": RESERVE_MIN_SECONDS, "gas": GAS_DRAIN_PER_SECOND,
+		"laser_penalty": LASER_TOUCH_PENALTY_SECONDS, "laser_off": LASER_OFF_SECONDS,
+		"oracle": ORACLE_QUESTION_COST_SECONDS, "hint": HINT_COST_SECONDS,
+		"surge": SURGE_PENALTY_SECONDS, "confirm": WRONG_CONFIRM_PENALTY_SECONDS, "score": 1.0},
+	{"reserve": 270, "min": 150, "gas": 20.0, "laser_penalty": 20.0, "laser_off": 6.0,
+		"oracle": 10, "hint": 40, "surge": 30, "confirm": 20, "score": 1.4},
+]
+## The selected level (set from the menu or the save file). Defaults to ENGINEER.
+static var level: int = LEVEL_ENGINEER
+
+
+static func _value(key: String) -> Variant:
+	return LEVELS[clampi(level, LEVEL_ROOKIE, LEVEL_SURVIVOR)][key]
+
+
+static func level_name() -> String:
+	return LEVEL_NAMES[clampi(level, LEVEL_ROOKIE, LEVEL_SURVIVOR)]
+
+
+## Oxygen reserve at the start of a shift: the level's starting reserve (Engineer: 360 s),
+## 45 s less each shift, never below the level's floor (Engineer: 180 s).
 static func reserve_for_shift(run: int) -> int:
-	return maxi(RESERVE_MIN_SECONDS, RESERVE_START_SECONDS - RESERVE_STEP_SECONDS * (maxi(run, 1) - 1))
+	return maxi(int(_value("min")), reserve_start() - RESERVE_STEP_SECONDS * (maxi(run, 1) - 1))
+
+
+static func reserve_start() -> int:
+	return int(_value("reserve"))
+
+
+static func gas_drain() -> float:
+	return float(_value("gas"))
+
+
+static func laser_penalty() -> float:
+	return float(_value("laser_penalty"))
+
+
+static func laser_off() -> float:
+	return float(_value("laser_off"))
+
+
+static func oracle_cost() -> int:
+	return int(_value("oracle"))
+
+
+static func hint_cost() -> int:
+	return int(_value("hint"))
+
+
+static func surge_penalty() -> int:
+	return int(_value("surge"))
+
+
+static func confirm_penalty() -> int:
+	return int(_value("confirm"))
+
+
+## Multiplies the shift score, so a score earned on a harder level is worth more.
+static func score_multiplier() -> float:
+	return float(_value("score"))
 
 
 # --- Score (used from Milestone 2) --------------------------------------

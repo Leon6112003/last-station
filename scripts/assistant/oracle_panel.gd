@@ -69,7 +69,8 @@ func _build() -> void:
 	_log.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_log.add_theme_constant_override("separation", 8)
 	_scroll.add_child(_log)
-	_add_line("I am ORACLE. Ask me how the station's systems work: the rules for Power, Oxygen and Comms under each protocol, the controls, or scoring. I answer from the manuals. Every question costs 5 seconds of oxygen reserve, so the manuals (M) are the free way. I cannot see your rooms, so tell me what you read on the panels, for example: \"protocol B, power room, restore mode\". For rules and numbers I quote the manual exactly. For other questions I can write a short answer if Ollama is running.", Rules.COLOR_VIOLET, 20)
+	var cost_text := "Every question costs %d seconds of oxygen reserve," % Rules.oracle_cost() if Rules.oracle_cost() > 0 else "On this level my answers cost no reserve, but"
+	_add_line("I am ORACLE. Ask me how the station's systems work: the rules for Power, Oxygen and Comms under each protocol, the controls, or scoring. I answer from the manuals. %s so the manuals (M) are the free way. I cannot see your rooms, so tell me what you read on the panels, for example: \"protocol B, power room, restore mode\". For rules and numbers I quote the manual exactly. For other questions I can write a short answer if Ollama is running." % cost_text, Rules.COLOR_VIOLET, 20)
 
 	_status = Label.new()
 	_status.add_theme_font_size_override("font_size", 18)
@@ -99,7 +100,7 @@ func _build() -> void:
 	row.add_child(_send)
 
 	_hint_button = Button.new()
-	_hint_button.text = "Get a hint  (-%d s of oxygen reserve)" % Rules.HINT_COST_SECONDS
+	_hint_button.text = "Get a hint  (-%d s of oxygen reserve)" % Rules.hint_cost()
 	_hint_button.add_theme_font_size_override("font_size", 20)
 	_hint_button.custom_minimum_size = Vector2(0, 44)
 	_hint_button.pressed.connect(func() -> void: hint_requested.emit())

@@ -9,6 +9,7 @@ var path: String
 var best_score: int = 0
 var best_run: int = 0
 var intro_seen: bool = false
+var difficulty: int = Rules.LEVEL_ENGINEER   # the level picked on the menu
 
 
 func _init(save_path: String = "user://last_station.cfg") -> void:
@@ -23,6 +24,7 @@ func load_data() -> void:
 	best_score = maxi(0, int(config.get_value(SECTION, "best_score", 0)))
 	best_run = maxi(0, int(config.get_value(SECTION, "best_run", 0)))
 	intro_seen = bool(config.get_value(SECTION, "intro_seen", false))
+	difficulty = clampi(int(config.get_value(SECTION, "difficulty", Rules.LEVEL_ENGINEER)), Rules.LEVEL_ROOKIE, Rules.LEVEL_SURVIVOR)
 
 
 func save_data() -> bool:
@@ -30,6 +32,7 @@ func save_data() -> bool:
 	config.set_value(SECTION, "best_score", best_score)
 	config.set_value(SECTION, "best_run", best_run)
 	config.set_value(SECTION, "intro_seen", intro_seen)
+	config.set_value(SECTION, "difficulty", difficulty)
 	var error := config.save(path)
 	if error != OK:
 		push_warning("Could not save %s (error %d)" % [path, error])
@@ -53,6 +56,12 @@ func record_run(total: int) -> bool:
 	best_run = total
 	save_data()
 	return true
+
+
+## Remembers the level picked on the menu.
+func set_difficulty(level: int) -> void:
+	difficulty = clampi(level, Rules.LEVEL_ROOKIE, Rules.LEVEL_SURVIVOR)
+	save_data()
 
 
 func mark_intro_seen() -> void:
