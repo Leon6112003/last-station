@@ -41,6 +41,13 @@ const HUB_FACE_Z := HUB_BACK_Z + 0.2        # text on the hub side of the dividi
 const ROOM_FACE_Z := ROOM_BACK_Z + 0.2      # text on a room's back wall
 const PLATE_OFFSET := 0.03                  # plates sit this far behind their text
 
+const STRIP_ENERGY_OFF := 0.5     # ceiling strip while the system is down
+const STRIP_ENERGY_ON := 1.1     # ... and once repaired
+const FLOOR_ENERGY_OFF := 0.25    # tinted floor patch while the system is down
+const FLOOR_ENERGY_ON := 0.9      # ... and once repaired
+const ROOM_LIGHT_ENERGY_ON := 2.0    # room light once repaired (was 1.5 while down)
+const HUB_LIGHT_ENERGY := 1.0     # main hub light (a little dimmer than before for mood)
+
 const FONT_TITLE := 40
 const FONT_MAIN := 38
 const FONT_SMALL := 22
@@ -58,6 +65,9 @@ const FONT_SMALL := 22
 ##   "door_labels": {room_id: Label3D},          # the room name on its header sign
 ##   "door_status": {room_id: StandardMaterial3D}, # frame and light: red, then cyan when repaired
 ##   "protocol_board": Label3D,                  # big "PROTOCOL A/B" sign in the hub
+##   "room_floors": {room_id: StandardMaterial3D}, # tinted floor patch; brightens when repaired
+##   "room_strips": {room_id: StandardMaterial3D}, # ceiling light strip: dim red, then bright cyan
+##   "hub_light": OmniLight3D,                   # hub emergency light; main.gd flickers/pulses it
 ## }
 static func build(parent: Node3D, puzzles: Dictionary) -> Dictionary:
 	var wall_material := _solid_material(Rules.COLOR_INDIGO)
@@ -101,8 +111,13 @@ static func build(parent: Node3D, puzzles: Dictionary) -> Dictionary:
 	var room_lights := {}
 	var door_labels := {}
 	var door_status := {}
+	var room_floors := {}
+	var room_strips := {}
 	var header_height := h - DOOR_HEIGHT
-	_add_light(parent, Vector3(0.0, 2.6, 0.0), Color(0.8, 0.86, 1.0), 1.3, 9.0)
+	_add_light(parent, Vector3(0.0, 2.6, 0.0), Color(0.8, 0.86, 1.0), HUB_LIGHT_ENERGY, 9.0)
+	# A dim violet accent over the reboot terminal gives the hub a second light source.
+	_add_light(parent, Vector3(0.0, 2.2, HUB_FRONT_Z - 1.2), Rules.COLOR_VIOLET, 0.9, 5.0)
+	var hub_light := _add_light(parent, Vector3(0.0, 2.9, 1.5), Rules.COLOR_FAULT, 0.0, 7.0)
 	for room_id in ROOM_CENTERS_X:
 		var x: float = ROOM_CENTERS_X[room_id]
 		room_lights[room_id] = _add_light(parent, Vector3(x, 2.6, room_center_z), Rules.COLOR_FAULT, 1.5, 6.5)
@@ -122,7 +137,12 @@ static func build(parent: Node3D, puzzles: Dictionary) -> Dictionary:
 		door_labels[room_id] = _add_label(parent, ROOM_LABELS[room_id], Vector3(x, DOOR_HEIGHT + header_height * 0.55, HUB_FACE_Z), FONT_TITLE, Rules.COLOR_FAULT)
 
 		# Each room's floor is tinted so rooms are easy to tell apart.
-		_add_flat(parent, "RoomFloor", Vector3(x, 0.011, room_center_z), Vector2(3.7, 5.7), ROOM_FLOOR_TINT[room_id])
+		room_floors[room_id] = _add_flat(parent, "RoomFloor", Vector3(x, 0.011, room_center_z), Vector2(3.7, 5.7), ROOM_FLOOR_TINT[room_id])
+
+		# A ceiling light strip: dim red while the system is down, bright cyan once repaired.
+		var strip := _glow_material(Rules.COLOR_FAULT, STRIP_ENERGY_OFF)
+		room_strips[room_id] = strip
+		_add_glow_box(parent, Vector3(x, h - 0.04, room_center_z), Vector3(0.25, 0.05, room_depth - 1.0), strip)
 
 	var interactables: Array[Interactable] = []
 
@@ -192,6 +212,9 @@ static func build(parent: Node3D, puzzles: Dictionary) -> Dictionary:
 		"door_labels": door_labels,
 		"door_status": door_status,
 		"protocol_board": protocol_board,
+		"room_floors": room_floors,
+		"room_strips": room_strips,
+		"hub_light": hub_light,
 	}
 
 
@@ -278,10 +301,11 @@ static func _add_glow_box(parent: Node3D, center: Vector3, size: Vector3, materi
 
 
 ## A thin coloured patch lying on the floor (no collision).
-static func _add_flat(parent: Node3D, node_name: String, center: Vector3, size_xz: Vector2, color: Color) -> void:
-	var material := _glow_material(color, 0.35)
+static func _add_flat(parent: Node3D, node_name: String, center: Vector3, size_xz: Vector2, color: Color) -> StandardMaterial3D:
+	var material := _glow_material(color, FLOOR_ENERGY_OFF)
 	_add_glow_box(parent, center, Vector3(size_xz.x, 0.02, size_xz.y), material)
 	(parent.get_child(parent.get_child_count() - 1) as Node).name = node_name
+	return material
 
 
 ## A dark plate with a faint glow, drawn behind wall text so it reads clearly.

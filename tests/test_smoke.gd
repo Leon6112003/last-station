@@ -45,6 +45,8 @@ func _initialize() -> void:
 		if (statuses[room] as StandardMaterial3D).albedo_color != Rules.COLOR_FAULT:
 			all_red = false
 	_check(all_red, "doors start red (faulted)")
+	_check((station["room_strips"] as Dictionary).size() == 3 and (station["room_floors"] as Dictionary).size() == 3, "each room has a ceiling strip and a floor patch")
+	_check(station["hub_light"] is OmniLight3D, "the hub has an emergency light for the atmosphere")
 	var protocol_signs := world.find_children("*", "Label3D", true, false).filter(
 		func(l: Label3D) -> bool: return l.text.begins_with("PROTOCOL"))
 	var expected_sign := "PROTOCOL %s" % PuzzleGenerator.generate(1, 0)["protocol"]

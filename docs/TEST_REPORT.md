@@ -7,7 +7,7 @@ Nothing here is claimed unless it was actually run.
 
 ## 1. Automated tests (headless)
 
-Run with `./tests/run_all.sh` (needs `godot` on PATH). All 14 files ended with `ALL PASS`: **506 checks, 0 failures**.
+Run with `./tests/run_all.sh` (needs `godot` on PATH). All 14 files ended with `ALL PASS`: **513 checks, 0 failures**.
 
 | File | Checks | What it covers |
 |---|---:|---|
@@ -19,11 +19,11 @@ Run with `./tests/run_all.sh` (needs `godot` on PATH). All 14 files ended with `
 | `test_oracle_ui.gd` | 23 | H opens ORACLE with a real key event; pauses game and reserve; answers shown with manual excerpts; BBCode shown literally; Send disabled while "thinking"; R and M ignored while open; Esc and Close work; leaving for the menu closes it |
 | `test_ollama_down.gd` | 8 | the REAL Ollama client against `127.0.0.1:11434`. It handles both cases: with no server it must fail cleanly and fall back (this was run and passed before Ollama was installed); with the server running it must return a labelled local answer within 800 characters (run and passed on 2026-11-11 with qwen2.5:1.5b) |
 | `test_progression.gd` | 46 | reserve per shift (480, 420, 360, 240 floor); shift 1 always protocol A even after retries, later shifts use both; run total adds shift scores and resets for a new run; hints (cost 20 s, counted, never contain the answer, free when all repaired, refused without charge when the reserve is too low); best run saved; in the real scene: hub board text, coach line per step on shift 1 only, win screen shows run total / hints / next reserve, the Get a hint button works, and typing "hint" or "use a hint now" never spends one |
-| `test_flow.gd` | 28 | a full shift through the real main scene: early reboot refused, surge, three repairs, win, best score saved, Next Shift, fail, Retry, pause/resume, checklist ticks |
+| `test_flow.gd` | 33 | a full shift through the real main scene: early reboot refused, surge, three repairs, win, best score saved, Next Shift, fail, Retry, pause/resume, checklist ticks, repaired room lights its ceiling strip and floor, low-reserve vignette on/off |
 | `test_menu_flow.gd` | 57 | starts in the Main Menu; **3 consecutive cycles** (play, win, Next Shift, fail, retry, pause, Main Menu) with identical node counts (40, 40, 40) and 0 orphans; hold-R retry (short press cancels, 1 s retries once); Manuals pause the reserve; real M and Esc key events; intro card once |
 | `test_save.gd` | 10 | best score, intro flag, persistence, corrupt file, unwritable path |
 | `test_layout.gd` | 27 | at 1280×720, 1024×576 and 1920×1080 (the game runs inside a sized viewport, because headless ignores window size): every button of How to Play, the intro card, pause, win, fail and the main menu is inside the window; the Manuals and ORACLE panels fit; How to Play fully hides the menu behind it. Added after a bug pushed the Back button off the bottom of the How to Play page |
-| `test_smoke.gd` | 21 | station builds: 7 interactables, lights, solid bodies, player; a header above each doorway with 2 m headroom; door status materials start red; one protocol sign showing the shift's protocol; each breaker has its rating on it |
+| `test_smoke.gd` | 23 | station builds: 7 interactables, lights, solid bodies, player; a header above each doorway with 2 m headroom; door status materials start red; one protocol sign showing the shift's protocol; each breaker has its rating on it; each room has a ceiling strip and floor patch; hub emergency light |
 | `test_walk.gd` | 7 | physics: walks through a doorway, stopped by north and west walls, stays on the floor, aiming selects the console |
 
 Some tests print an `ERROR` or `WARNING` line on purpose (they feed corrupt or missing files to the loaders). The test still passes.
@@ -52,7 +52,7 @@ Launch check: `godot --headless --path . --quit-after 60` printed no errors or w
 | Main Menu, Manuals panel, ORACLE window, checklist: how they look | NOT RUN | built after the last user screenshots |
 | Fog, wall display plates, reboot terminal colour change (M5 polish) | NOT RUN | added in M5; never viewed in a window |
 | Mission briefing text and the PROTOCOL line in the checklist | PARTLY | the checklist line is visible in project-owner screenshots; the briefing text was seen on the How to Play page |
-| Redesigned hub and rooms (header signs, door frames and lights, flanking boards, breaker labels, room panels, reboot sign, coach line, checklist) | PASS (reviewed in rendered screenshots) | rendered with `tools/screenshot.gd` on the development Mac (Metal, 1280x720) from 7 viewpoints, both unrepaired and repaired. Layout problems found this way and fixed: the coach line ran off both screen edges, the checklist crowded a door sign, and the reboot terminal had no label. The floor guide lines were removed after the project owner found them ugly. Not yet viewed by the project owner after the redesign |
+| Redesigned hub and rooms (header signs, door frames and lights, flanking boards, breaker labels, room panels, reboot sign, coach line, checklist) | PASS (reviewed in rendered screenshots) | rendered with `tools/screenshot.gd` on the development Mac (Metal, 1280x720) from 7 viewpoints, both unrepaired and repaired. Layout problems found this way and fixed: the coach line ran off both screen edges, the checklist crowded a door sign, and the reboot terminal had no label. The floor guide lines were removed after the project owner found them ugly. Not yet viewed by the project owner after the redesign. Atmosphere pass (darker ambient, flickering hub light, ceiling strips and floor patches that light up when a room is repaired) rendered and reviewed. The low-reserve red pulse and vignette are covered by logic tests only; they were not rendered or seen in play |
 | ORACLE hint button, run total on the win screen | NOT RUN | logic is tested; appearance not viewed in a window |
 | Protocol A/B rules are fair and learnable in play | NOT RUN | logic and manuals are tested; whether players find it fun or too fiddly has not been playtested |
 | Legible at 1280×720 | PASS (partly) | user screenshots are 1280×720 and text was readable after fixes; not re-checked for M3–M5 screens |

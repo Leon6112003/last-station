@@ -78,7 +78,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 ```
 ./tests/run_all.sh        # needs `godot` on PATH
 ```
-14 headless test files, 506 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
+14 headless test files, 513 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
 
 ## Changes since the original spec
 
@@ -86,7 +86,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 - **Mission briefing:** the intro card is now a short story and no longer lists the rules.
 - **Escalating shifts and run total (added after playtesting):** reserve drops 60 s per shift (minimum 240 s), the run total adds the shift scores, and the best run is saved. The spec had identical shifts.
 - **Guided first shift and hub protocol board:** shift 1 is always Protocol A with a "what to do next" line; a big sign in the hub shows the protocol.
-- **Redesigned look (after playtesting feedback):** every door has a header sign, a frame and a light that turn from red to cyan when its system is repaired; two matching boards flank the middle door (the protocol, and how to get help); each room has a tinted floor; breaker ratings are printed on the breakers; each room has one tidy display panel; the reboot terminal is labelled and turns cyan when ready.
+- **Redesigned look (after playtesting feedback):** every door has a header sign, a frame and a light that turn from red to cyan when its system is repaired; two matching boards flank the middle door (the protocol, and how to get help); each room has a tinted floor and a ceiling strip, and the room lights up (bright cyan strip and floor) when repaired; the hub light flickers, and under a minute of reserve the station pulses red with a red screen-edge vignette (visual only, rules unchanged); breaker ratings are printed on the breakers; each room has one tidy display panel; the reboot terminal is labelled and turns cyan when ready.
 - **Hints:** ORACLE's Get a hint button costs 20 s of reserve. The hint is computed by the game, not the AI.
 
 ## Developer tool: screenshots

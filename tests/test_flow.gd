@@ -41,6 +41,19 @@ func _initialize() -> void:
 	_check(main._checklist_text().contains("[x] Power") and main._checklist_text().contains("[ ] Oxygen"), "the checklist ticks Power once it is repaired")
 	var power_light: OmniLight3D = main._station["room_lights"]["power"]
 	_check(power_light.light_color == Rules.COLOR_CYAN, "power room light turns cyan when repaired")
+	var strip: StandardMaterial3D = main._station["room_strips"]["power"]
+	_check(strip.albedo_color == Rules.COLOR_CYAN and strip.emission_energy_multiplier > StationBuilder.STRIP_ENERGY_OFF, "power room ceiling strip turns bright cyan when repaired")
+	var other_strip: StandardMaterial3D = main._station["room_strips"]["oxygen"]
+	_check(other_strip.albedo_color == Rules.COLOR_FAULT, "an unrepaired room keeps its dim red strip")
+	var floor_patch: StandardMaterial3D = main._station["room_floors"]["power"]
+	_check(is_equal_approx(floor_patch.emission_energy_multiplier, StationBuilder.FLOOR_ENERGY_ON), "power room floor brightens when repaired")
+	# Low reserve: the mood code pulses the hub light and shows the red vignette; it never touches the rules.
+	gm.reserve = 20.0
+	main._update_mood(0.5)
+	_check(main._low_vignette.modulate.a > 0.0 and (main._station["hub_light"] as OmniLight3D).light_energy > 0.0, "low reserve shows the red vignette and pulses the hub light")
+	gm.reserve = 300.0
+	main._update_mood(0.5)
+	_check(main._low_vignette.modulate.a == 0.0, "the vignette is off with plenty of reserve")
 
 	# Oxygen: open the real panel, set values through its buttons' logic, confirm.
 	_interact(main, "oxygen_console")

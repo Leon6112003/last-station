@@ -6,6 +6,8 @@ extends Node
 
 const HELP_TEXT := "WASD Move  ·  E Interact  ·  M Manuals  ·  H ORACLE  ·  Esc Pause  ·  Hold R Retry"
 const NOTICE_SECONDS := 2.5
+const AMBIENT_ENERGY := 0.65        # a little darker than before, for mood
+const LOW_RESERVE_SECONDS := 60.0   # below this the station pulses red
 const MODAL_WIDTH := 860.0
 
 const HOW_TO_PLAY_TEXT := """MISSION
@@ -45,6 +47,9 @@ var _records: Array = []
 var _world: Node3D
 var _player: PlayerController
 var _station: Dictionary = {}
+var _environment: Environment
+var _mood_time: float = 0.0
+var _low_vignette: TextureRect
 
 var _hud_layer: CanvasLayer
 var _shift_label: Label
@@ -108,6 +113,31 @@ func _ready() -> void:
 	_go_to_menu()
 
 
+## Atmosphere. The hub light flickers a little; under a minute of reserve the whole
+## station pulses red and a red vignette fades in. Visual only: no rules are touched.
+func _update_mood(delta: float) -> void:
+	if _environment == null or _station.is_empty():
+		return
+	_mood_time += delta
+	var low := gm.state == GameManager.State.PLAYING and gm.reserve < LOW_RESERVE_SECONDS
+	# 0 when comfortable, up to 1 as the reserve runs out.
+	var urgency := clampf(1.0 - gm.reserve / LOW_RESERVE_SECONDS, 0.0, 1.0) if low else 0.0
+	var pulse := 0.5 + 0.5 * sin(_mood_time * (3.0 + 3.0 * urgency))
+	var hub_light: OmniLight3D = _station["hub_light"]
+	if low:
+		hub_light.light_energy = (0.6 + 1.6 * pulse) * (0.5 + 0.5 * urgency)
+		_environment.ambient_light_energy = AMBIENT_ENERGY * (1.0 - 0.3 * urgency * pulse)
+		_environment.fog_light_color = Rules.COLOR_NAVY.lightened(0.1).lerp(Rules.COLOR_FAULT.darkened(0.6), urgency * 0.6)
+	else:
+		# A slow, uneven flicker on the emergency light (never fully off, never harsh).
+		var flicker := 0.5 + 0.5 * sin(_mood_time * 1.7) * sin(_mood_time * 5.3)
+		hub_light.light_energy = 0.25 * flicker if gm.repaired_count() < Rules.SYSTEMS_TOTAL else 0.0
+		_environment.ambient_light_energy = AMBIENT_ENERGY
+		_environment.fog_light_color = Rules.COLOR_NAVY.lightened(0.1)
+	if _low_vignette != null:
+		_low_vignette.modulate.a = urgency * (0.55 + 0.35 * pulse)
+
+
 func _process(delta: float) -> void:
 	var seconds_left := int(ceil(gm.reserve))
 	_reserve_label.text = "RESERVE %02d:%02d" % [floori(seconds_left / 60.0), seconds_left % 60]
@@ -122,6 +152,7 @@ func _process(delta: float) -> void:
 	if coach != _coach_label.text:
 		_coach_label.text = coach
 	_update_retry_hold(delta)
+	_update_mood(delta)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -293,11 +324,12 @@ func _rebuild_world() -> void:
 	environment.background_color = Rules.COLOR_NAVY
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Rules.COLOR_INDIGO
-	environment.ambient_light_energy = 0.8
+	environment.ambient_light_energy = AMBIENT_ENERGY
 	# A light navy haze gives the corridors depth without hiding the labels.
 	environment.fog_enabled = true
 	environment.fog_light_color = Rules.COLOR_NAVY.lightened(0.1)
 	environment.fog_density = 0.012
+	_environment = environment
 	var world_environment := WorldEnvironment.new()
 	world_environment.environment = environment
 	_world.add_child(world_environment)
@@ -364,6 +396,25 @@ func _build_hud() -> void:
 	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud_layer.add_child(_flash)
+
+	# Red edge vignette that fades in when the reserve runs low (centre stays clear).
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.55, 1.0])
+	gradient.colors = PackedColorArray([Color(Rules.COLOR_FAULT, 0.0), Color(Rules.COLOR_FAULT, 0.7)])
+	var vignette := GradientTexture2D.new()
+	vignette.gradient = gradient
+	vignette.fill = GradientTexture2D.FILL_RADIAL
+	vignette.fill_from = Vector2(0.5, 0.5)
+	vignette.fill_to = Vector2(1.0, 0.5)
+	vignette.width = 256
+	vignette.height = 256
+	_low_vignette = TextureRect.new()
+	_low_vignette.texture = vignette
+	_low_vignette.stretch_mode = TextureRect.STRETCH_SCALE
+	_low_vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_low_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_low_vignette.modulate.a = 0.0
+	_hud_layer.add_child(_low_vignette)
 
 	_hud_layer.add_child(_make_label("+", 28, 0.47, 0.53, Color(1, 1, 1, 0.8)))
 
@@ -793,6 +844,13 @@ func _handle_breaker(index: int) -> void:
 func _on_system_repaired(system_id: String) -> void:
 	var light: OmniLight3D = _station["room_lights"][system_id]
 	light.light_color = Rules.COLOR_CYAN
+	light.light_energy = StationBuilder.ROOM_LIGHT_ENERGY_ON
+	# The room itself wakes up: bright cyan ceiling strip, and a brighter floor patch.
+	var strip: StandardMaterial3D = _station["room_strips"][system_id]
+	strip.albedo_color = Rules.COLOR_CYAN
+	strip.emission = Rules.COLOR_CYAN
+	strip.emission_energy_multiplier = StationBuilder.STRIP_ENERGY_ON
+	(_station["room_floors"][system_id] as StandardMaterial3D).emission_energy_multiplier = StationBuilder.FLOOR_ENERGY_ON
 	var label: Label3D = _station["door_labels"][system_id]
 	label.modulate = Rules.COLOR_CYAN
 	# The door frame and light turn from red to cyan.
