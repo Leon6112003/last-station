@@ -258,9 +258,9 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}) -
 	# reactor state, and the coolant console. The core is hot orange until cooling is repaired.
 	var cooling: Dictionary = puzzles["cooling"]
 	var cooling_x: float = ROOM_CENTERS_X["cooling"]
-	_add_screen(parent, Vector3(cooling_x, 2.6, ROOM_FACE_Z - PLATE_OFFSET), Vector2(3.6, 0.9))
-	_add_label(parent, "CORE TEMP: %d K" % int(cooling["temp"]), Vector3(cooling_x, 2.85, ROOM_FACE_Z), FONT_MAIN, Rules.COLOR_CYAN)
-	_add_label(parent, "REACTOR: %s" % cooling["state"], Vector3(cooling_x, 2.35, ROOM_FACE_Z), FONT_MAIN, Rules.COLOR_GOLD)
+	_add_screen(parent, Vector3(cooling_x, 2.5, ROOM_FACE_Z - PLATE_OFFSET), Vector2(3.6, 0.9))
+	_add_label(parent, "CORE TEMP: %d K" % int(cooling["temp"]), Vector3(cooling_x, 2.72, ROOM_FACE_Z), FONT_MAIN, Rules.COLOR_CYAN)
+	_add_label(parent, "REACTOR: %s" % cooling["state"], Vector3(cooling_x, 2.28, ROOM_FACE_Z), FONT_MAIN, Rules.COLOR_GOLD)
 	var reactor_material := _glow_material(Color(1.0, 0.45, 0.15), 1.6)
 	var core := CylinderMesh.new()
 	core.top_radius = 0.45
@@ -530,7 +530,7 @@ static func _add_station_details(parent: Node3D, theme: Dictionary) -> void:
 	var room_depth := HUB_BACK_Z - ROOM_BACK_Z
 	var room_xs: Array = [BEDROOM_X] + ROOM_CENTERS_X.values()
 	for room_x in room_xs:
-		for beam_z in [room_center_z - 2.0, room_center_z + 2.0]:
+		for beam_z in [room_center_z - 0.5, room_center_z + 2.0]:   # none near the back wall, where the displays are
 			_add_glow_box(parent, Vector3(room_x, h - 0.15, beam_z), Vector3(ROOM_HALF_WIDTH * 2.0, 0.3, 0.3), rib_material)
 		_add_pipe(parent, Vector3(room_x + 2.4, h - 0.25, room_center_z), room_depth - 0.4, 0.1, pipe_material, true)
 		_add_pipe(parent, Vector3(room_x - 2.4, h - 0.25, room_center_z), room_depth - 0.4, 0.07, cable_material, true)
