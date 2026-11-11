@@ -8,7 +8,7 @@ Status: these steps are written from Godot's documented behavior. They were **no
 2. Unzip it anywhere (Godot needs no installer) and start the Godot executable.
 3. In the Project Manager choose **Import**, select this folder's `project.godot`, and press **Import & Edit**.
 4. Press **F5** (or the play button, top right) to run.
-5. Controls: WASD move, mouse look, E interact, M manuals, H ORACLE, Esc pause, hold R to retry.
+5. Controls: WASD move, mouse look, E interact, M manuals, H ORACLE, V first / third person, C camera in front of the character (third person), B music on / off, N all sound on / off, Esc pause, hold R to retry. Pick a level (Rookie, Engineer or Survivor) on the main menu.
 
 Run the automated tests (optional): open a terminal in the project folder and run
 ```
@@ -40,4 +40,5 @@ See `docs/OFFLINE_AI_SETUP.md`. The game works fully without it.
 | Black window or no 3D | Update the graphics driver; the project uses the GL Compatibility renderer, which runs on most hardware |
 | Manuals or ORACLE empty in an exported build | The `data/*.json` include filter is missing |
 | Cursor not captured after Alt-Tab | Press Esc twice (pause and resume) to recapture the mouse |
-| Best score missing | Saved in Godot's user data folder (`user://last_station.cfg`); deleting that file resets it |
+| Best score or level choice missing | Saved in Godot's user data folder (`user://last_station.cfg`); deleting that file resets both |
+| No sound | The sounds and music are generated when the game starts. Check **N** (all sound) and **B** (music) are on and the system volume is up |

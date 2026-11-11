@@ -25,17 +25,17 @@ Run with `./tests/run_all.sh` (needs `godot` on PATH). All 21 files ended with `
 | `test_levels.gd` | 25 | the three levels: every number per level, harder from Rookie to Survivor, out-of-range levels clamped, the score multiplier, the saved choice, the menu selector buttons and highlight, and that a chosen level reaches the real game (starting reserve, ORACLE cost) |
 | `test_layout.gd` | 27 | at 1280×720, 1024×576 and 1920×1080 (the game runs inside a sized viewport, because headless ignores window size): every button of How to Play, the intro card, pause, win, fail and the main menu is inside the window; the Manuals and ORACLE panels fit; How to Play fully hides the menu behind it. Added after a bug pushed the Back button off the bottom of the How to Play page |
 | `test_smoke.gd` | 33 | station builds: 9 interactables, lights, solid bodies, player; a header above each doorway with 2 m headroom; door status materials start red; one protocol sign showing the shift's protocol; each breaker has its rating on it; each room has a ceiling strip and floor patch; hub emergency light |
-| `test_music.gd` | 19 | theme song: renders in about half a second, loops with no seam, moderate loudness without clipping, no tone below 150 Hz, deterministic; plays only during a shift; B and mute switch it off |
-| `test_menu_screen.gd` | 9 | animated menu: three buttons call their actions, the typed intro hides the buttons until it ends or is skipped, any key skips it |
+| `test_music.gd` | 19 | theme song: renders in about half a second, loops with no seam, moderate loudness without clipping, no tone below 150 Hz, deterministic; the calm and tense layers are the same length and add up to the full song; the tense layer plays with the calm one and swells as the danger rises; plays only during a shift; B and mute switch it off |
+| `test_menu_screen.gd` | 9 | animated menu: three buttons (Play, How to Play, Quit) call their actions, the typed intro hides the buttons until it ends or is skipped, any key skips it |
 | `test_sound.gd` | 113 | every generated sound has audio data, is audible, does not clip and is identical each build; no sound loops and all are short one-shots; mute and unknown names are safe |
 | `test_theme.gd` | 24 | every shift has a complete, distinct, readable colour theme; they cycle; the builder uses the theme; a retry keeps it and the next shift changes it |
 | `test_corridor.gd` | 53 | gas cycles and drain, the laser grid (solid, one touch per approach, switch-off timer, waits while someone stands in it), hazard and ORACLE costs are never mistakes or fatal, doors unlock in order, the manuals explain it and ORACLE finds it |
 | `test_wake.gd` | 25 | the wake-up in bed: eyes start shut in the lower bunk looking up, locked until awake, sit up and stand, a key press skips it after 2 s, retries and later shifts do not wake you again, never leaves the screen black |
-| `test_walk.gd` | 29 | third-person camera (behind the head, never through a wall, body hidden when squeezed, aiming still works); physics: footsteps and a small camera bob while walking; walks through a doorway, stopped by north and west walls, stays on the floor, aiming selects the console |
+| `test_walk.gd` | 29 | third-person camera (behind the head, never through a wall, body hidden when squeezed, aiming still works) and the front view (camera in front, looking back, nothing to aim at); physics: footsteps and a small camera bob while walking; walks through a doorway, stopped by north and west walls, stays on the floor, aiming selects the console |
 
 Some tests print an `ERROR` or `WARNING` line on purpose (they feed corrupt or missing files to the loaders). The test still passes.
 
-Launch check: `godot --headless --path . --quit-after 60` printed no errors or warnings.
+Launch check: `godot --headless --path . --quit-after 60` printed no errors or warnings (re-run on 2026-11-11 after the level selector was added).
 
 ## 2. Checks that need a person in a real window (REQUIREMENTS.md J2)
 
@@ -64,7 +64,12 @@ Launch check: `godot --headless --path . --quit-after 60` printed no errors or w
 | Protocol A/B rules are fair and learnable in play | NOT RUN | logic and manuals are tested; whether players find it fun or too fiddly has not been playtested |
 | Legible at 1280×720 | PASS (partly) | user screenshots are 1280×720 and text was readable after fixes; not re-checked for M3–M5 screens |
 | Legible at 1920×1080 | PASS (layout only) | `test_layout.gd` checks that windows and buttons fit at 1920×1080; text legibility there was not viewed |
-| Frame rate (30+ FPS target) | NOT RUN | not measured |
+| Frame rate (30+ FPS target) | NOT RUN | not measured. Anti-aliasing (MSAA 4x), glow and the station details were added after the last visual review and their cost is unmeasured |
+| The audio engine runs in a real window and the music reacts to danger | PASS (measured) | `tools/audio_probe.gd` played the real game on the Mac: the master bus averaged about -24.5 dB with no danger and about -20.6 dB at full danger (peaks -18.9 and -7.0 dB). This shows the sound is produced and gets louder; it says nothing about how it sounds |
+| The theme song and survival sounds give a survival mood | NOT RUN (by me) | I cannot hear audio. The project owner said the first versions did not give a survival mood and that a later one was "good"; the latest louder, danger-reactive version and the breathing, fan, door and gas sounds have not been rated |
+| The astronaut character and the **C** front view look right | PARTLY | rendered front, side and back views were reviewed (`tools/avatar_shot.gd`); the project owner reviewed an earlier version and asked for a pure astronaut. The final look and the animation while walking were not seen in a window by me |
+| The bunk bed, windows onto space, pipes, ribs and guide lights | PARTLY | reviewed in rendered screenshots; a guide light that crossed the doorways was found by the project owner and fixed |
+| Level selector: look and feel of Rookie / Engineer / Survivor | PARTLY | logic is tested (`test_levels.gd`) and the menu was rendered; the project owner asked for no highlight on open, and that was done. Whether the three levels feel right is NOT RUN: the numbers are estimates, not tuned by play |
 | Works with no internet | PASS (by design) | the only network call is to `127.0.0.1`; fallback tested with the server down |
 
 ### 2a. Real model (Ollama + qwen2.5:1.5b): what was observed
@@ -93,6 +98,6 @@ Remaining weakness: the model's wording on general questions can still be slight
 
 - A small local model can still word things badly or miss detail. The safeguards in 2a catch invented numbers, invented breakers and one-sided protocol answers, but not every wording problem; that is why the exact manual text is always shown next to the answer.
 - Wall text fills the screen if the player stands right against a back wall.
-- Scores are comparable only because every shift uses the same reserve; there is no difficulty scaling.
+- Scores from different levels are comparable only through the level multiplier (x0.6, x1.0, x1.4); the level numbers are untuned estimates. The best score is one number across all levels.
 - The project was saved by Godot 4.7.2; opening it in an older Godot 4 version is untested.
 - The puzzle values for one seed are random; the generator is deterministic only for the same (seed, attempt).
