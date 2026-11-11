@@ -104,6 +104,15 @@ func _test_oracle() -> void:
 	question = "core temp 480 cooling flow"
 	exact = OracleLogic.compose_exact(question, KnowledgeRetriever.retrieve(question, records))
 	_check(String(exact["answer"]).contains("Protocol A") and String(exact["answer"]).contains("Protocol B"), "with no protocol named it shows both")
+	question = "protocol b cooling 440k"
+	exact = OracleLogic.compose_exact(question, KnowledgeRetriever.retrieve(question, records))
+	_check(String(exact["answer"]).contains("4 L/s") and String(exact["answer"]).contains("440"), "a temperature typed with a K (440k, B = 4 L/s) is calculated, not replaced by the manual example")
+	question = "cooling protocol b surge"
+	exact = OracleLogic.compose_exact(question, KnowledgeRetriever.retrieve(question, records))
+	_check(String(exact["answer"]).contains("/ 10") and String(exact["answer"]).contains("SURGE") and not String(exact["answer"]).contains("560"), "with no temperature given, ORACLE explains the formula instead of quoting the 560 K example")
+	question = "protocol b load mode"
+	var load_results: Array = KnowledgeRetriever.retrieve(question, records)
+	_check(load_results.any(func(r: Dictionary) -> bool: return r["id"] == "power_order") and load_results[0]["id"] != "oxygen_table", "'load mode' finds the Power breaker order, not the Oxygen valve table")
 	var snapshot := OracleLogic.sanitize_snapshot({"systems_repaired": 4, "systems_total": 4, "reserve_seconds": 100, "mistakes": 0, "retry_count": 0, "run_number": 1, "best_score": 0})
 	_check(snapshot["systems_total"] == 4 and snapshot["systems_repaired"] == 4, "the snapshot allows four systems")
 

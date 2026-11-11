@@ -211,6 +211,8 @@
    "power",
    "breaker",
    "order",
+   "mode",
+   "load",
    "restore",
    "shed",
    "lowest",

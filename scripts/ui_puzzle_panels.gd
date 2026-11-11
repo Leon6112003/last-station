@@ -14,6 +14,7 @@ var _value_labels: Array[Label] = []
 var _message: Label
 var _pad_buttons: Array[Button] = []
 var _progress_label: Label
+var _step_label: Label               ## while the sequence plays: which step it is, and the letters so far
 var _show_button: Button
 var _showing: bool = false
 var _show_tween: Tween
@@ -62,6 +63,10 @@ func _build() -> void:
 			column.add_child(_valve_row(i))
 		column.add_child(_make_button("CONFIRM SETTINGS", _on_confirm_oxygen))
 	elif _kind == "reboot":
+		_step_label = _make_label(" ", 30, Color.WHITE)
+		_step_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_step_label.custom_minimum_size = Vector2(0, 40)
+		column.add_child(_step_label)
 		column.add_child(_pad_row())
 		_progress_label = _make_label("", 20, Rules.COLOR_GOLD)
 		column.add_child(_progress_label)
@@ -133,6 +138,7 @@ func _pad_row() -> HBoxContainer:
 		pad.add_theme_stylebox_override("hover", _pad_style(PAD_COLORS[i], true))
 		pad.add_theme_stylebox_override("pressed", _pad_style(PAD_COLORS[i], true))
 		pad.add_theme_stylebox_override("disabled", _pad_style(PAD_COLORS[i], false))
+		pad.add_theme_color_override("font_disabled_color", PAD_COLORS[i])
 		pad.pressed.connect(func() -> void: _on_pad(i))
 		_pad_buttons.append(pad)
 		row.add_child(pad)
@@ -143,7 +149,12 @@ func _pad_style(color: Color, lit: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(color, 0.85) if lit else Color(color, 0.12)
 	style.border_color = color
-	style.set_border_width_all(3)
+	style.set_border_width_all(8 if lit else 3)
+	if lit:
+		style.bg_color = color
+		style.border_color = Color.WHITE
+		style.shadow_color = Color(color, 0.8)
+		style.shadow_size = 16
 	style.set_corner_radius_all(8)
 	return style
 
@@ -168,20 +179,28 @@ func _on_show_pressed() -> void:
 
 
 ## Lights the pads one at a time in the flashed order. The pads cannot be pressed meanwhile.
-func _show_sequence() -> void:
+func _show_sequence(lead_in: float = 0.0) -> void:
 	if _show_tween != null:
 		_show_tween.kill()
 	_showing = true
 	_set_pads_enabled(false)
-	_message.text = "Watch the lights..."
+	if lead_in <= 0.0:
+		_message.text = "Watch the lights..."
 	var sequence: Array = _gm.puzzles["reboot"]["sequence"]
 	if instant:
 		finish_showing()
 		return
 	_show_tween = create_tween()
-	for pad in sequence:
-		var index := int(pad)
+	if lead_in > 0.0:
+		# A short pause first, so the player can take in the mistake and get ready to watch.
+		_show_tween.tween_interval(lead_in)
+		_show_tween.tween_callback(func() -> void: _message.text = "Watch the lights...")
+	var shown_letters: Array[String] = []
+	for step in sequence.size():
+		var index := int(sequence[step])
+		shown_letters.append(Rules.SEQ_PAD_NAMES[index])
 		_show_tween.tween_callback(_light_pad.bind(index, true))
+		_show_tween.tween_callback(_set_step_text.bind("STEP %d OF %d:   %s" % [step + 1, sequence.size(), "  >  ".join(shown_letters)]))
 		_show_tween.tween_interval(Rules.SEQ_STEP_SECONDS * 0.7)
 		_show_tween.tween_callback(_light_pad.bind(index, false))
 		_show_tween.tween_interval(Rules.SEQ_STEP_SECONDS * 0.3)
@@ -195,11 +214,19 @@ func finish_showing() -> void:
 		_light_pad(i, false)
 	_showing = false
 	_set_pads_enabled(true)
+	_set_step_text(" ")
 	_message.text = "Your turn."
 
 
 func _light_pad(index: int, on: bool) -> void:
 	_pad_buttons[index].add_theme_stylebox_override("disabled", _pad_style(PAD_COLORS[index], on))
+	# A lit pad is filled with its colour, so its letter turns dark to stay readable.
+	_pad_buttons[index].add_theme_color_override("font_disabled_color", Color(0.04, 0.05, 0.12) if on else PAD_COLORS[index])
+
+
+func _set_step_text(text: String) -> void:
+	if _step_label != null:
+		_step_label.text = text
 
 
 func _set_pads_enabled(enabled: bool) -> void:
@@ -220,8 +247,9 @@ func _on_pad(index: int) -> void:
 			solved.emit()
 		"wrong":
 			refresh()
-			_show_sequence()   # the sequence is shown again, free, after a mistake
-			_message.text = "WRONG CODE  -%d s" % Rules.confirm_penalty()
+			# The sequence is shown again, free, after a short pause so the mistake is noticed.
+			_show_sequence(Rules.SEQ_RETRY_PAUSE_SECONDS)
+			_message.text = "WRONG CODE  -%d s.  Watch again in a moment..." % Rules.confirm_penalty()
 		"ok":
 			_message.text = ""
 			refresh()

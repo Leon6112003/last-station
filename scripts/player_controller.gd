@@ -37,8 +37,9 @@ var _avatar: Node3D
 var _legs: Array[Node3D] = []
 var _arms: Array[Node3D] = []
 
-# Third person: an over-the-shoulder camera behind the avatar.
-const THIRD_OFFSET := Vector3(0.7, 0.1, 2.7)   # right, up, back from the eye (before pitch)
+# Third person: a camera directly behind and a little above the avatar, so the reticle,
+# the body and the walking direction are all on one line.
+const THIRD_OFFSET := Vector3(0.0, 0.6, 2.7)   # right, up, back from the eye (before pitch)
 const FRONT_OFFSET := Vector3(0.0, 0.15, -2.6)  # the front view: in front of the head, looking back at it
 const THIRD_AIM_DISTANCE := 3.0                 # the camera turns to look at the point this far ahead of the eye
 const CAMERA_WALL_MARGIN := 0.25                # keep the camera this far in front of a wall
@@ -368,6 +369,8 @@ func _update_bob(delta: float, horizontal_speed: float) -> void:
 		# Turn the camera a little toward the middle so the reticle (and the interaction
 		# ray, which follows the camera) lands about where the character is facing.
 		_camera.rotation.y = atan(THIRD_OFFSET.x / (THIRD_OFFSET.z + THIRD_AIM_DISTANCE))
+		# The camera is above the eye, so tilt it down a little: the reticle then points where the eyes do.
+		_camera.rotation.x = _pitch - atan(THIRD_OFFSET.y / (THIRD_OFFSET.z + THIRD_AIM_DISTANCE))
 		# With a wall right behind, the camera is squeezed close to the head: hide the
 		# body then, so it does not fill the screen.
 		_avatar.visible = _camera.position.distance_to(eye) > AVATAR_MIN_CAMERA_DISTANCE

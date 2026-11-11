@@ -170,7 +170,7 @@ func _ready() -> void:
 	save = SaveManager.new(save_path)
 	_setup_input()
 	Rules.level = save.difficulty
-	Rules.mods = save.modifiers
+	Rules.mods = 0   # modifiers always start switched off; they are not remembered between launches
 	Rules.adaptive = save.adaptive
 	_records = KnowledgeBase.load_records()
 
@@ -617,10 +617,9 @@ func _set_level(level: int) -> void:
 	save.set_difficulty(Rules.level)
 
 
-## A modifier switched on or off on the menu: used from the next Play, and remembered.
+## A modifier switched on or off on the menu: used from the next Play (not saved).
 func _set_modifier(flag: int, on: bool) -> void:
 	Rules.set_mod(flag, on)
-	save.set_modifiers(Rules.mods)
 
 
 ## Main Menu > Play: a brand new run with a new seed. The intro card is shown

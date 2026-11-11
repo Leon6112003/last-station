@@ -278,18 +278,31 @@ static func _comms_answer(question: String, entry: Dictionary) -> String:
 	return " ".join(parts)
 
 
+## The cooling rule in words, for a question that gives no usable core temperature. It uses the
+## game's own numbers (not the manual's 560 K example, which is not the player's reading).
+static func _cooling_rule_text(question: String) -> String:
+	var protocol := detect_protocol(question)
+	var protocols: Array = [protocol] if protocol != "" else Rules.PROTOCOLS
+	var parts: Array[String] = []
+	for p in protocols:
+		parts.append("Protocol %s: coolant flow = (core temperature - %d) / %d L/s." % [p, Rules.COOLING_BASE_K, Rules.COOLING_DIVISOR[p]])
+	parts.append("If the reactor state is SURGE, add %d L/s." % Rules.COOLING_SURGE_BONUS)
+	parts.append("Tell me the core temperature on the Cooling room's display (for example \"core temp 440, protocol B, surge\") and I will work out the number.")
+	return " ".join(parts)
+
+
 ## Cooling: if the question gives the core temperature (a number from the room's display,
 ## for example "core temp 560, protocol B, surge") the coolant flow is calculated with the
 ## same rule as the game. Without a temperature the manual sentences are shown.
 static func _cooling_answer(question: String, entry: Dictionary) -> String:
 	var temp_regex := RegEx.new()
-	temp_regex.compile("\\b([3-9][0-9]{2})\\b")
+	temp_regex.compile("(?<![0-9])([3-9][0-9]{2})(?![0-9])")  # also matches "440k" and "440 K"
 	var found := temp_regex.search(question)
 	if found == null:
-		return select_sentences(question, entry["text"])
+		return _cooling_rule_text(question)
 	var temp := int(found.get_string(1))
 	if temp <= Rules.COOLING_BASE_K or (temp - Rules.COOLING_BASE_K) % 10 != 0:
-		return select_sentences(question, entry["text"])
+		return _cooling_rule_text(question)
 	var surge := false
 	var named_state := false
 	for token in KnowledgeRetriever.tokenize(question):

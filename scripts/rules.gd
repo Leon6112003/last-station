@@ -286,7 +286,8 @@ const SEQ_PAD_COUNT := 4
 const SEQ_PAD_NAMES: Array[String] = ["A", "B", "C", "D"]
 const SEQ_LENGTH_BASE := 4
 const SEQ_LENGTH_MAX := 6
-const SEQ_STEP_SECONDS := 0.75      # how long each pad lights up when the sequence is shown
+const SEQ_RETRY_PAUSE_SECONDS := 1.5   # pause between a wrong code and the replay
+const SEQ_STEP_SECONDS := 1.0       # how long each pad lights up when the sequence is shown
 const SYSTEMS_TOTAL := 4
 
 # --- Retry -------------------------------------------------------------
