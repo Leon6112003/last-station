@@ -7,7 +7,7 @@ Nothing here is claimed unless it was actually run.
 
 ## 1. Automated tests (headless)
 
-Run with `./tests/run_all.sh` (needs `godot` on PATH). All 14 files ended with `ALL PASS`: **499 checks, 0 failures**.
+Run with `./tests/run_all.sh` (needs `godot` on PATH). All 14 files ended with `ALL PASS`: **507 checks, 0 failures**.
 
 | File | Checks | What it covers |
 |---|---:|---|
@@ -23,7 +23,7 @@ Run with `./tests/run_all.sh` (needs `godot` on PATH). All 14 files ended with `
 | `test_menu_flow.gd` | 57 | starts in the Main Menu; **3 consecutive cycles** (play, win, Next Shift, fail, retry, pause, Main Menu) with identical node counts (40, 40, 40) and 0 orphans; hold-R retry (short press cancels, 1 s retries once); Manuals pause the reserve; real M and Esc key events; intro card once |
 | `test_save.gd` | 10 | best score, intro flag, persistence, corrupt file, unwritable path |
 | `test_layout.gd` | 27 | at 1280×720, 1024×576 and 1920×1080 (the game runs inside a sized viewport, because headless ignores window size): every button of How to Play, the intro card, pause, win, fail and the main menu is inside the window; the Manuals and ORACLE panels fit; How to Play fully hides the menu behind it. Added after a bug pushed the Back button off the bottom of the How to Play page |
-| `test_smoke.gd` | 14 | station builds: 7 interactables, lights, solid bodies, player |
+| `test_smoke.gd` | 22 | station builds: 7 interactables, lights, solid bodies, player; a header above each doorway with 2 m headroom; door status materials start red; one protocol sign showing the shift's protocol; each breaker has its rating on it; a floor guide to each door |
 | `test_walk.gd` | 7 | physics: walks through a doorway, stopped by north and west walls, stays on the floor, aiming selects the console |
 
 Some tests print an `ERROR` or `WARNING` line on purpose (they feed corrupt or missing files to the loaders). The test still passes.
@@ -52,7 +52,8 @@ Launch check: `godot --headless --path . --quit-after 60` printed no errors or w
 | Main Menu, Manuals panel, ORACLE window, checklist: how they look | NOT RUN | built after the last user screenshots |
 | Fog, wall display plates, reboot terminal colour change (M5 polish) | NOT RUN | added in M5; never viewed in a window |
 | Mission briefing text and the PROTOCOL line in the checklist | PARTLY | the checklist line is visible in project-owner screenshots; the briefing text was seen on the How to Play page |
-| Hub protocol board, guided-shift coach line, ORACLE hint button, run total on the win screen | NOT RUN | added after the last user screenshots; logic is tested, appearance was never viewed in a window |
+| Redesigned hub and rooms (header signs, door frames and lights, flanking boards, floor guides, breaker labels, room panels, reboot sign, coach line, checklist) | PASS (reviewed in rendered screenshots) | rendered with `tools/screenshot.gd` on the development Mac (Metal, 1280x720) from 7 viewpoints, both unrepaired and repaired. Layout problems found this way and fixed: the coach line ran off both screen edges, the checklist crowded a door sign, and the reboot terminal had no label. Not yet viewed by the project owner after the redesign |
+| ORACLE hint button, run total on the win screen | NOT RUN | logic is tested; appearance not viewed in a window |
 | Protocol A/B rules are fair and learnable in play | NOT RUN | logic and manuals are tested; whether players find it fun or too fiddly has not been playtested |
 | Legible at 1280×720 | PASS (partly) | user screenshots are 1280×720 and text was readable after fixes; not re-checked for M3–M5 screens |
 | Legible at 1920×1080 | PASS (layout only) | `test_layout.gd` checks that windows and buttons fit at 1920×1080; text legibility there was not viewed |

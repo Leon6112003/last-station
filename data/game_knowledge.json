@@ -41,7 +41,7 @@
   {
     "id": "first_steps",
     "title": "How to Start",
-    "text": "First read the checklist at the top left and note the protocol. Then visit each room and read its panel. Next look up the rule for that room and protocol in these manuals. Repair all three systems, then press E on the gold reboot terminal in the hub.",
+    "text": "First read the checklist at the top left and note the protocol. Then visit each room and read its panel. Next look up the rule for that room and protocol in these manuals. Repair all three systems, then press E on the reboot terminal in the hub.",
     "keywords": [
       "start",
       "begin",
@@ -288,7 +288,7 @@
   {
     "id": "reboot_terminal",
     "title": "Reboot Terminal",
-    "text": "The gold reboot terminal in the hub works only when all three systems are repaired. Using it earlier shows a warning. Using it with all three repaired wins the shift and shows your score.",
+    "text": "The reboot terminal in the hub (on the south wall) works only when all three systems are repaired, and it turns cyan when it is ready. Using it earlier shows a warning. Using it with all three repaired wins the shift and shows your score.",
     "keywords": [
       "reboot",
       "terminal",

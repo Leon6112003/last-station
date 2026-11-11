@@ -19,7 +19,7 @@ As a project it is a demonstration of a **RAG assistant inside a game**: the rul
 ## How to play
 
 1. Press **Play**. You spawn in the hub, facing a big **PROTOCOL** sign. The oxygen reserve (8:00 on shift 1) starts when you first move. **Shift 1 is a guided shift:** it always uses Protocol A and a line at the bottom tells you what to do next.
-2. The top-left checklist shows what is left and the current **PROTOCOL (A or B)**. Repair the three systems, then press **E** on the gold reboot terminal in the hub.
+2. The top-left checklist shows what is left and the current **PROTOCOL (A or B)**. Repair the three systems, then press **E** on the reboot terminal in the hub.
 3. Aim the `+` at a terminal until `E — ...` appears, then press **E**.
 4. **The game does not tell you the rules.** Read the panels in each room, then press **M** (manuals) or **H** (ORACLE) to look up what to do. The protocol changes the rules, so check it each shift.
 
@@ -78,7 +78,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 ```
 ./tests/run_all.sh        # needs `godot` on PATH
 ```
-14 headless test files, 499 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
+14 headless test files, 507 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
 
 ## Changes since the original spec
 
@@ -86,7 +86,16 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 - **Mission briefing:** the intro card is now a short story and no longer lists the rules.
 - **Escalating shifts and run total (added after playtesting):** reserve drops 60 s per shift (minimum 240 s), the run total adds the shift scores, and the best run is saved. The spec had identical shifts.
 - **Guided first shift and hub protocol board:** shift 1 is always Protocol A with a "what to do next" line; a big sign in the hub shows the protocol.
+- **Redesigned look (after playtesting feedback):** every door has a header sign, a frame and a light that turn from red to cyan when its system is repaired; two matching boards flank the middle door (the protocol, and how to get help); floor guide lines lead to each door and each room has a tinted floor; breaker ratings are printed on the breakers; each room has one tidy display panel; the reboot terminal is labelled and turns cyan when ready.
 - **Hints:** ORACLE's Get a hint button costs 20 s of reserve. The hint is computed by the game, not the AI.
+
+## Developer tool: screenshots
+
+`tools/screenshot.gd` renders the station from several viewpoints to PNG files (needs a real window, not `--headless`):
+```
+godot --path . -s res://tools/screenshot.gd -- /path/to/output/folder            # as it starts
+godot --path . -s res://tools/screenshot.gd -- /path/to/output/folder repaired   # all systems repaired
+```
 
 ## Known limitations
 

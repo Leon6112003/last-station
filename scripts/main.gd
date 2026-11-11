@@ -15,7 +15,7 @@ system, ORACLE, remembers how every system works. You are the
 only one awake who can repair them.
 
 GOAL
-Repair Power, Oxygen and Comms, then press E on the gold reboot
+Repair Power, Oxygen and Comms, then press E on the reboot
 terminal in the hub, before the reserve reaches zero.
 
 HOW
@@ -158,7 +158,7 @@ func _coach_text() -> String:
 	if gm.run_number != 1 or gm.state != GameManager.State.PLAYING:
 		return ""
 	if gm.repaired_count() == Rules.SYSTEMS_TOTAL:
-		return "All systems repaired! Go back to the hub and press E on the gold reboot terminal."
+		return "All systems repaired! Go back to the hub and press E on the reboot terminal."
 	for id in GameManager.SYSTEM_IDS:
 		if gm.repaired.get(id, false):
 			continue
@@ -181,7 +181,7 @@ func _checklist_text() -> String:
 		var mark := "[x]" if gm.repaired.get(id, false) else "[ ]"
 		lines.append("%s %s (%s)" % [mark, id.capitalize(), rooms[id]])
 	if gm.repaired_count() == Rules.SYSTEMS_TOTAL:
-		lines.append("-> REBOOT: gold terminal in the hub")
+		lines.append("-> REBOOT: terminal in the hub")
 	else:
 		lines.append("[ ] Reboot (needs 3/3)")
 	return "\n".join(lines)
@@ -375,10 +375,13 @@ func _build_hud() -> void:
 	_hud_layer.add_child(_systems_label)
 
 	# Guided first shift: one line saying what to do next (shift 1 only).
-	_coach_label = _make_label("", 22, 0.84, 0.92, Rules.COLOR_GOLD)
+	_coach_label = _make_label("", 22, 0.82, 0.93, Rules.COLOR_GOLD)
+	_coach_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_coach_label.offset_left = 160
+	_coach_label.offset_right = -160
 	_hud_layer.add_child(_coach_label)
 
-	_checklist_label = _make_label("", 20, 0.09, 0.30, Color(1, 1, 1, 0.92), HORIZONTAL_ALIGNMENT_LEFT)
+	_checklist_label = _make_label("", 18, 0.075, 0.26, Color(1, 1, 1, 0.92), HORIZONTAL_ALIGNMENT_LEFT)
 	_checklist_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	_checklist_label.offset_left = 24
 	_hud_layer.add_child(_checklist_label)
@@ -792,6 +795,10 @@ func _on_system_repaired(system_id: String) -> void:
 	light.light_color = Rules.COLOR_CYAN
 	var label: Label3D = _station["door_labels"][system_id]
 	label.modulate = Rules.COLOR_CYAN
+	# The door frame and light turn from red to cyan.
+	var status: StandardMaterial3D = _station["door_status"][system_id]
+	status.albedo_color = Rules.COLOR_CYAN
+	status.emission = Rules.COLOR_CYAN
 	if system_id == "power":
 		for breaker in _station["breakers"]:
 			(breaker as Interactable).set_color(Rules.COLOR_CYAN)

@@ -191,7 +191,7 @@ func use_hint() -> Dictionary:
 			next = id
 			break
 	if next.is_empty():
-		return {"ok": true, "text": "All systems are repaired. Go to the hub and press E on the gold reboot terminal.", "cost": 0}
+		return {"ok": true, "text": "All systems are repaired. Go to the hub and press E on the reboot terminal.", "cost": 0}
 	if reserve <= float(Rules.HINT_COST_SECONDS):
 		return {"ok": false, "text": "Not enough oxygen reserve left for a hint.", "cost": 0}
 	reserve -= float(Rules.HINT_COST_SECONDS)
