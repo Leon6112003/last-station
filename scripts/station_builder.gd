@@ -124,15 +124,6 @@ static func build(parent: Node3D, puzzles: Dictionary) -> Dictionary:
 		# Each room's floor is tinted so rooms are easy to tell apart.
 		_add_flat(parent, "RoomFloor", Vector3(x, 0.011, room_center_z), Vector2(3.7, 5.7), ROOM_FLOOR_TINT[room_id])
 
-	# --- Hub floor guide lines: a stem from the spawn, a bar across, and a
-	# coloured stub into each doorway.
-	var guide_dim := Rules.COLOR_INDIGO.lightened(0.15)
-	_add_flat(parent, "GuideStem", Vector3(0.0, 0.012, -0.3), Vector2(0.24, 2.6), guide_dim)
-	_add_flat(parent, "GuideBar", Vector3(0.0, 0.012, -1.6), Vector2(8.24, 0.2), guide_dim)
-	var stub_colors := {"power": Rules.COLOR_VIOLET, "oxygen": Rules.COLOR_CYAN, "comms": Rules.COLOR_GOLD}
-	for room_id in ROOM_CENTERS_X:
-		_add_flat(parent, "GuideStub", Vector3(ROOM_CENTERS_X[room_id], 0.013, -2.15), Vector2(0.28, 1.1), stub_colors[room_id])
-
 	var interactables: Array[Interactable] = []
 
 	# --- Hub boards flanking the middle doorway, in view from the spawn.

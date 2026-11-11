@@ -52,9 +52,6 @@ func _initialize() -> void:
 	var breaker_labels := world.find_children("*", "Label3D", true, false).filter(
 		func(l: Label3D) -> bool: return l.text.contains(" V") and l.position.y < 2.0)
 	_check(breaker_labels.size() == 4, "each breaker has its rating printed on it (found %d)" % breaker_labels.size())
-	var stubs := world.find_children("*", "MeshInstance3D", true, false).filter(func(m: MeshInstance3D) -> bool:
-		return m.position.y > 0.0125 and m.position.y < 0.0135)  # the stubs lie a hair above the stem and bar
-	_check(stubs.size() == 3, "a floor guide leads to each door (found %d)" % stubs.size())
 	_check(not (station["interactables"] as Array).any(func(i: Interactable) -> bool: return i.position.y < 0.0), "no terminal is below the floor")
 
 	var player := PlayerController.new()
