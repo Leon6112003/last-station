@@ -23,11 +23,11 @@ const VIEWS := [
 	["07_comms_room", Vector3(36.0, 0.9, -4.5), 0.0, 5.0],
 	["07b_cooling_room", Vector3(48.0, 0.9, -4.0), 0.0, 5.0],
 	["07c_cooling_reactor", Vector3(50.5, 0.9, -3.0), 90.0, 0.0],
-	["07e_cryo_terminals", Vector3(60.0, 0.9, -3.2), 0.0, 3.0],
-	["07f_cryo_pods_west", Vector3(61.0, 0.9, -4.5), 90.0, 8.0],
-	["07g_cryo_doorway", Vector3(60.0, 0.9, 0.0), 0.0, 0.0],
+	["07e_cryo_terminals", Vector3(-10.0, 0.9, -3.2), 0.0, 3.0],
+	["07f_cryo_pods_west", Vector3(-9.0, 0.9, -4.5), 90.0, 8.0],
+	["07g_cryo_doorway", Vector3(-10.0, 0.9, 0.0), 0.0, 0.0],
 	["07d_corridor_east_end", Vector3(44.0, 0.9, 0.0), -90.0, 0.0],
-	["08_reboot_terminal", Vector3(-2.0, 0.9, 0.0), 90.0, 0.0],
+	["08_reboot_terminal", Vector3(-12.0, 0.9, 0.0), 90.0, 0.0],
 ]
 
 

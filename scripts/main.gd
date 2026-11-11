@@ -45,8 +45,9 @@ west end, before the reserve reaches zero.
 
 THE WALK
 The doors open in order: Oxygen after Power, Comms after Oxygen,
-Cooling after Comms. Past Cooling, an optional CRYO BAY holds the
-sleeping crew and their logs. In the corridor, GAS VENTS drain your
+Cooling after Comms. West of the crew quarters, on the way to the
+reboot terminal, an optional CRYO BAY holds the sleeping crew and
+their logs. In the corridor, GAS VENTS drain your
 reserve fast while they vent (red lamp): wait for a grey lamp. A LASER
 GRID blocks the corridor and costs time if you touch it: press E on a
 wall switch beside it to turn it off for a short time. Later shifts are

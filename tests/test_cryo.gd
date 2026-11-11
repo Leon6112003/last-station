@@ -60,7 +60,9 @@ func _test_station() -> void:
 	var world := Node3D.new()
 	root.add_child(world)
 	var station := StationBuilder.build(world, PuzzleGenerator.generate(3, 0))
-	_check(StationBuilder.CRYO_X > StationBuilder.ROOM_CENTERS_X["cooling"] and StationBuilder.X_EAST >= StationBuilder.CRYO_X + StationBuilder.ROOM_HALF_WIDTH, "the Cryo Bay is past Cooling, inside the corridor's end wall")
+	var reboot_x := StationBuilder.X_WEST + 0.6
+	_check(StationBuilder.CRYO_X < StationBuilder.BEDROOM_X - StationBuilder.ROOM_HALF_WIDTH and StationBuilder.CRYO_X - StationBuilder.ROOM_HALF_WIDTH > StationBuilder.X_WEST, "the Cryo Bay is west of the crew quarters, inside the corridor's west end")
+	_check(reboot_x < StationBuilder.CRYO_X - StationBuilder.ROOM_HALF_WIDTH, "the reboot terminal is beyond the Cryo Bay, so you pass its door on the way to reboot")
 	_check(not (station["doors"] as Dictionary).has("cryo"), "the Cryo Bay has no door: it is never locked")
 	var ids := (station["interactables"] as Array).map(func(i: Interactable) -> String: return i.id)
 	var logs := ids.filter(func(id: String) -> bool: return id.begins_with("crew_log_"))

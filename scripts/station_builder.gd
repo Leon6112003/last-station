@@ -21,8 +21,8 @@ extends RefCounted
 ## Design rules: every sign sits ON a surface (a header, a plate, a breaker or a
 ## console), never floating; text of one kind uses one size.
 
-const X_WEST := -5.0         # west end of the corridor (centre of the end wall)
-const X_EAST := 65.0         # east end of the corridor
+const X_WEST := -17.0        # west end of the corridor (centre of the end wall), beside the reboot terminal
+const X_EAST := 53.0         # east end of the corridor
 const HUB_FRONT_Z := 1.5     # south wall of the corridor
 const HUB_BACK_Z := -1.5     # wall between the corridor and the rooms
 const ROOM_BACK_Z := -7.5    # north wall of the rooms
@@ -41,7 +41,7 @@ const ROOM_FLOOR_TINT := {
 	"comms": Color(0.30, 0.24, 0.10),
 	"cooling": Color(0.16, 0.20, 0.42),
 }
-const CRYO_X := 60.0         # the optional Cryo Bay, past the Cooling room (never locked)
+const CRYO_X := -10.0        # the optional Cryo Bay, on the way to the reboot terminal (never locked)
 const BUNK_X := BEDROOM_X - 1.6
 const BUNK_Z := (HUB_BACK_Z + ROOM_BACK_Z) * 0.5
 const SPAWN_POSITION := Vector3(BEDROOM_X - 0.6, 0.9, BUNK_Z)   # beside the bunk, in line with the door
@@ -124,6 +124,7 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 	var room_depth := HUB_BACK_Z - ROOM_BACK_Z                      # 6 m
 	var room_center_z := (HUB_BACK_Z + ROOM_BACK_Z) * 0.5           # -4.5 m
 	var room_xs: Array = [BEDROOM_X] + ROOM_CENTERS_X.values() + [CRYO_X]
+	room_xs.sort()   # the wall loops below walk the doorways from west to east
 
 	# --- Shell: the corridor, then each room, built from boxes.
 	_add_box(parent, "CorridorFloor", Vector3(corridor_center_x, -0.1, 0.0), Vector3(corridor_length + t, 0.2, corridor_depth + t), floor_material)
@@ -157,7 +158,7 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 	var header_height := h - DOOR_HEIGHT
 	var hub_light := _add_light(parent, Vector3(BEDROOM_X, 2.9, 0.0), Rules.COLOR_FAULT, 0.0, 7.0)
 	# Dim corridor lights, one between every pair of doors, so the walk is never pitch black.
-	for corridor_light_x in [-2.5, 6.0, 18.0, 30.0, 42.0, 54.0, 62.5]:
+	for corridor_light_x in [-14.0, -6.0, 3.0, 6.0, 18.0, 30.0, 42.0, 51.0]:
 		_add_light(parent, Vector3(corridor_light_x, 2.6, 0.0), theme["hub_light"], HUB_LIGHT_ENERGY, 8.0)
 
 	for room_id in ROOM_CENTERS_X:
@@ -217,8 +218,8 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 	var south_face_z := HUB_FRONT_Z - 0.2
 	_add_screen(parent, Vector3(BEDROOM_X + 3.3, 1.9, south_face_z + PLATE_OFFSET), Vector2(3.2, 0.6))
 	_add_label(parent, "<< POWER  OXYGEN  COMMS  COOLING", Vector3(BEDROOM_X + 3.3, 1.9, south_face_z), 18, Rules.COLOR_CYAN, 180.0)
-	_add_screen(parent, Vector3(BEDROOM_X - 2.6, 1.9, south_face_z + PLATE_OFFSET), Vector2(2.0, 0.6))
-	_add_label(parent, "REBOOT >>", Vector3(BEDROOM_X - 2.6, 1.9, south_face_z), 24, Rules.COLOR_GOLD, 180.0)
+	_add_screen(parent, Vector3(BEDROOM_X - 3.0, 1.9, south_face_z + PLATE_OFFSET), Vector2(3.0, 0.6))
+	_add_label(parent, "CRYO BAY  ·  REBOOT >>", Vector3(BEDROOM_X - 3.0, 1.9, south_face_z), 20, Rules.COLOR_GOLD, 180.0)
 
 	# --- Power room: a display above four breakers, each with its own rating.
 	var power: Dictionary = puzzles["power"]
@@ -283,7 +284,8 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 	interactables.append(cooling_console)
 	_add_label(parent, "COOLANT\nCONTROL", Vector3(cooling_x, 1.35, ROOM_BACK_Z + 0.5 + 0.3 + 0.01), 30, Rules.COLOR_GOLD)
 
-	# --- The optional Cryo Bay at the east end: the sleeping crew and four log terminals.
+	# --- The optional Cryo Bay at the west end, on the way to the reboot terminal: the sleeping crew
+	# and four log terminals.
 	var pods := _add_cryo_bay(parent, theme, interactables)
 
 	# --- The reboot terminal at the west end of the corridor, facing east. The player has
@@ -511,6 +513,7 @@ static func _add_station_details(parent: Node3D, theme: Dictionary) -> void:
 	# wall with the doors they stop at each doorway instead of running across the opening.
 	var guide := _glow_material(Rules.COLOR_CYAN, 1.1)
 	var door_xs: Array = [BEDROOM_X] + ROOM_CENTERS_X.values() + [CRYO_X]
+	door_xs.sort()
 	var runs: Array = []   # [from_x, to_x] stretches of that wall between the doorways
 	var run_start := X_WEST
 	for door_x in door_xs:
@@ -585,7 +588,7 @@ static func _hazard_material(repeats: float) -> StandardMaterial3D:
 	return material
 
 
-## The Cryo Bay: an open doorway (never locked), six pods with the sleeping crew, and four
+## The Cryo Bay, between the crew quarters and the reboot terminal: an open doorway (never locked), six pods with the sleeping crew, and four
 ## terminals that show the crew's logs. Optional: nothing in it affects the rules. The pods
 ## glow red while the station is broken and turn cyan as it is repaired (see main.gd).
 ## Returns the pods' glow materials.

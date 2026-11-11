@@ -317,7 +317,7 @@
  {
   "id": "cryo_bay",
   "title": "Cryo Bay",
-  "text": "The Cryo Bay is an optional room at the east end of the corridor, past the Cooling room. Its door is never locked. Six pods hold the sleeping crew; they glow red while the station is broken and turn cyan as you repair it. Four terminals show the crew's logs, which tell the story. Reading them pauses the game and changes nothing: no rule, no score, no reserve.",
+  "text": "The Cryo Bay is an optional room at the west end of the corridor, between the crew quarters and the reboot terminal, so you pass its door on the way to reboot. Its door is never locked. Six pods hold the sleeping crew; they glow red while the station is broken and turn cyan as you repair it. Four terminals show the crew's logs, which tell the story. Reading them pauses the game and changes nothing.",
   "keywords": [
    "cryo",
    "bay",
@@ -331,8 +331,8 @@
    "optional",
    "terminal",
    "read",
-   "east",
-   "end"
+   "west",
+   "reboot"
   ]
  },
  {

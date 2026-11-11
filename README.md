@@ -77,7 +77,7 @@ All the numbers live in `scripts/rules.gd` (`LEVELS`); the manuals have a "Level
 
 ## The Cryo Bay (optional story)
 
-Past the Cooling room, at the east end of the corridor, an open door leads to the **Cryo Bay**: six pods with the sleeping crew (their name plates are on the pods) and four terminals, **CREW LOG 1 to 4**, that tell what happened to the station. The pods glow red while the station is broken and turn cyan as you repair it. Press **E** at a terminal to read a log; like the manuals it pauses the game, so reading costs no reserve. The logs are story only: no rule, score or puzzle answer, and nothing in the room changes the game. Which logs you have read is remembered in the save file. It is a detour (about 12 m past Cooling and back), so it costs real time if you go while the clock runs.
+West of the crew quarters, on the way to the reboot terminal at the far west end, an open door leads to the **Cryo Bay**: six pods with the sleeping crew (their name plates are on the pods) and four terminals, **CREW LOG 1 to 4**, that tell what happened to the station. The pods glow red while the station is broken and turn cyan as you repair it. Press **E** at a terminal to read a log; like the manuals it pauses the game, so reading costs no reserve. The logs are story only: no rule, score or puzzle answer, and nothing in the room changes the game. Which logs you have read is remembered in the save file. It is on the way to the reboot terminal, so you pass its door when you finish; stepping in to read a log costs only a few seconds of walking.
 
 ## Sound and feel
 
@@ -91,7 +91,7 @@ Feel: a gentle head bob and footsteps while walking (each footstep sound plays w
 
 ## The walk (corridor, doors and hazards)
 
-The station is one long corridor (about 70 m) with the crew quarters, Power, Oxygen, Comms and Cooling rooms along it, 12 m apart (and the optional Cryo Bay at the far east end), and the reboot terminal at the far west end, so a shift is a real walk there and back.
+The station is one long corridor (about 70 m) with the crew quarters, Power, Oxygen, Comms and Cooling rooms along it, 12 m apart (the optional Cryo Bay and the reboot terminal are at the far west end), so a shift is a real walk there and back.
 
 - **Doors in order:** the Oxygen door stays locked until Power is repaired, the Comms door until Oxygen is repaired, and the Cooling door until Comms is repaired. Each shows what it needs and slides open when its system is repaired.
 - **Two gas vents** (one between the quarters and Power, one between Power and Oxygen): a lamp above each is grey (quiet), amber (warning) or red (venting). Standing in venting gas costs 12 reserve seconds per second. Wait for grey.
