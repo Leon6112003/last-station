@@ -29,17 +29,17 @@ func _initialize() -> void:
 
 func _test_numbers() -> void:
 	Rules.level = Rules.LEVEL_ENGINEER
-	_check(Rules.level_name() == "Engineer" and Rules.reserve_for_shift(1) == 360 and Rules.gas_drain() == 12.0 and Rules.laser_penalty() == 10.0 and Rules.laser_off() == 10.0 and Rules.oracle_cost() == 5 and Rules.hint_cost() == 20 and Rules.surge_penalty() == 15 and Rules.confirm_penalty() == 10, "Engineer is the standard game with the original numbers")
+	_check(Rules.level_name() == "Engineer" and Rules.reserve_for_shift(1) == 360 and Rules.gas_drain() == 12.0 and Rules.gravity_penalty() == 10.0 and Rules.gravity_off() == 10.0 and Rules.oracle_cost() == 5 and Rules.hint_cost() == 20 and Rules.surge_penalty() == 15 and Rules.confirm_penalty() == 10, "Engineer is the standard game with the original numbers")
 	Rules.level = Rules.LEVEL_ROOKIE
 	_check(Rules.level_name() == "Rookie" and Rules.reserve_for_shift(1) == 480 and Rules.reserve_for_shift(2) == 435 and Rules.reserve_for_shift(50) == 240, "Rookie has 480 s, 45 s less each shift, never under 240 s")
-	_check(Rules.gas_drain() == 6.0 and Rules.laser_penalty() == 5.0 and Rules.laser_off() == 15.0 and Rules.oracle_cost() == 0 and Rules.hint_cost() == 10 and Rules.surge_penalty() == 8 and Rules.confirm_penalty() == 5, "Rookie hazards, help and penalties are gentler")
+	_check(Rules.gas_drain() == 6.0 and Rules.gravity_penalty() == 5.0 and Rules.gravity_off() == 15.0 and Rules.oracle_cost() == 0 and Rules.hint_cost() == 10 and Rules.surge_penalty() == 8 and Rules.confirm_penalty() == 5, "Rookie hazards, help and penalties are gentler")
 	Rules.level = Rules.LEVEL_SURVIVOR
 	_check(Rules.level_name() == "Survivor" and Rules.reserve_for_shift(1) == 270 and Rules.reserve_for_shift(50) == 150, "Survivor has 270 s and never under 150 s")
-	_check(Rules.gas_drain() == 20.0 and Rules.laser_penalty() == 20.0 and Rules.laser_off() == 6.0 and Rules.oracle_cost() == 10 and Rules.hint_cost() == 40 and Rules.surge_penalty() == 30 and Rules.confirm_penalty() == 20, "Survivor hazards, help and penalties are harsher")
+	_check(Rules.gas_drain() == 20.0 and Rules.gravity_penalty() == 20.0 and Rules.gravity_off() == 6.0 and Rules.oracle_cost() == 10 and Rules.hint_cost() == 40 and Rules.surge_penalty() == 30 and Rules.confirm_penalty() == 20, "Survivor hazards, help and penalties are harsher")
 	var ordered := true
-	for key in ["gas", "laser_penalty", "oracle", "hint", "surge", "confirm", "score"]:
+	for key in ["gas", "gravity_penalty", "oracle", "hint", "surge", "confirm", "score"]:
 		ordered = ordered and Rules.LEVELS[0][key] <= Rules.LEVELS[1][key] and Rules.LEVELS[1][key] <= Rules.LEVELS[2][key]
-	_check(ordered and Rules.LEVELS[0]["reserve"] >= Rules.LEVELS[1]["reserve"] and Rules.LEVELS[1]["reserve"] >= Rules.LEVELS[2]["reserve"] and Rules.LEVELS[0]["laser_off"] >= Rules.LEVELS[1]["laser_off"], "every number gets harder from Rookie to Engineer to Survivor")
+	_check(ordered and Rules.LEVELS[0]["reserve"] >= Rules.LEVELS[1]["reserve"] and Rules.LEVELS[1]["reserve"] >= Rules.LEVELS[2]["reserve"] and Rules.LEVELS[0]["gravity_off"] >= Rules.LEVELS[1]["gravity_off"], "every number gets harder from Rookie to Engineer to Survivor")
 	_check(Rules.RESERVE_MAX_SECONDS == Rules.LEVELS[0]["reserve"], "the clamp for the reserve is the largest starting reserve")
 	Rules.level = 99
 	_check(Rules.level_name() == "Survivor", "an out-of-range level is clamped, never a crash")

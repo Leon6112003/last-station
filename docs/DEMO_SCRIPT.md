@@ -13,7 +13,7 @@ A route that shows the whole project without depending on luck. Start from the m
 3. **Read the rule, do not guess (60 s).** In the Power room read the LOAD MODE and the breaker voltages. Press **H** and ask ORACLE which breaker first. Show that the answer is the manual text shown verbatim, with its source. "The rules live in written manuals. ORACLE finds the right page by keyword and quotes it; for rules and numbers it answers in code, never from the AI."
 4. **Repair it (20 s).** Flip the breakers. The cross beside POWER becomes a tick, the door light turns cyan and the next door unlocks.
 5. **A hazard (40 s).** Walk the corridor: show a gas vent (the lamp and the word SAFE / SOON / DANGER), then the Oxygen room's leak at the console. Fix Oxygen: the leak and a corridor vent are sealed and a notice says so. "Repairs switch off the hazards they were feeding."
-6. **The laser grid (20 s).** Use a wall switch, walk through. "Repairing Comms later switches this grid off for good."
+6. **The zero-gravity zone (20 s).** Float in for a second to show the reserve draining, then use a wall switch and walk through. "Repairing Comms later restores gravity here for good."
 7. **Jump ahead (30 s, optional).** Pause (Esc), show **Settings**: the volume sliders, rebinding a key and the accessibility options. Press N to mute and show the sound captions appear.
 8. **The finale (60 s).** With all four systems repaired (use whichever you finished; or start the demo with `--shift=3` and repair quickly), walk to the reboot terminal. The **reboot code** flashes four pads: repeat them in the same order (protocol A) or reversed (B). Ask ORACLE how. Make one wrong pad on purpose to show the penalty and the replay.
 9. **Results and adaptation (30 s).** The win screen starts with **ADAPTIVE DIFFICULTY**: the decision (harder, easier or balanced), the numbers behind it and a plain sentence, then the score and the next shift's reserve. "After every shift the game adapts the next one with a fixed rule, not machine learning. A quick clean clear makes it harder; a struggle makes it gentler."
@@ -22,7 +22,7 @@ A route that shows the whole project without depending on luck. Start from the m
 - **Rule-based, not machine learning.** Difficulty, hazards and ORACLE's retrieval are plain code and keyword scoring. Say this plainly.
 - **Offline.** No accounts, analytics or online services. The optional local model runs on your own computer.
 - **The AI cannot change the game.** ORACLE only displays text; the security boundary is in code and is tested with injection strings.
-- **Tested.** 30 test files and 1259 automated checks; the test report says what was and was not verified, including that no Windows build exists.
+- **Tested.** 30 test files and 1263 automated checks; the test report says what was and was not verified, including that no Windows build exists.
 
 ## If something goes wrong
 - A window does not open or controls stop working: press Esc twice (pause and resume) to recapture the mouse.

@@ -61,9 +61,9 @@ const GAS_PHASE_OFFSETS := [8.0, 4.5]       # seconds into each cycle when a shi
 const GAS_LENGTH := 6.0
 const ROOM_LEAK_EXTRA_QUIET := 3.0          # room leaks are quiet this much longer...
 const ROOM_LEAK_VENTING_FACTOR := 0.6       # ...and vent for this share of the corridor vents' time
-const LASER_X := 30.0                       # the first laser grid, between Oxygen and Comms
-const LASER_XS := [30.0, 42.0]              # ...and the second, between Comms and Cooling (from shift 3)
-const LASER_SWITCH_DISTANCE := 3.5          # the two off-switches stand this far either side
+const GRAVITY_X := 30.0                       # the first gravity zone, between Oxygen and Comms
+const GRAVITY_XS := [30.0, 42.0]              # ...and the second, between Comms and Cooling (from shift 3)
+const GRAVITY_SWITCH_DISTANCE := 3.5          # the two off-switches stand this far either side
 
 const WINDOW_XS := [12.0, 24.0, 36.0, 48.0]        # viewports onto space in the corridor's south wall
 const WINDOW_HALF_WIDTH := 1.6
@@ -103,9 +103,9 @@ const FONT_SMALL := 22
 ##   "doors": {room_id: DoorGate},               # sliding doors (oxygen, comms) locked in order
 ##   "hazards": Array[HazardZone],               # the two gas vents in the corridor
 ##   "room_leaks": {room_id: HazardZone},        # gas leaks at the Oxygen console and (in SURGE) the Cooling console
-##   "laser": LaserGrid,                         # the first laser barrier, between Oxygen and Comms
-##   "lasers": Array[LaserGrid],                 # every laser barrier (a second one from shift 3)
-##   "laser_switches": Array[Interactable],      # the two wall switches that turn it off
+##   "gravity": GravityZone,                         # the first zero-gravity zone, between Oxygen and Comms
+##   "gravity_zones": Array[GravityZone],                 # every zero-gravity zone (a second one from shift 3)
+##   "gravity_switches": Array[Interactable],      # the two wall switches that restore gravity for a while
 ##   "protocol_board": Label3D,                  # big "PROTOCOL A/B" sign in the bedroom
 ##   "room_floors": {room_id: StandardMaterial3D}, # tinted floor patch; brightens when repaired
 ##   "room_strips": {room_id: StandardMaterial3D}, # ceiling light strip: dim red, then bright cyan
@@ -331,7 +331,7 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 	# looks east (+X), so the label is turned 90 degrees.
 	_add_label(parent, "REBOOT\nSTATION", Vector3(reboot_x + 0.25 + 0.01, 1.2, 0.0), 36, Color(0.06, 0.05, 0.12), 90.0, 0)
 
-	# --- Corridor hazards: two gas vents, and a laser grid between Oxygen and Comms.
+	# --- Corridor hazards: two gas vents, and a zero-gravity zone between Oxygen and Comms.
 	var hazards: Array[HazardZone] = []
 	for i in GAS_XS.size():
 		var gas_x: float = GAS_XS[i]
@@ -346,24 +346,24 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 		_add_screen(parent, Vector3(gas_x, 1.9, HUB_FACE_Z - PLATE_OFFSET - 0.1), Vector2(2.2, 0.55))
 		_add_label(parent, "GAS VENT\nWAIT FOR GREY LAMP", Vector3(gas_x, 1.9, HUB_FACE_Z - 0.1), 18, Color(0.5, 1.0, 0.6))
 
-	# Laser grids (one, and a second from shift 3), each with two wall switches that turn it off for a while.
-	var lasers: Array[LaserGrid] = []
-	var laser_switches: Array[Interactable] = []
-	for grid_index in Rules.laser_count(run_number):
-		var grid_x: float = LASER_XS[grid_index]
-		var laser := LaserGrid.create(Vector3(grid_x, 0.0, 0.0), HUB_FRONT_Z - HUB_BACK_Z, Rules.WALL_HEIGHT, run_number)
-		parent.add_child(laser)
-		lasers.append(laser)
+	# Gravity zones (one, and a second from shift 3), each with two wall switches that restore gravity for a while for a while.
+	var gravity_zones: Array[GravityZone] = []
+	var gravity_switches: Array[Interactable] = []
+	for grid_index in Rules.gravity_count(run_number):
+		var grid_x: float = GRAVITY_XS[grid_index]
+		var gravity := GravityZone.create(Vector3(grid_x, 0.0, 0.0), HUB_FRONT_Z - HUB_BACK_Z, Rules.WALL_HEIGHT, run_number)
+		parent.add_child(gravity)
+		gravity_zones.append(gravity)
 		for side in [-1.0, 1.0]:
-			var switch_x: float = grid_x + side * LASER_SWITCH_DISTANCE
-			var switch_id := "laser_switch_%s%s" % ["" if grid_index == 0 else "%d_" % (grid_index + 1), "west" if side < 0.0 else "east"]
-			var laser_switch := _add_interactable(
-				parent, switch_id, "TURN LASER GRID OFF (%d s)" % int(laser.off_seconds),
+			var switch_x: float = grid_x + side * GRAVITY_SWITCH_DISTANCE
+			var switch_id := "gravity_switch_%s%s" % ["" if grid_index == 0 else "%d_" % (grid_index + 1), "west" if side < 0.0 else "east"]
+			var gravity_switch := _add_interactable(
+				parent, switch_id, "RESTORE GRAVITY (%d s)" % int(gravity.off_seconds),
 				Vector3(switch_x, TERMINAL_HEIGHT * 0.5, HUB_FRONT_Z - 0.25), Vector3(0.9, TERMINAL_HEIGHT, 0.5), Rules.COLOR_VIOLET)
-			laser_switch.set_meta("laser_grid", laser)
-			laser_switches.append(laser_switch)
-			interactables.append(laser_switch)
-			_add_label(parent, "LASER\nGRID", Vector3(switch_x, 1.35, HUB_FRONT_Z - 0.25 - 0.25 - 0.01), 28, Rules.COLOR_GOLD, 180.0)
+			gravity_switch.set_meta("gravity_zone", gravity)
+			gravity_switches.append(gravity_switch)
+			interactables.append(gravity_switch)
+			_add_label(parent, "GRAVITY\nCONTROL", Vector3(switch_x, 1.35, HUB_FRONT_Z - 0.25 - 0.25 - 0.01), 28, Rules.COLOR_GOLD, 180.0)
 
 	return {
 		"spawn": SPAWN_POSITION,
@@ -383,9 +383,9 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 		"doors": door_gates,
 		"hazards": hazards,
 		"room_leaks": room_leaks,
-		"laser": lasers[0],
-		"lasers": lasers,
-		"laser_switches": laser_switches,
+		"gravity": gravity_zones[0],
+		"gravity_zones": gravity_zones,
+		"gravity_switches": gravity_switches,
 		"protocol_board": protocol_board,
 		"room_floors": room_floors,
 		"room_strips": room_strips,

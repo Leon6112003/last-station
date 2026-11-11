@@ -49,12 +49,13 @@ reboot terminal, an optional CRYO BAY holds the sleeping crew and
 their logs. In the corridor, GAS VENTS drain your
 reserve fast while they vent (red lamp): wait for a grey lamp. Gas also
 leaks at the Oxygen console (and the Cooling console in a SURGE) until
-that system is repaired. A LASER
-GRID blocks the corridor and costs time if you touch it: press E on a
-wall switch beside it to turn it off for a short time. Later shifts are
-worse: wider, longer gas vents, a shorter switch-off time, and from
-shift 3 a second laser grid before the Cooling room. Repairing Comms
-or Cooling switches off the laser grid beyond it for good.
+that system is repaired. A ZERO-GRAVITY
+ZONE makes you float: you move slowly, drift off the floor and lose
+reserve time every second you are inside. Press E on a wall switch
+beside it to restore gravity for a short time. Later shifts are worse:
+wider, longer gas vents, a shorter gravity-on time, and from shift 3 a
+second zero-gravity zone before the Cooling room. Repairing Comms or
+Cooling restores gravity beyond it for good.
 
 COSTS
 Every question to ORACLE (H) costs some reserve time (none on Rookie,
@@ -270,7 +271,7 @@ func _update_mood(delta: float) -> void:
 
 
 ## Survival atmosphere, played now and then (never a constant drone): the station groans
-## and bangs in the distance, an alarm sounds until the first system is repaired, the laser
+## and bangs in the distance, an alarm sounds until the first system is repaired, the gravity
 ## grid crackles when you are near it, and a heartbeat starts when the reserve is nearly gone.
 ## This only plays sounds; it has no effect on the rules.
 func _update_ambience(delta: float) -> void:
@@ -283,11 +284,11 @@ func _update_ambience(delta: float) -> void:
 		if _alarm_timer <= 0.0:
 			_alarm_timer = ALARM_INTERVAL_SECONDS
 			sound.play("alarm")
-	var near_live_laser := false
-	for laser in _station["lasers"]:
-		if (laser as LaserGrid).armed and is_instance_valid(_player) and absf(_player.global_position.x - (laser as LaserGrid).position.x) < SPARK_HEARING_METRES:
-			near_live_laser = true
-	if near_live_laser:
+	var near_live_gravity := false
+	for gravity in _station["gravity_zones"]:
+		if (gravity as GravityZone).armed and is_instance_valid(_player) and absf(_player.global_position.x - (gravity as GravityZone).position.x) < SPARK_HEARING_METRES:
+			near_live_gravity = true
+	if near_live_gravity:
 		_spark_timer -= delta
 		if _spark_timer <= 0.0:
 			_spark_timer = _ambience_rng.randf_range(0.8, 2.2)
@@ -338,7 +339,7 @@ func _update_station_sounds(delta: float) -> void:
 
 
 ## How much danger the player is in, 0 to 1, for the music: the shift wearing on, a low reserve, a vent that is
-## open nearby, the laser grid close by, or a hit that just happened. Sound only.
+## open nearby, the gravity zone close by, or a hit that just happened. Sound only.
 func _danger_level(delta: float) -> float:
 	_hit_danger = maxf(0.0, _hit_danger - HIT_DANGER_DECAY_PER_SECOND * delta)
 	if gm.state != GameManager.State.PLAYING or _station.is_empty() or not is_instance_valid(_player) or _player.waking:
@@ -353,9 +354,9 @@ func _danger_level(delta: float) -> float:
 		if (zone as HazardZone).is_active():
 			var distance := absf(player_x - (zone as HazardZone).global_position.x)
 			danger = maxf(danger, 0.85 if distance < 3.5 else (0.5 if distance < 7.0 else 0.0))
-	for laser in _station["lasers"]:
-		if (laser as LaserGrid).armed:
-			danger = maxf(danger, 0.65 if absf(player_x - (laser as LaserGrid).position.x) < 5.0 else 0.0)
+	for gravity in _station["gravity_zones"]:
+		if (gravity as GravityZone).armed:
+			danger = maxf(danger, 0.65 if absf(player_x - (gravity as GravityZone).position.x) < 5.0 else 0.0)
 	return maxf(danger, _hit_danger)
 
 
@@ -365,7 +366,7 @@ func _danger_level(delta: float) -> float:
 const SOUND_CAPTIONS := {
 	"alarm": "ALARM: the station is failing",
 	"gasleak": "GAS VENTING nearby",
-	"spark": "SPARKS: a live laser grid is near",
+	"spark": "WEIGHTLESS: a zero-gravity zone is near",
 	"creak": "(metal groans)",
 	"thud": "(a distant bang)",
 	"heartbeat": "(your heartbeat)",
@@ -507,22 +508,24 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 
-## Repairing a system shuts down the hazard it was feeding: the laser grid just beyond the room
+## Repairing a system shuts down the hazard it was feeding: the gravity zone just beyond the room
 ## (Comms switches off the first grid, Cooling the second), the corridor vent between Power and
 ## Oxygen (when Oxygen is repaired) and the gas leaks in the Oxygen and Cooling rooms. Returns
 ## the messages to show. The hazards stay off for the rest of the shift.
 func _seal_hazards_for(system_id: String) -> Array[String]:
 	var notes: Array[String] = []
-	var lasers: Array = _station["lasers"]
+	var gravity_zones: Array = _station["gravity_zones"]
 	match system_id:
 		"comms":
-			if lasers.size() > 0 and not (lasers[0] as LaserGrid).offline:
-				(lasers[0] as LaserGrid).go_offline()
-				notes.append("LASER GRID 1 OFFLINE")
+			if gravity_zones.size() > 0 and not (gravity_zones[0] as GravityZone).offline:
+				(gravity_zones[0] as GravityZone).go_offline()
+				_remove_gravity_switches(gravity_zones[0] as GravityZone)
+				notes.append("GRAVITY ZONE 1 STABILISED")
 		"cooling":
-			if lasers.size() > 1 and not (lasers[1] as LaserGrid).offline:
-				(lasers[1] as LaserGrid).go_offline()
-				notes.append("LASER GRID 2 OFFLINE")
+			if gravity_zones.size() > 1 and not (gravity_zones[1] as GravityZone).offline:
+				(gravity_zones[1] as GravityZone).go_offline()
+				_remove_gravity_switches(gravity_zones[1] as GravityZone)
+				notes.append("GRAVITY ZONE 2 STABILISED")
 	if system_id == "oxygen":
 		var vents: Array = _station["hazards"]
 		if vents.size() > 1:
@@ -563,7 +566,7 @@ func _coach_text() -> String:
 			"oxygen":
 				return "NEXT: the OXYGEN room (second door, now unlocked). Mind the gas vent on the way. Read STATION MODE, then press %s and ask ORACLE for the valve settings." % _key("toggle_oracle")
 			"comms":
-				return "NEXT: the COMMS room (third door, now unlocked). Mind the laser grid on the way (use a wall switch to turn it off). Count the lit beacons, then press %s and ask ORACLE for the frequency." % _key("toggle_oracle")
+				return "NEXT: the COMMS room (third door, now unlocked). Mind the zero-gravity zone on the way (use a wall switch to restore gravity). Count the lit beacons, then press %s and ask ORACLE for the frequency." % _key("toggle_oracle")
 			_:
 				return "NEXT: the COOLING room (fourth door, now unlocked). Read the CORE TEMP and the REACTOR state, then press %s and ask ORACLE for the coolant flow." % _key("toggle_oracle")
 	return ""
@@ -732,9 +735,9 @@ func _rebuild_world() -> void:
 	_player.rotation.y = deg_to_rad(float(_station["spawn_yaw"]))
 	for zone in _gas_zones():
 		(zone as HazardZone).hit.connect(_on_hazard_zone_hit)
-	for laser in _station["lasers"]:
-		(laser as LaserGrid).touched.connect(_on_laser_touched)
-		(laser as LaserGrid).state_changed.connect(_on_laser_state_changed.bind(laser))
+	for gravity in _station["gravity_zones"]:
+		(gravity as GravityZone).touched.connect(_on_gravity_touched)
+		(gravity as GravityZone).state_changed.connect(_on_gravity_state_changed.bind(gravity))
 	_player.mouse_sensitivity = Rules.MOUSE_SENSITIVITY * save.mouse_sens
 	_world.add_child(_player)
 	_player.target_changed.connect(_on_target_changed)
@@ -762,8 +765,8 @@ func _rebuild_world() -> void:
 		_show_notice("YOU WAKE UP. SOMETHING IS WRONG WITH THE STATION.", 4.0)
 	else:
 		var growth := ""
-		if gm.second_laser_new:
-			growth = "  ·  A SECOND LASER GRID"
+		if gm.second_gravity_new:
+			growth = "  ·  A SECOND ZERO-GRAVITY ZONE"
 		elif gm.run_number > 1:
 			growth = "  ·  HAZARDS GROW"
 		if gm.adapt_steps > 0:
@@ -1225,19 +1228,30 @@ func _close_oracle() -> void:
 
 ## The hint button is handled here, in game code. The language model is never involved,
 ## and nothing ORACLE (or the player) types can trigger a hint.
-## The player touched the laser grid while it was on.
-func _on_laser_touched(seconds: float) -> void:
-	gm.hazard_damage("laser", seconds)
+## A grid that is offline for good no longer needs its wall switches: hide them and make
+## them impossible to aim at, so no "turn gravity zone off" prompt appears any more.
+func _remove_gravity_switches(grid: GravityZone) -> void:
+	for gravity_switch in _station["gravity_switches"]:
+		var switch_node := gravity_switch as Interactable
+		if switch_node.get_meta("gravity_zone") == grid:
+			switch_node.enabled = false
+			switch_node.visible = false
+			switch_node.collision_layer = 0
+
+
+## The player touched the gravity zone while it was on.
+func _on_gravity_touched(seconds: float) -> void:
+	gm.hazard_damage("gravity", seconds)
 	_hit_danger = 1.0
 	_flash_fault()
 	sound.play("buzz")
-	_show_notice("LASER!  -%d s. Use a wall switch to turn the grid off." % int(seconds))
+	_show_notice("ZERO GRAVITY  -%d s. Use a wall switch to restore gravity." % int(seconds))
 
 
-func _on_laser_state_changed(armed: bool, grid: LaserGrid) -> void:
-	for laser_switch in _station["laser_switches"]:
-		if (laser_switch as Interactable).get_meta("laser_grid") == grid:
-			(laser_switch as Interactable).set_color(Rules.COLOR_VIOLET if armed else Rules.COLOR_CYAN)
+func _on_gravity_state_changed(armed: bool, grid: GravityZone) -> void:
+	for gravity_switch in _station["gravity_switches"]:
+		if (gravity_switch as Interactable).get_meta("gravity_zone") == grid:
+			(gravity_switch as Interactable).set_color(Rules.COLOR_VIOLET if armed else Rules.COLOR_CYAN)
 	if armed:
 		sound.play("tick")
 
@@ -1375,14 +1389,14 @@ func _on_interacted(item: Interactable, _player_node: Node) -> void:
 	item.play_press()
 	if id.begins_with("breaker_"):
 		_handle_breaker(int(id.substr("breaker_".length())))
-	elif id.begins_with("laser_switch"):
+	elif id.begins_with("gravity_switch"):
 		sound.play("click")
-		var grid: LaserGrid = item.get_meta("laser_grid")
+		var grid: GravityZone = item.get_meta("gravity_zone")
 		if grid.offline:
-			_show_notice("THIS LASER GRID IS ALREADY OFFLINE", 2.5)
+			_show_notice("GRAVITY IS ALREADY STABLE HERE", 2.5)
 			return
 		grid.switch_off()
-		_show_notice("LASER GRID OFF FOR %d s. Walk through now." % int(grid.off_seconds), 3.0)
+		_show_notice("GRAVITY RESTORED FOR %d s. Walk through now." % int(grid.off_seconds), 3.0)
 	elif id == "oxygen_console":
 		sound.play("hiss")
 		_open_panel("oxygen")

@@ -9,7 +9,7 @@ Format from `AGENTS.md` section 8. Everything here is something that was actuall
 - Four systems to repair along a long corridor, each with its own puzzle: **Power** (flip breakers in an order), **Oxygen** (set three valves from a table), **Comms** (tune a frequency from a formula) and **Cooling** (set the coolant flow from a formula). The rules change with **Protocol A or B**, so the manuals are needed.
 - A final **reboot code** (a different kind of puzzle): a pad sequence is flashed and you repeat it, in the same order on protocol A and in reverse on B.
 - Oxygen **reserve** countdown, mistakes and penalties, win and fail, hold-R retry (the puzzle values are re-rolled), results screen, Next Shift (a new seed, less reserve), run total and best scores saved.
-- Corridor hazards: gas vents, a laser grid with wall switches (a second grid from shift 3), and gas leaks at the Oxygen and (in a SURGE) Cooling consoles. They grow harsher each shift, and repairing a system switches off the hazard it was feeding.
+- Corridor hazards: gas vents, a zero-gravity zone with wall switches (a second zone from shift 3), and gas leaks at the Oxygen and (in a SURGE) Cooling consoles. They grow harsher each shift, and repairing a system switches off the hazard it was feeding.
 - **ORACLE**, an offline help assistant: keyword retrieval over 30 written manual entries, exact answers in code for rules and numbers, an optional local model (Ollama) for general questions, and the exact manual text always shown. **The AI never changes the game** (the boundary is in code, with injection tests). It is rule-based retrieval, not machine learning.
 
 **Extras**
@@ -28,7 +28,7 @@ cd LAST_STATION && godot --path .
 - Everything works offline. ORACLE's local model is optional: see `docs/OFFLINE_AI_SETUP.md`. Windows steps: `docs/WINDOWS_SETUP.md`.
 
 ## TESTED
-- **30 headless test files, 1259 checks, all passing** on the development Mac (Godot 4.7.2). They cover the puzzles and scoring, determinism, the retriever and the ORACLE injection boundary, the real main scene through whole shifts and menu round trips, layout at 1280x720, 1024x576 and 1920x1080, saving, settings and rebinding, and every feature added later.
+- **30 headless test files, 1263 checks, all passing** on the development Mac (Godot 4.7.2). They cover the puzzles and scoring, determinism, the retriever and the ORACLE injection boundary, the real main scene through whole shifts and menu round trips, layout at 1280x720, 1024x576 and 1920x1080, saving, settings and rebinding, and every feature added later.
 - **Rendered screenshots** of the station, menu, Settings, the reboot panel and the new rooms were reviewed (`tools/*.gd`), and several layout problems were found and fixed this way.
 - **Measured in a real window** on an Apple M3 (`tools/perf_probe.gd`): about 8 to 9 ms per frame in five views.
 - **Played by the project owner:** earlier versions throughout the project, and a ten-minute route covering the newest features, reported as fine.

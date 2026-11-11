@@ -424,7 +424,7 @@
  {
   "id": "walk_hazards",
   "title": "Doors and Corridor Hazards",
-  "text": "The doors open in order: Oxygen after Power, Comms after Oxygen, Cooling after Comms. On Engineer, gas vents in the corridor drain the reserve fast while their lamp is red: 12 seconds of reserve for every second in the gas. Wait for a grey lamp; amber is a warning. A laser grid blocks the way past Oxygen; touching it costs 10 seconds. Press E on a wall switch beside it to turn it off for 10 seconds. Hazards are not puzzle mistakes.",
+  "text": "Doors open in order: Oxygen, then Comms, then Cooling. On Engineer, gas vents in the corridor drain the reserve fast while their lamp is red: 12 seconds of reserve for every second in the gas. Wait for a grey lamp; amber is a warning. A zero-gravity zone past Oxygen makes you float and costs 2 seconds of reserve per second inside. Press E on a wall switch beside it to restore gravity for 10 seconds. Hazards are not puzzle mistakes.",
   "keywords": [
    "block",
    "blocked",
@@ -437,8 +437,6 @@
    "hazard",
    "hazards",
    "lamp",
-   "laser",
-   "lasers",
    "locked",
    "lost",
    "off",
@@ -451,13 +449,17 @@
    "vent",
    "walk",
    "walking",
-   "wires"
+   "wires",
+   "gravity",
+   "zero",
+   "float",
+   "weightless"
   ]
  },
  {
   "id": "hazards_grow",
   "title": "Hazards grow",
-  "text": "The corridor gets worse with every shift. Each gas vent is quiet for 0.5 seconds less (down to 1.5) and vents for 0.5 seconds longer (up to 9), and its cloud is 1 metre longer (up to 10). A wall switch keeps a laser grid off 1 second less, never below half its time. From shift 3 a second laser grid blocks the corridor between Comms and Cooling, with its own two switches.",
+  "text": "The corridor gets worse with every shift. Each gas vent is quiet for 0.5 seconds less (down to 1.5) and vents for 0.5 seconds longer (up to 9), and its cloud is 1 metre longer (up to 10). A wall switch keeps gravity on 1 second less, never below half its time. From shift 3 a second zero-gravity zone covers the corridor between Comms and Cooling, with its own two switches.",
   "keywords": [
    "hazards",
    "grow",
@@ -468,25 +470,27 @@
    "shift",
    "gas",
    "vent",
-   "laser",
    "second",
    "grid",
    "switch",
    "corridor",
    "longer",
-   "shorter"
+   "shorter",
+   "gravity",
+   "zero",
+   "float",
+   "weightless"
   ]
  },
  {
   "id": "hazard_links",
   "title": "Hazards and repairs",
-  "text": "Repairing a system shuts down the hazard it was feeding. Comms switches off the first laser grid and Cooling the second, for good. Oxygen seals the corridor vent between Power and Oxygen and the gas leak in the Oxygen room; Cooling seals the leak in the Cooling room. The Oxygen room always leaks at its console until Oxygen is repaired; the Cooling room leaks only while the reactor state is SURGE. Wait for the grey lamp. The walk back is safer.",
+  "text": "Repairing a system shuts down its hazard. Comms restores gravity in the first zero-gravity zone and Cooling in the second, for good. Oxygen seals the corridor vent between Power and Oxygen and the gas leak in the Oxygen room; Cooling seals the leak in the Cooling room. The Oxygen room always leaks at its console until Oxygen is repaired; the Cooling room leaks only while the reactor state is SURGE.",
   "keywords": [
    "hazard",
    "hazards",
    "repair",
    "repairing",
-   "laser",
    "grid",
    "offline",
    "vent",
@@ -500,7 +504,11 @@
    "console",
    "room",
    "safer",
-   "back"
+   "back",
+   "gravity",
+   "zero",
+   "float",
+   "weightless"
   ]
  },
  {
@@ -573,7 +581,7 @@
  {
   "id": "difficulty",
   "title": "Levels",
-  "text": "Pick a level on the main menu: Rookie, Engineer or Survivor. Engineer is the standard game and the other manuals use its numbers. Rookie: 480 s reserve, gas 6 s per second, laser 5 s (off for 15 s), ORACLE free, hint 10 s, penalties 8 and 5 s, score x0.6. Survivor: 270 s reserve, gas 20, laser 20 s (off for 6 s), ORACLE 10 s, hint 40 s, penalties 30 and 20 s, score x1.4.",
+  "text": "Pick a level on the main menu: Rookie, Engineer or Survivor. Engineer is the standard game and the other manuals use its numbers. Rookie: 480 s reserve, gas 6 s per second, zero gravity 1 s per second (gravity on for 15 s), ORACLE free, hint 10 s, penalties 8 and 5 s, score x0.6. Survivor: 270 s reserve, gas 20, zero gravity 4 s per second (gravity on for 6 s), ORACLE 10 s, hint 40 s, penalties 30 and 20 s, score x1.4.",
   "keywords": [
    "level",
    "levels",

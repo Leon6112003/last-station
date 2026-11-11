@@ -45,8 +45,8 @@ var reboot_code_done: bool = false     # the reboot code was entered correctly
 var adapt_steps: int = 0
 var pending_adapt: int = 0
 var previous_ratio: float = -1.0
-var second_laser_new: bool = false   # this shift is the first with a second laser grid
-var _laser_count_seen: int = 1
+var second_gravity_new: bool = false   # this shift is the first with a second gravity zone
+var _gravity_count_seen: int = 1
 var reboot_free_view_used: bool = false   # the one free showing of the sequence has been used
 var reboot_paid_views: int = 0         # times the sequence was shown again on request (each costs reserve)
 
@@ -74,13 +74,13 @@ func start_shift(new_seed: int, run: int) -> void:
 		adapt_steps = 0
 		pending_adapt = 0
 		previous_ratio = -1.0
-		_laser_count_seen = 1
+		_gravity_count_seen = 1
 	else:
 		adapt_steps = pending_adapt   # what the last cleared shift decided
 	Rules.adapt = adapt_steps
-	var lasers := Rules.laser_count(run)
-	second_laser_new = run > 1 and lasers > _laser_count_seen
-	_laser_count_seen = lasers
+	var gravitys := Rules.gravity_count(run)
+	second_gravity_new = run > 1 and gravitys > _gravity_count_seen
+	_gravity_count_seen = gravitys
 	_reset_attempt()
 
 
@@ -337,7 +337,7 @@ func charge_oracle_question() -> int:
 	return cost
 
 
-## A corridor hazard (gas or laser) took reserve time. Not a puzzle mistake: it does not
+## A corridor hazard (gas or gravity) took reserve time. Not a puzzle mistake: it does not
 ## count in `mistakes`. Only counts while a shift is running.
 func hazard_damage(kind: String, seconds: float) -> void:
 	if state != State.PLAYING or seconds <= 0.0:

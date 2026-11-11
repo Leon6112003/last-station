@@ -19,7 +19,7 @@ func _initialize() -> void:
 	await _walk_into_west_wall()
 	await _third_person_view()
 	await _hazard_hits_the_player()
-	await _laser_blocks_then_switch_opens()
+	await _gravity_floats_then_switch_restores()
 
 	print("")
 	if _failures == 0:
@@ -211,26 +211,31 @@ func _hazard_hits_the_player() -> void:
 	await process_frame
 
 
-## The laser grid is a solid wall while it is on; switching it off lets the player through.
-func _laser_blocks_then_switch_opens() -> void:
-	var laser_x: float = StationBuilder.LASER_X
-	var made := await _make_player(Vector3(laser_x - 3.0, 0.9, 0.0), -90.0)   # facing east, toward the grid
+## While the zone is active the player floats and loses reserve; restoring gravity brings them back down.
+func _gravity_floats_then_switch_restores() -> void:
+	var gravity_x: float = StationBuilder.GRAVITY_X
+	var made := await _make_player(Vector3(gravity_x - 4.0, 0.9, 0.0), -90.0)   # facing east, toward the zone
 	var world: Node3D = made[0]
 	var player: PlayerController = made[1]
 	var station: Dictionary = made[2]
-	var laser: LaserGrid = station["laser"]
+	var gravity: GravityZone = station["gravity"]
 	var touches := [0]
-	laser.touched.connect(func(_seconds: float) -> void: touches[0] += 1)
+	gravity.touched.connect(func(_seconds: float) -> void: touches[0] += 1)
 
 	await _hold("move_forward", 150)
-	_check(player.global_position.x < laser_x, "the laser grid is a solid wall: the player cannot walk through it (x=%.2f)" % player.global_position.x)
-	_check(touches[0] == 1, "pushing against the beams counts as one touch, not one per frame (%d)" % touches[0])
+	_check(player.global_position.x > gravity_x - 3.0, "the zone is not a wall: the player walks into it (x=%.2f)" % player.global_position.x)
+	_check(player.zero_g, "inside an active zone the player is weightless")
+	_check(player.global_position.y > 1.2, "and floats up off the floor (y=%.2f)" % player.global_position.y)
+	_check(touches[0] >= 1, "floating there drains reserve (%d drains)" % touches[0])
 
-	laser.switch_off()
+	var drains: int = touches[0]
+	gravity.switch_off()
 	await physics_frame
-	await _hold("move_forward", 120)
-	_check(player.global_position.x > laser_x + 1.0, "with the grid switched off the player walks through (x=%.2f)" % player.global_position.x)
-	_check(touches[0] == 1, "walking through a switched-off grid is not a touch")
+	_check(not player.zero_g, "restoring gravity ends the floating at once")
+	for i in 120:
+		await physics_frame
+	_check(player.is_on_floor() and player.global_position.y < 1.0, "the player drops back to the floor (y=%.2f)" % player.global_position.y)
+	_check(touches[0] == drains, "no drain while gravity is on")
 
 	world.queue_free()
 	await process_frame

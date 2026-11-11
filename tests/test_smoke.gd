@@ -14,7 +14,7 @@ func _initialize() -> void:
 	_check(station.has("spawn"), "station returns a spawn position")
 
 	var items: Array = station["interactables"]
-	_check(items.size() == 14, "station has 14 interactables (4 breakers, 3 consoles, reboot terminal, 2 laser switches, 4 crew logs), got %d" % items.size())
+	_check(items.size() == 14, "station has 14 interactables (4 breakers, 3 consoles, reboot terminal, 2 gravity switches, 4 crew logs), got %d" % items.size())
 
 	var ids := items.map(func(i: Interactable) -> String: return i.id)
 	for expected in ["breaker_0", "breaker_1", "breaker_2", "breaker_3", "oxygen_console", "comms_console", "cooling_console", "reboot_terminal"]:
@@ -30,7 +30,7 @@ func _initialize() -> void:
 	# duplicate node names, so find them by their size and height instead).
 	var headers := world.find_children("*", "StaticBody3D", true, false).filter(func(b: StaticBody3D) -> bool:
 		if not (b.get_child(0) is MeshInstance3D):
-			return false   # the laser barrier has only a collider
+			return false   # the gravity barrier has only a collider
 		var mesh := (b.get_child(0) as MeshInstance3D).mesh as BoxMesh
 		return b.position.y > 2.3 and b.position.y < 2.9 and absf(mesh.size.x - 2.0) < 0.01 and mesh.size.y < 1.0)
 	_check(headers.size() == 6, "there is a header above each of the six doorways: crew quarters, four systems and the cryo bay (found %d)" % headers.size())
@@ -79,10 +79,10 @@ func _initialize() -> void:
 	var gas_a: float = (hazards[0] as HazardZone).position.x
 	var gas_b: float = (hazards[1] as HazardZone).position.x
 	_check(gas_a > StationBuilder.BEDROOM_X and gas_a < StationBuilder.ROOM_CENTERS_X["power"] and gas_b > StationBuilder.ROOM_CENTERS_X["power"] and gas_b < StationBuilder.ROOM_CENTERS_X["oxygen"], "one vent lies between the quarters and Power, the other between Power and Oxygen")
-	var laser: LaserGrid = station["laser"]
-	_check(laser.position.x > StationBuilder.ROOM_CENTERS_X["oxygen"] and laser.position.x < StationBuilder.ROOM_CENTERS_X["comms"] and laser.armed, "the laser grid is on, between Oxygen and Comms")
-	var switches: Array = station["laser_switches"]
-	_check(switches.size() == 2 and (switches[0] as Interactable).position.x < laser.position.x and (switches[1] as Interactable).position.x > laser.position.x, "there is a laser switch on each side of the grid")
+	var gravity: GravityZone = station["gravity"]
+	_check(gravity.position.x > StationBuilder.ROOM_CENTERS_X["oxygen"] and gravity.position.x < StationBuilder.ROOM_CENTERS_X["comms"] and gravity.armed, "the gravity zone is on, between Oxygen and Comms")
+	var switches: Array = station["gravity_switches"]
+	_check(switches.size() == 2 and (switches[0] as Interactable).position.x < gravity.position.x and (switches[1] as Interactable).position.x > gravity.position.x, "there is a gravity switch on each side of the grid")
 	var reboot_position: Vector3 = (station["reboot"] as Interactable).position
 	_check(reboot_position.x < StationBuilder.BEDROOM_X - 3.0, "the reboot terminal is at the far west end of the corridor (x=%.1f)" % reboot_position.x)
 	var far_room_x: float = StationBuilder.ROOM_CENTERS_X["comms"]

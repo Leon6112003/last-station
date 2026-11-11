@@ -84,11 +84,11 @@ func _test_effects() -> void:
 	_check(Rules.reserve_for(30, 3) == Rules.RESERVE_MIN_SECONDS, "the reserve never goes below the level's floor")
 	Rules.adapt = 1
 	_check(is_equal_approx(Rules.gas_length(1), 7.0), "one step harder makes shift 1's gas as long as a normal shift 2's (7 m)")
-	_check(Rules.laser_count(1) == 1 and Rules.laser_count(2) == 2, "the second laser grid comes one shift earlier")
+	_check(Rules.gravity_count(1) == 1 and Rules.gravity_count(2) == 2, "the second gravity zone comes one shift earlier")
 	_check(Rules.sequence_length(2) == 5 and Rules.sequence_length(1) == 4, "the reboot code grows one step sooner (5 pads on shift 2 instead of 4)")
 	Rules.adapt = -2
 	_check(Rules.gas_length(1) == 6.0 and Rules.gas_length(3) == 6.0 and Rules.gas_off_seconds(3) == Rules.GAS_OFF_SECONDS, "easier steps never go below the base hazards")
-	_check(Rules.laser_count(5) == 2 and Rules.laser_count(4) == 1, "two steps easier delays the second grid by two shifts")
+	_check(Rules.gravity_count(5) == 2 and Rules.gravity_count(4) == 1, "two steps easier delays the second grid by two shifts")
 	Rules.adapt = 0
 	Rules.level = Rules.LEVEL_ROOKIE
 	_check(Rules.reserve_for(1, 0) == 480 and Rules.reserve_for(2, 1) == 390, "it works on the other levels too (Rookie 480 s, then one step harder at shift 2)")
@@ -122,7 +122,7 @@ func _test_game_manager() -> void:
 	_check(result["next_reserve"] == 270, "the result names the adapted reserve (315 s minus one step = 270 s)")
 	gm.start_shift(41, 2)
 	_check(gm.adapt_steps == 1 and Rules.adapt == 1 and is_equal_approx(gm.reserve, 270.0), "the next shift starts with that adaptation in force and the reduced reserve")
-	_check(Rules.laser_count(2) == 2 and gm.second_laser_new, "and the second laser grid arrives on shift 2, announced as new")
+	_check(Rules.gravity_count(2) == 2 and gm.second_gravity_new, "and the second gravity zone arrives on shift 2, announced as new")
 	# A retry keeps the adaptation, and the retries then count.
 	gm.retry()
 	_check(gm.adapt_steps == 1 and Rules.adapt == 1 and is_equal_approx(gm.reserve, 270.0), "a retry keeps the same adaptation and the same reserve")
@@ -132,7 +132,7 @@ func _test_game_manager() -> void:
 	var struggled := _clear(gm, 200.0)
 	_check(struggled["adaptation"]["decision"] == AdaptiveDifficulty.EASIER and gm.pending_adapt == 0, "three retries make the next shift easier: back to the normal curve")
 	gm.start_shift(42, 3)
-	_check(gm.adapt_steps == 0 and Rules.adapt == 0 and is_equal_approx(gm.reserve, 270.0) and not gm.second_laser_new, "shift 3 is on the normal curve again (270 s) and the grid is not new")
+	_check(gm.adapt_steps == 0 and Rules.adapt == 0 and is_equal_approx(gm.reserve, 270.0) and not gm.second_gravity_new, "shift 3 is on the normal curve again (270 s) and the grid is not new")
 	# A middling shift keeps things as they are.
 	var middling := _clear(gm, 190.0, 1)
 	_check(middling["adaptation"]["decision"] == AdaptiveDifficulty.SAME and gm.pending_adapt == 0, "a middling shift stays balanced")
@@ -184,8 +184,8 @@ func _test_real_game() -> void:
 	_check(text.contains("harder") and text.contains("0 mistakes and 0 retries"), "and a plain sentence")
 	main._next_shift()
 	await process_frame
-	_check(main._notice_label.text.contains("ADAPTED: HARDER") and main._notice_label.text.contains("A SECOND LASER GRID"), "the new shift's notice says it was adapted and that a second grid has arrived")
-	_check((main._station["lasers"] as Array).size() == 2 and is_equal_approx(gm.reserve, 270.0), "and the station is built with it (two grids, 270 s)")
+	_check(main._notice_label.text.contains("ADAPTED: HARDER") and main._notice_label.text.contains("A SECOND ZERO-GRAVITY ZONE"), "the new shift's notice says it was adapted and that a second grid has arrived")
+	_check((main._station["gravity_zones"] as Array).size() == 2 and is_equal_approx(gm.reserve, 270.0), "and the station is built with it (two grids, 270 s)")
 	# Settings: switching it off.
 	main.save.adaptive = false
 	main._apply_settings()

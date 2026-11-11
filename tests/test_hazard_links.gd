@@ -1,5 +1,5 @@
 extends SceneTree
-## Hazards and puzzles that affect each other: repairing a system switches off the laser grid just
+## Hazards and puzzles that affect each other: repairing a system switches off the gravity zone just
 ## beyond its room, seals a corridor vent, and stops the gas leak at its own console.
 ## Run:  godot --headless --path . -s res://tests/test_hazard_links.gd
 
@@ -12,7 +12,7 @@ func _initialize() -> void:
 	Rules.level = Rules.LEVEL_ENGINEER
 	Rules.mods = 0
 	await _test_zone()
-	await _test_laser()
+	await _test_gravity()
 	await _test_station()
 	await _test_real_game()
 	_remove_save()
@@ -51,8 +51,8 @@ func _test_zone() -> void:
 	await process_frame
 
 
-func _test_laser() -> void:
-	var grid := LaserGrid.create(Vector3.ZERO, 3.0, 3.0, 1)
+func _test_gravity() -> void:
+	var grid := GravityZone.create(Vector3.ZERO, 3.0, 3.0, 1)
 	root.add_child(grid)
 	await process_frame
 	var changes: Array[bool] = []
@@ -67,7 +67,7 @@ func _test_laser() -> void:
 	grid.switch_off()
 	grid.tick(0.1, false)
 	_check(not grid.armed and grid.off_seconds_left() == 0.0, "a wall switch does nothing to an offline grid")
-	_check(grid._label.text == "LASER OFFLINE", "its label says OFFLINE")
+	_check(grid._label.text == "GRAVITY STABLE", "its label says STABLE")
 	var touches := [0]
 	grid.touched.connect(func(_s: float) -> void: touches[0] += 1)
 	grid.tick(0.1, true)
@@ -131,33 +131,43 @@ func _test_real_game() -> void:
 	main._rebuild_world()
 	await process_frame
 	var gm: GameManager = main.gm
-	var lasers: Array = main._station["lasers"]
+	var gravity_zones: Array = main._station["gravity_zones"]
 	var vents: Array = main._station["hazards"]
 	var leaks: Dictionary = main._station["room_leaks"]
-	_check(lasers.size() == 2 and (lasers[0] as LaserGrid).armed and (lasers[1] as LaserGrid).armed, "shift 3 starts with both laser grids on")
+	_check(gravity_zones.size() == 2 and (gravity_zones[0] as GravityZone).armed and (gravity_zones[1] as GravityZone).armed, "shift 3 starts with both gravity zones on")
 	# Oxygen: seals the vent between Power and Oxygen, and its own room's leak.
 	gm.repaired["oxygen"] = true
 	main._on_system_repaired("oxygen")
 	_check((vents[1] as HazardZone).sealed and not (vents[0] as HazardZone).sealed, "repairing Oxygen seals the vent between Power and Oxygen, not the first one")
 	_check((leaks["oxygen"] as HazardZone).sealed, "and the leak in the Oxygen room")
 	_check(main._notice_label.text.contains("GAS VENT 2 SEALED") and main._notice_label.text.contains("GAS LEAK SEALED"), "a notice says what was sealed")
-	_check(not (lasers[0] as LaserGrid).offline, "the first laser grid is still on (Comms is not repaired)")
+	_check(not (gravity_zones[0] as GravityZone).offline, "the first gravity zone is still on (Comms is not repaired)")
 	# Comms: the first grid goes offline (and the Cooling door unlocks in the same notice).
 	gm.repaired["comms"] = true
 	main._on_system_repaired("comms")
-	_check((lasers[0] as LaserGrid).offline and not (lasers[0] as LaserGrid).armed and not (lasers[1] as LaserGrid).offline, "repairing Comms switches off the first grid for good, not the second")
-	_check(main._notice_label.text.contains("COOLING DOOR UNLOCKED") and main._notice_label.text.contains("LASER GRID 1 OFFLINE"), "one notice names the unlocked door and the grid")
+	_check((gravity_zones[0] as GravityZone).offline and not (gravity_zones[0] as GravityZone).armed and not (gravity_zones[1] as GravityZone).offline, "repairing Comms switches off the first grid for good, not the second")
+	_check(main._notice_label.text.contains("COOLING DOOR UNLOCKED") and main._notice_label.text.contains("GRAVITY ZONE 1 STABILISED"), "one notice names the unlocked door and the grid")
+	var gone := 0
+	var kept := 0
+	for sw in main._station["gravity_switches"]:
+		var node := sw as Interactable
+		if node.get_meta("gravity_zone") == gravity_zones[0]:
+			if not node.visible and node.collision_layer == 0 and not node.enabled:
+				gone += 1
+		elif node.visible and node.collision_layer != 0:
+			kept += 1
+	_check(gone == 2 and kept == 2, "an offline grid's two wall switches disappear; the second grid's stay (%d gone, %d kept)" % [gone, kept])
 	# Using an offline grid's switch.
 	var switch: Interactable
-	for item in main._station["laser_switches"]:
-		if (item as Interactable).get_meta("laser_grid") == lasers[0]:
+	for item in main._station["gravity_switches"]:
+		if (item as Interactable).get_meta("gravity_zone") == gravity_zones[0]:
 			switch = item
 	main._on_interacted(switch, null)
-	_check(main._notice_label.text.contains("ALREADY OFFLINE") and (lasers[0] as LaserGrid).offline, "a wall switch on an offline grid says so")
+	_check(main._notice_label.text.contains("ALREADY STABLE") and (gravity_zones[0] as GravityZone).offline, "a wall switch on an offline grid says so")
 	# Cooling: the second grid and the cooling leak.
 	gm.repaired["cooling"] = true
 	main._on_system_repaired("cooling")
-	_check((lasers[1] as LaserGrid).offline, "repairing Cooling switches off the second grid")
+	_check((gravity_zones[1] as GravityZone).offline, "repairing Cooling switches off the second grid")
 	if leaks.has("cooling"):
 		_check((leaks["cooling"] as HazardZone).sealed, "and seals the Cooling room's leak")
 	# Danger music and sounds look at the leaks too.
@@ -166,15 +176,15 @@ func _test_real_game() -> void:
 	gm.retry()
 	main._rebuild_world()
 	await process_frame
-	var fresh_lasers: Array = main._station["lasers"]
-	_check((fresh_lasers[0] as LaserGrid).armed and not (fresh_lasers[0] as LaserGrid).offline and not ((main._station["hazards"] as Array)[1] as HazardZone).sealed, "a retry puts the grids and vents back")
+	var fresh_gravity_zones: Array = main._station["gravity_zones"]
+	_check((fresh_gravity_zones[0] as GravityZone).armed and not (fresh_gravity_zones[0] as GravityZone).offline and not ((main._station["hazards"] as Array)[1] as HazardZone).sealed, "a retry puts the grids and vents back")
 	# Shift 1 has a single grid: Cooling does not break.
 	gm.start_shift(8, 1)
 	main._rebuild_world()
 	await process_frame
 	gm.repaired["cooling"] = true
 	main._on_system_repaired("cooling")
-	_check(main._station["lasers"].size() == 1 and main._notice_label != null, "on shift 1 repairing Cooling has no second grid to switch off, and does not crash")
+	_check(main._station["gravity_zones"].size() == 1 and main._notice_label != null, "on shift 1 repairing Cooling has no second grid to switch off, and does not crash")
 	main.queue_free()
 	await process_frame
 

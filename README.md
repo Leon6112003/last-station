@@ -70,7 +70,7 @@ The rule looks at the share of the shift's reserve that was used (averaged with 
 | **Harder** | used under 40% of the reserve **and** at most 1 retry **and** at most 2 mistakes |
 | Same | anything else |
 
-Each "step" moves the next shift one shift along the normal difficulty curve: a harder step is 45 s less reserve and one shift's worth of hazard growth (wider and longer gas, shorter laser switch-off time, the second laser grid and the longer reboot code arriving earlier); an easier step undoes one. The adaptation is limited to 2 steps easier and 3 steps harder than the normal curve, an easier step can never make a shift easier than the level's starting shift, and the reserve never goes below the level's floor. A retry keeps the same adaptation; a new run and the main menu clear it.
+Each "step" moves the next shift one shift along the normal difficulty curve: a harder step is 45 s less reserve and one shift's worth of hazard growth (wider and longer gas, shorter gravity-on time, the second zero-gravity zone and the longer reboot code arriving earlier); an easier step undoes one. The adaptation is limited to 2 steps easier and 3 steps harder than the normal curve, an easier step can never make a shift easier than the level's starting shift, and the reserve never goes below the level's floor. A retry keeps the same adaptation; a new run and the main menu clear it.
 
 The results screen starts with the decision and the numbers behind it, in plain words, and the next shift's notice says "ADAPTED: HARDER" or "ADAPTED: EASIER". It can be switched off in **Settings** (it is on by default). The thresholds are estimates chosen by reasoning and have not been tuned by play. This is on top of the player's chosen level; it adapts within it.
 
@@ -83,7 +83,7 @@ Pick **Rookie**, **Engineer** or **Survivor** on the main menu (your choice is s
 | Starting reserve (shift 1) | 480 s | 360 s | 270 s |
 | Less each later shift, to a floor of | 45 s, 240 s | 45 s, 180 s | 45 s, 150 s |
 | Gas drain | 6 s per second | 12 s per second | 20 s per second |
-| Laser touch / laser stays off | 5 s / 15 s | 10 s / 10 s | 20 s / 6 s |
+| Zero gravity: reserve lost per second floating / gravity stays on after a switch | 1 s / 15 s | 2 s / 10 s | 4 s / 6 s |
 | ORACLE question | free | 5 s | 10 s |
 | Hint | 10 s | 20 s | 40 s |
 | Wrong breaker / wrong valves or frequency | 8 s / 5 s | 15 s / 10 s | 30 s / 20 s |
@@ -97,7 +97,7 @@ Open **Settings** from the main menu (top right corner) or the pause menu. Every
 
 - **Audio:** separate music and effects volume sliders (the effects slider plays a short click so you can judge it).
 - **Controls:** a mouse speed slider (25% to 300% of normal) and a list of keys. Click a key, press the new one; Esc cancels, a key that another action already uses is refused with a message, and **Reset keys** restores the defaults. Escape (pause / close) is fixed. The movement keys keep their arrow keys as a second key unless another action has taken them. The help line at the bottom of the screen, the "E - ..." prompt and the guidance line follow your keys. The how-to-play text and the signs in the crew quarters still show the default keys.
-- **Colour-blind cues (on by default):** every red / cyan signal has a second cue that does not rely on colour: a cross (faulted) or a tick (repaired) beside each room's name, the words `GAS: SAFE`, `GAS: SOON` and `GAS: DANGER` by each gas lamp, `LOW` after a low reserve, and the laser grid's own text (`LASER GRID ON` / `LASER OFF`). The objectives list already uses `[x]` and `[ ]`.
+- **Colour-blind cues (on by default):** every red / cyan signal has a second cue that does not rely on colour: a cross (faulted) or a tick (repaired) beside each room's name, the words `GAS: SAFE`, `GAS: SOON` and `GAS: DANGER` by each gas lamp, `LOW` after a low reserve, and the zone's own text (`ZERO GRAVITY` / `GRAVITY ON`). The objectives list already uses `[x]` and `[ ]`.
 - **Sound captions (off by default):** a short line of text for the sounds that warn of something: the alarm, gas venting, sparks, doors, the fans, groans and bangs, your heartbeat. **Captions also appear automatically whenever sound is muted (N) or the effects volume is 0.**
 
 ## Modifiers
@@ -118,9 +118,9 @@ West of the crew quarters, on the way to the reboot terminal at the far west end
 
 ## Sound and feel
 
-**Theme song:** a 29-second, 100 BPM loop in two layers that play in sync. The calm layer is always on: a slow heartbeat, a rasping string pad on clashing chords, thin bells and a metal impact with long echoes. The tense layer is already faintly there when a shift begins and swells in as the danger rises (the reserve draining, a gas vent open near you, the live laser grid close, or a hit you just took) and fades out again when you are safe: a stalking ostinato built on a flat second and a tritone, a second heartbeat, hi-hat ticks, a distant alarm and a rising hiss. It plays over the opening intro and the menu (calm only) and carries on into the shift without restarting. It is composed and synthesised in code when the game opens (about half a second, no audio file); every pitched note is A3 or higher and there is no sustained low tone, only short heartbeat thumps. It fades in and stops in pause and on the results screens. **B** turns it off, **N** mutes everything. It is verified by tests for length, loop seam, loudness and pitch range; how it sounds has not been judged by a person yet.
+**Theme song:** a 29-second, 100 BPM loop in two layers that play in sync. The calm layer is always on: a slow heartbeat, a rasping string pad on clashing chords, thin bells and a metal impact with long echoes. The tense layer is already faintly there when a shift begins and swells in as the danger rises (the reserve draining, a gas vent open near you, an active zero-gravity zone close, or a hit you just took) and fades out again when you are safe: a stalking ostinato built on a flat second and a tritone, a second heartbeat, hi-hat ticks, a distant alarm and a rising hiss. It plays over the opening intro and the menu (calm only) and carries on into the shift without restarting. It is composed and synthesised in code when the game opens (about half a second, no audio file); every pitched note is A3 or higher and there is no sustained low tone, only short heartbeat thumps. It fades in and stops in pause and on the results screens. **B** turns it off, **N** mutes everything. It is verified by tests for length, loop seam, loudness and pitch range; how it sounds has not been judged by a person yet.
 
-**Survival atmosphere:** on top of the music the station makes sounds now and then, never as a constant drone: metal groans and distant bangs every 9 to 21 seconds, a harsh two-beep alarm every 14 seconds until the first system is repaired, electric crackle when you are near the live laser grid, a frightened heartbeat in the last 45 seconds of reserve (on top of the clock tick), breathing inside the helmet (faster as the reserve runs low), ventilation fans that wind down while the station is broken and spin up and whoosh once you repair it, a heavy sliding sound when a door unlocks and a dull clunk if you walk up to a locked one, and a steady hiss while a gas vent is open near you. All are generated in code, quiet, and switched off by **N**. They have no effect on the rules.
+**Survival atmosphere:** on top of the music the station makes sounds now and then, never as a constant drone: metal groans and distant bangs every 9 to 21 seconds, a harsh two-beep alarm every 14 seconds until the first system is repaired, electric crackle when you are near an active zero-gravity zone, a frightened heartbeat in the last 45 seconds of reserve (on top of the clock tick), breathing inside the helmet (faster as the reserve runs low), ventilation fans that wind down while the station is broken and spin up and whoosh once you repair it, a heavy sliding sound when a door unlocks and a dull clunk if you walk up to a locked one, and a steady hiss while a gas vent is open near you. All are generated in code, quiet, and switched off by **N**. They have no effect on the rules.
 
 All sound is generated in code when the game starts (no audio files): no background hum or any continuous sound, only short effects: click on a correct breaker, hiss when a console opens, chime when a system is repaired, buzz on a mistake, rising notes on a win, a falling tone on a loss, footsteps, and a soft clock tick-tock once a second when the reserve is under a minute (twice as fast under 20 seconds). **N** mutes everything. Sound is feedback only; no rule depends on it.
 
@@ -136,14 +136,14 @@ The station is one long corridor (about 70 m) with the crew quarters, Power, Oxy
 
 - **Doors in order:** the Oxygen door stays locked until Power is repaired, the Comms door until Oxygen is repaired, and the Cooling door until Comms is repaired. Each shows what it needs and slides open when its system is repaired.
 - **Two gas vents** (one between the quarters and Power, one between Power and Oxygen): a lamp above each is grey (quiet), amber (warning) or red (venting). Standing in venting gas costs 12 reserve seconds per second. Wait for grey.
-- **Hazards grow with the shift:** each later shift the gas vents are quiet 0.5 s less (to a floor of 1.5 s), vent 0.5 s longer (to 9 s) and spread 1 m further (to 10 m), and a wall switch keeps a laser grid off 1 s less (never under half its time). From shift 3 a **second laser grid** blocks the corridor between Comms and Cooling, with its own two switches. Shift 1 is exactly as before. The notice at the start of a shift says "HAZARDS GROW", or "A SECOND LASER GRID" on shift 3.
-- **Repairs switch off hazards (hazards and puzzles affect each other):** repairing **Comms** switches off the first laser grid for good, and **Cooling** the second. Repairing **Oxygen** seals the corridor vent between Power and Oxygen. Two rooms also have **gas leaks right at their console**: the Oxygen room always, until Oxygen is repaired, and the Cooling room only while the reactor state is SURGE, until Cooling is repaired. A leak is kinder than a corridor vent (3 s longer quiet spell, 60% of the venting time) and has a warning sign and a lamp. So the walk back to the reboot terminal is safer than the walk out. One notice names the repair and everything it switched off.
-- **Laser grid** (between Oxygen and Comms; the second one, from shift 3, is between Comms and Cooling): six red beams that are a solid wall, so you cannot walk through. Touching them costs 10 reserve seconds. A **wall switch** on each side (press **E**) turns the grid off for 10 seconds; it flickers before it switches back on, and it waits while anyone stands in the beams.
+- **Hazards grow with the shift:** each later shift the gas vents are quiet 0.5 s less (to a floor of 1.5 s), vent 0.5 s longer (to 9 s) and spread 1 m further (to 10 m), and a wall switch keeps gravity on 1 s less (never under half its time). From shift 3 a **second zero-gravity zone** covers the corridor between Comms and Cooling, with its own two switches. Shift 1 is exactly as before. The notice at the start of a shift says "HAZARDS GROW", or "A SECOND ZERO-GRAVITY ZONE" on shift 3.
+- **Repairs switch off hazards (hazards and puzzles affect each other):** repairing **Comms** restores gravity in the first zero-gravity zone for good, and **Cooling** in the second. Repairing **Oxygen** seals the corridor vent between Power and Oxygen. Two rooms also have **gas leaks right at their console**: the Oxygen room always, until Oxygen is repaired, and the Cooling room only while the reactor state is SURGE, until Cooling is repaired. A leak is kinder than a corridor vent (3 s longer quiet spell, 60% of the venting time) and has a warning sign and a lamp. So the walk back to the reboot terminal is safer than the walk out. One notice names the repair and everything it switched off.
+- **Zero-gravity zone** (between Oxygen and Comms; the second one, from shift 3, is between Comms and Cooling): a violet haze with drifting cubes where the gravity generator has failed. You can walk in, but you float: half speed, a slow drift upward, and every second inside costs reserve (2 s on Engineer). A **wall switch** on each side (press **E**) restores gravity for 10 seconds; the haze flickers before gravity fails again, and it waits while anyone is inside.
 - **ORACLE costs time:** every question asked to ORACLE costs 5 reserve seconds (never the last second). The manuals (**M**) and the hint button's own 20 s cost are separate; the manuals are free.
 - Hazards use the shift's real reserve and are not counted as puzzle mistakes. They start in a fixed state each attempt, so a retry plays the same walk.
 - **Waking up in bed:** a new run starts with you lying in the lower bunk, eyes shut, looking up at the bunk above. Your eyes open, you blink, sit up, turn toward the room and stand, facing the door, about 6 seconds in all, with a pulsing red alarm. Movement, looking and interacting are locked until you are up; a key press skips it after 2 seconds. Only the very first shift of a run does this: after a shift, or on a retry, you are already awake and simply fade in standing by the bunk.
 
-Not tuned yet: made harder after a friend found it easy (shorter reserve, harsher gas, a blocking laser, paid ORACLE questions). The new numbers were chosen by reasoning, not by playing; walking the corridor takes about 10 s one way.
+Not tuned yet: made harder after a friend found it easy (shorter reserve, harsher gas, a zero-gravity zone that drains reserve, paid ORACLE questions). The new numbers were chosen by reasoning, not by playing; walking the corridor takes about 10 s one way.
 
 ## Look of the station
 
@@ -182,7 +182,7 @@ Press **H** and ask, for example, "How do I fix the power breakers?". It shows t
 | Rules and constants (single source of truth) | `scripts/rules.gd` |
 | Puzzles (seeded, pure data) and checks | `scripts/puzzle_generator.gd`, `scripts/puzzle_validators.gd` |
 | Game state, reserve, win/fail | `scripts/game_manager.gd`, `scripts/score_manager.gd` |
-| World, player, interaction | `scripts/station_builder.gd`, `scripts/player_controller.gd`, `scripts/interactable.gd`, `scripts/door_gate.gd`, `scripts/hazard_zone.gd`, `scripts/laser_grid.gd`, `scripts/shift_theme.gd` |
+| World, player, interaction | `scripts/station_builder.gd`, `scripts/player_controller.gd`, `scripts/interactable.gd`, `scripts/door_gate.gd`, `scripts/hazard_zone.gd`, `scripts/gravity_zone.gd`, `scripts/shift_theme.gd` |
 | Sound and menu | `scripts/sound_bank.gd`, `scripts/theme_music.gd`, `scripts/menu_screen.gd` |
 | UI and flow | `scripts/main.gd`, `scripts/ui_puzzle_panels.gd`, `scripts/ui_manuals_panel.gd` |
 | Manuals and saving | `data/game_knowledge.json`, `scripts/knowledge_base.gd`, `scripts/save_manager.gd` |
@@ -195,7 +195,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 ```
 ./tests/run_all.sh        # needs `godot` on PATH
 ```
-30 headless test files, 1259 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
+30 headless test files, 1263 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
 
 ## Changes since the original spec
 
@@ -206,15 +206,15 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 - **The walk (added after playtesting feedback):** the compact hub became a bedroom start, a long corridor, far rooms, doors that unlock in order, and gas and spark hazards (see "The walk").
 - **Redesigned look (after playtesting feedback):** every door has a header sign, a frame and a light that turn from red to cyan when its system is repaired; two matching boards flank the middle door (the protocol, and how to get help); each room has a tinted floor and a ceiling strip, and the room lights up (bright cyan strip and floor) when repaired; the hub light flickers, and under a minute of reserve the station pulses red with a red screen-edge vignette (visual only, rules unchanged); breaker ratings are printed on the breakers; each room has one tidy display panel; the reboot terminal is labelled and turns cyan when ready.
 - **Visual polish (added later):** generated wall, floor and ceiling textures, lamp fixtures and room props (see "Look of the station").
-- **The reboot code and hazard links (added later):** a memory-and-rule puzzle at the reboot terminal, and repairs that switch off lasers and seal vents and leaks (see "The reboot code" and "The walk").
+- **The reboot code and hazard links (added later):** a memory-and-rule puzzle at the reboot terminal, and repairs that restore gravity and seal vents and leaks (see "The reboot code" and "The walk").
 - **Adaptive difficulty (added later):** a fixed, rule-based adaptation of the next shift to how the last one went (see "Adaptive difficulty").
 - **Settings and accessibility (added later):** volume sliders, mouse speed, key rebinding, colour-blind cues and sound captions (see "Settings and accessibility").
 - **Modifiers (added later):** Blackout, Hardcore and Speedrun switches on the menu (see "Modifiers").
 - **Cryo Bay (added later):** an optional room with the sleeping crew and four story logs (see "The Cryo Bay").
-- **Hazards that grow (added later):** vents and laser switches get harsher each shift, and a second laser grid appears from shift 3 (see "The walk").
+- **Hazards that grow (added later):** vents and gravity switches get harsher each shift, and a second zero-gravity zone appears from shift 3 (see "The walk").
 - **Fourth system, Cooling (added later):** a reactor room past Comms with a CORE TEMP and a REACTOR state; the coolant flow is a formula that differs by protocol, and the core cools from orange to cyan when repaired. Reboot now needs 4/4.
 - **Hints:** ORACLE's Get a hint button costs reserve time (20 s on Engineer). The hint is computed by the game, not the AI.
-- **Harder walk (after a friend found it easy):** a laser grid blocks the corridor until a wall switch turns it off, gas is harsher, and ORACLE questions cost reserve time.
+- **Harder walk (after a friend found it easy):** a zero-gravity zone drains reserve until a wall switch restores gravity, gas is harsher, and ORACLE questions cost reserve time.
 - **Levels:** a Rookie / Engineer / Survivor selector on the menu changes the reserve, hazards, help costs and score (see "Levels").
 - **Sound:** a survival soundscape and a two-layer theme song that gets more tense with danger (see "Sound and feel").
 - **Look:** a classic astronaut character (third person, **V**, and a front view, **C**), a proper bunk bed, and a station look with windows onto a planet, ceiling pipes, ribs and floor guide lights.

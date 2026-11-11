@@ -31,16 +31,16 @@ const GAS_OFF_SECONDS := 3.0
 const GAS_WARN_SECONDS := 1.0
 const GAS_ON_SECONDS := 6.0
 const GAS_DRAIN_PER_SECOND := 12.0    # reserve seconds lost per second inside venting gas
-# The laser grid is a solid barrier that stays on until a wall switch turns it off for a while.
-const LASER_OFF_SECONDS := 10.0       # how long a switch keeps the grid off
-const LASER_WARN_SECONDS := 2.0       # it flickers this long before switching back on
-const LASER_TOUCH_PENALTY_SECONDS := 10.0   # reserve seconds lost for touching the laser
-const LASER_TOUCH_COOLDOWN_SECONDS := 1.5
+# The zero-gravity zone makes the player float and drains reserve until a wall switch restores gravity for a while.
+const GRAVITY_OFF_SECONDS := 10.0       # how long a switch keeps gravity on
+const GRAVITY_WARN_SECONDS := 2.0       # it flickers this long before gravity fails again
+const GRAVITY_TOUCH_PENALTY_SECONDS := 10.0   # base hazard penalty; a floating second costs 20% of it
+const GRAVITY_TOUCH_COOLDOWN_SECONDS := 1.5
 
 # --- Hazards that grow with the shift -------------------------------------------
 # Shift 1 uses the base numbers above. Each later shift makes the corridor a little worse:
-# the vents are quiet for less time and vent for longer and over a wider stretch, the laser
-# switches keep the grid off for less time, and from shift 3 a second laser grid guards the
+# the vents are quiet for less time and vent for longer and over a wider stretch, the gravity
+# switches keep the grid off for less time, and from shift 3 a second gravity zone guards the
 # Cooling door. All the growth stops at the caps below, so the game stays fair.
 const GAS_OFF_STEP := 0.5
 const GAS_OFF_MIN := 1.5
@@ -48,9 +48,9 @@ const GAS_ON_STEP := 0.5
 const GAS_ON_MAX := 9.0
 const GAS_LENGTH_STEP := 1.0
 const GAS_LENGTH_MAX := 10.0
-const LASER_OFF_STEP := 1.0
-const LASER_OFF_MIN_FRACTION := 0.5   # never less than half of the level's switch-off time
-const SECOND_LASER_FROM_SHIFT := 3
+const GRAVITY_OFF_STEP := 1.0
+const GRAVITY_OFF_MIN_FRACTION := 0.5   # never less than half of the level's switch-off time
+const SECOND_GRAVITY_FROM_SHIFT := 3
 
 
 ## How far along the difficulty curve a shift is: one step per shift, moved by the adaptation
@@ -71,9 +71,9 @@ static func gas_length(run: int = 1) -> float:
 	return minf(GAS_LENGTH_MAX, 6.0 + GAS_LENGTH_STEP * _growth(run))
 
 
-## How long a wall switch keeps a laser grid off on this shift (the level's time, shortened).
-static func laser_off_for(run: int = 1) -> float:
-	return maxf(laser_off() * LASER_OFF_MIN_FRACTION, laser_off() - LASER_OFF_STEP * _growth(run))
+## How long a wall switch keeps gravity on on this shift (the level's time, shortened).
+static func gravity_off_for(run: int = 1) -> float:
+	return maxf(gravity_off() * GRAVITY_OFF_MIN_FRACTION, gravity_off() - GRAVITY_OFF_STEP * _growth(run))
 
 
 ## The length of the reboot sequence on a shift: 4, growing by one every second shift, up to 6.
@@ -86,8 +86,8 @@ static func replay_cost() -> int:
 	return maxi(1, hint_cost() / 2)
 
 
-static func laser_count(run: int = 1) -> int:
-	return 2 if _growth(run) >= SECOND_LASER_FROM_SHIFT - 1 else 1
+static func gravity_count(run: int = 1) -> int:
+	return 2 if _growth(run) >= SECOND_GRAVITY_FROM_SHIFT - 1 else 1
 
 
 # --- Difficulty levels -----------------------------------------------------
@@ -99,19 +99,19 @@ const LEVEL_ENGINEER := 1
 const LEVEL_SURVIVOR := 2
 const LEVEL_NAMES: Array[String] = ["Rookie", "Engineer", "Survivor"]
 const LEVEL_BLURBS: Array[String] = [
-	"More time, weaker gas and laser, free ORACLE questions.",
+	"More time, weaker gas and gravity, free ORACLE questions.",
 	"The standard game.",
-	"Less time, deadly gas and laser, costly help.",
+	"Less time, deadly gas and gravity, costly help.",
 ]
 const RESERVE_MAX_SECONDS := 480      # the largest starting reserve of any level
 const LEVELS: Array[Dictionary] = [
-	{"reserve": 480, "min": 240, "gas": 6.0, "laser_penalty": 5.0, "laser_off": 15.0,
+	{"reserve": 480, "min": 240, "gas": 6.0, "gravity_penalty": 5.0, "gravity_off": 15.0,
 		"oracle": 0, "hint": 10, "surge": 8, "confirm": 5, "score": 0.6},
 	{"reserve": RESERVE_START_SECONDS, "min": RESERVE_MIN_SECONDS, "gas": GAS_DRAIN_PER_SECOND,
-		"laser_penalty": LASER_TOUCH_PENALTY_SECONDS, "laser_off": LASER_OFF_SECONDS,
+		"gravity_penalty": GRAVITY_TOUCH_PENALTY_SECONDS, "gravity_off": GRAVITY_OFF_SECONDS,
 		"oracle": ORACLE_QUESTION_COST_SECONDS, "hint": HINT_COST_SECONDS,
 		"surge": SURGE_PENALTY_SECONDS, "confirm": WRONG_CONFIRM_PENALTY_SECONDS, "score": 1.0},
-	{"reserve": 270, "min": 150, "gas": 20.0, "laser_penalty": 20.0, "laser_off": 6.0,
+	{"reserve": 270, "min": 150, "gas": 20.0, "gravity_penalty": 20.0, "gravity_off": 6.0,
 		"oracle": 10, "hint": 40, "surge": 30, "confirm": 20, "score": 1.4},
 ]
 ## The selected level (set from the menu or the save file). Defaults to ENGINEER.
@@ -152,12 +152,12 @@ static func gas_drain() -> float:
 	return float(_value("gas"))
 
 
-static func laser_penalty() -> float:
-	return float(_value("laser_penalty"))
+static func gravity_penalty() -> float:
+	return float(_value("gravity_penalty"))
 
 
-static func laser_off() -> float:
-	return float(_value("laser_off"))
+static func gravity_off() -> float:
+	return float(_value("gravity_off"))
 
 
 static func oracle_cost() -> int:

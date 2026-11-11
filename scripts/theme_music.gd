@@ -2,7 +2,7 @@ class_name ThemeMusic
 extends RefCounted
 ## The game's theme song, composed and synthesised in code (no audio files). It is made of
 ## two layers that play in sync: a calm one, always on, and a tense one that the game fades
-## in as danger rises (low reserve, gas, the laser). Played together they are the full song.
+## in as danger rises (low reserve, gas, the gravity). Played together they are the full song.
 ## Survival mood: dread that turns to panic.
 ##   calm layer (12 bars at 100 BPM, about 29 seconds, looping): a slow heartbeat (lub-dub),
 ##              a rasping string pad on clashing chords, thin bells leaning on the semitone

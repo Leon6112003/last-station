@@ -1,5 +1,5 @@
 extends SceneTree
-## Hazards that grow with the shift: the numbers (and their caps), the second laser grid
+## Hazards that grow with the shift: the numbers (and their caps), the second gravity zone
 ## from shift 3, and that the real game builds and uses them.
 ## Run:  godot --headless --path . -s res://tests/test_growth.gd
 
@@ -31,12 +31,12 @@ func _test_numbers() -> void:
 	for run in range(1, 30):
 		never_worse_than_cap = never_worse_than_cap and Rules.gas_off_seconds(run) >= Rules.GAS_OFF_MIN and Rules.gas_on_seconds(run) <= Rules.GAS_ON_MAX and Rules.gas_length(run) <= Rules.GAS_LENGTH_MAX
 	_check(never_worse_than_cap, "no shift goes past a cap")
-	_check(Rules.gas_off_seconds(0) == Rules.gas_off_seconds(1) and Rules.laser_off_for(0) == Rules.laser_off_for(1), "shift 0 is treated as shift 1")
-	_check(is_equal_approx(Rules.laser_off_for(1), 10.0) and is_equal_approx(Rules.laser_off_for(4), 7.0), "Engineer: the laser stays off 10 s on shift 1 and 7 s on shift 4")
-	_check(is_equal_approx(Rules.laser_off_for(99), 5.0), "the laser is never off for less than half of the level's time")
-	_check(Rules.laser_count(1) == 1 and Rules.laser_count(2) == 1 and Rules.laser_count(3) == 2 and Rules.laser_count(9) == 2, "one laser grid on shifts 1 and 2, two from shift 3")
+	_check(Rules.gas_off_seconds(0) == Rules.gas_off_seconds(1) and Rules.gravity_off_for(0) == Rules.gravity_off_for(1), "shift 0 is treated as shift 1")
+	_check(is_equal_approx(Rules.gravity_off_for(1), 10.0) and is_equal_approx(Rules.gravity_off_for(4), 7.0), "Engineer: the gravity stays off 10 s on shift 1 and 7 s on shift 4")
+	_check(is_equal_approx(Rules.gravity_off_for(99), 5.0), "the gravity is never off for less than half of the level's time")
+	_check(Rules.gravity_count(1) == 1 and Rules.gravity_count(2) == 1 and Rules.gravity_count(3) == 2 and Rules.gravity_count(9) == 2, "one gravity zone on shifts 1 and 2, two from shift 3")
 	Rules.level = Rules.LEVEL_SURVIVOR
-	_check(is_equal_approx(Rules.laser_off_for(1), 6.0) and is_equal_approx(Rules.laser_off_for(9), 3.0), "Survivor: 6 s on shift 1, never under 3 s")
+	_check(is_equal_approx(Rules.gravity_off_for(1), 6.0) and is_equal_approx(Rules.gravity_off_for(9), 3.0), "Survivor: 6 s on shift 1, never under 3 s")
 	Rules.level = Rules.LEVEL_ENGINEER
 	# The gas cycle itself.
 	var gas := HazardZone.create(Vector3(7, 2.8, 3), Vector3.ZERO, 0.0, 3)
@@ -54,21 +54,21 @@ func _test_station() -> void:
 		var world := Node3D.new()
 		root.add_child(world)
 		var station := StationBuilder.build(world, PuzzleGenerator.generate(4, 0), {}, run)
-		var lasers: Array = station["lasers"]
-		var switches: Array = station["laser_switches"]
-		_check(lasers.size() == Rules.laser_count(run) and station["laser"] == lasers[0], "shift %d builds %d laser grid(s)" % [run, Rules.laser_count(run)])
-		_check(switches.size() == 2 * lasers.size(), "shift %d has two wall switches for each grid" % run)
+		var gravity_zones: Array = station["gravity_zones"]
+		var switches: Array = station["gravity_switches"]
+		_check(gravity_zones.size() == Rules.gravity_count(run) and station["gravity"] == gravity_zones[0], "shift %d builds %d gravity zone(s)" % [run, Rules.gravity_count(run)])
+		_check(switches.size() == 2 * gravity_zones.size(), "shift %d has two wall switches for each grid" % run)
 		var ids := {}
 		var all_linked := true
 		for item in switches:
 			ids[(item as Interactable).id] = true
-			all_linked = all_linked and (item as Interactable).get_meta("laser_grid") in lasers
+			all_linked = all_linked and (item as Interactable).get_meta("gravity_zone") in gravity_zones
 		_check(ids.size() == switches.size() and all_linked, "shift %d: every switch has its own id and belongs to a grid" % run)
-		_check(is_equal_approx((lasers[0] as LaserGrid).off_seconds, Rules.laser_off_for(run)), "shift %d: the grids stay off for %.0f s" % [run, Rules.laser_off_for(run)])
+		_check(is_equal_approx((gravity_zones[0] as GravityZone).off_seconds, Rules.gravity_off_for(run)), "shift %d: the grids stay off for %.0f s" % [run, Rules.gravity_off_for(run)])
 		var vent: HazardZone = (station["hazards"] as Array)[0]
 		_check(is_equal_approx(vent.size.x, Rules.gas_length(run)) and vent.run == run, "shift %d: the vents are %.0f m long" % [run, Rules.gas_length(run)])
-		if run >= Rules.SECOND_LASER_FROM_SHIFT:
-			var second: LaserGrid = lasers[1]
+		if run >= Rules.SECOND_GRAVITY_FROM_SHIFT:
+			var second: GravityZone = gravity_zones[1]
 			_check(second.position.x > StationBuilder.ROOM_CENTERS_X["comms"] and second.position.x < StationBuilder.ROOM_CENTERS_X["cooling"], "the second grid is between Comms and Cooling")
 			var switch_clear := true
 			for item in switches:
@@ -89,36 +89,36 @@ func _test_real_game() -> void:
 	main._start_new_game()
 	await process_frame
 	var gm: GameManager = main.gm
-	_check((main._station["lasers"] as Array).size() == 1, "the real game starts shift 1 with one laser grid")
+	_check((main._station["gravity_zones"] as Array).size() == 1, "the real game starts shift 1 with one gravity zone")
 	gm.run_number = 3
 	main._rebuild_world()
 	await process_frame
-	var lasers: Array = main._station["lasers"]
-	_check(lasers.size() == 2, "shift 3 in the real game has two laser grids")
+	var gravity_zones: Array = main._station["gravity_zones"]
+	_check(gravity_zones.size() == 2, "shift 3 in the real game has two gravity zones")
 	# Using the second grid's switch turns off that grid only.
 	var second_switch: Interactable = null
-	for item in main._station["laser_switches"]:
-		if (item as Interactable).get_meta("laser_grid") == lasers[1]:
+	for item in main._station["gravity_switches"]:
+		if (item as Interactable).get_meta("gravity_zone") == gravity_zones[1]:
 			second_switch = item
 	main._on_interacted(second_switch, null)
-	_check(not (lasers[1] as LaserGrid).armed and (lasers[0] as LaserGrid).armed, "a switch turns off its own grid and not the other")
-	_check(second_switch.is_inside_tree() and main._notice_label.text.contains("%d s" % int((lasers[1] as LaserGrid).off_seconds)), "the notice shows that grid's switch-off time")
-	_check(main._station["lasers"].all(func(l: LaserGrid) -> bool: return l.touched.get_connections().size() == 1), "each grid is connected to the game exactly once")
+	_check(not (gravity_zones[1] as GravityZone).armed and (gravity_zones[0] as GravityZone).armed, "a switch turns off its own grid and not the other")
+	_check(second_switch.is_inside_tree() and main._notice_label.text.contains("%d s" % int((gravity_zones[1] as GravityZone).off_seconds)), "the notice shows that grid's switch-off time")
+	_check(main._station["gravity_zones"].all(func(l: GravityZone) -> bool: return l.touched.get_connections().size() == 1), "each grid is connected to the game exactly once")
 	# Danger music also notices the second grid.
-	main._player.global_position.x = (lasers[1] as LaserGrid).position.x - 2.0
-	(lasers[1] as LaserGrid)._off_left = 0.0
-	(lasers[1] as LaserGrid).armed = true
+	main._player.global_position.x = (gravity_zones[1] as GravityZone).position.x - 2.0
+	(gravity_zones[1] as GravityZone)._off_left = 0.0
+	(gravity_zones[1] as GravityZone).armed = true
 	_check(main._danger_level(0.0) >= 0.65, "the music treats the second grid as danger too")
 	gm.run_number = 2
 	main._rebuild_world()
 	await process_frame
-	_check((main._station["lasers"] as Array).size() == 1, "shift 2 has one laser grid again")
+	_check((main._station["gravity_zones"] as Array).size() == 1, "shift 2 has one gravity zone again")
 	# The developer start option: a new game on a later shift.
 	main._go_to_menu()
 	main.dev_start_shift = 4
 	main._start_new_game()
 	await process_frame
-	_check(gm.run_number == 4 and (main._station["lasers"] as Array).size() == 2 and is_equal_approx(gm.reserve, float(Rules.reserve_for_shift(4))), "the --shift option starts a new game on that shift with its reserve and hazards")
+	_check(gm.run_number == 4 and (main._station["gravity_zones"] as Array).size() == 2 and is_equal_approx(gm.reserve, float(Rules.reserve_for_shift(4))), "the --shift option starts a new game on that shift with its reserve and hazards")
 	main.queue_free()
 	await process_frame
 

@@ -32,6 +32,7 @@ var _wake_short: bool = false
 var _lying_local: Vector3 = Vector3.ZERO   # where the eyes are while lying, relative to the body (facing north)
 var _camera_base_y: float = 0.0
 var third_person: bool = false
+var zero_g: bool = false      # set by a failed gravity zone while the player is inside it
 var front_view: bool = false   # third person only: the camera is in front, looking back at the face
 var _avatar: Node3D
 var _legs: Array[Node3D] = []
@@ -48,6 +49,10 @@ const LEG_SWING := 0.6                          # radians
 const BOB_HEIGHT := 0.03           # metres up and down while walking
 const BOB_STRIDE := 3.2            # metres per full stride (two steps: left, then right)
 const BOB_BLEND_SPEED := 8.0
+const ZERO_G_SPEED_FACTOR := 0.5      # floating: half pace
+const ZERO_G_RATE_FACTOR := 0.15      # and only a slow push to start or stop (you drift)
+const ZERO_G_RISE_SPEED := 0.9        # m/s upward drift while weightless
+const ZERO_G_MAX_CENTER_Y := 1.6      # the capsule centre stops rising here, below the 3 m ceiling
 const ACCELERATION := 38.0         # m/s^2: speeding up to full pace takes about 0.13 s
 const DECELERATION := 30.0         # m/s^2: and a short glide to a stop, instead of an instant halt
 const WAKE_EYES_OPEN_AT := 0.7      # seconds: eyes start to open
@@ -305,7 +310,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		rotate_y(-motion.relative.x * mouse_sensitivity)
 		var limit := deg_to_rad(Rules.MAX_PITCH_DEGREES)
 		_pitch = clampf(_pitch - motion.relative.y * mouse_sensitivity, -limit, limit)
-		_camera.rotation.x = _pitch
+		_camera.rotation.x = _pitch - _third_person_tilt()   # same value the physics step uses, so no flicker
 	elif event.is_action_pressed("interact") and _target != null:
 		_target.interact(self)
 
@@ -319,13 +324,19 @@ func _physics_process(delta: float) -> void:
 
 	var wish := transform.basis * Vector3(direction.x, 0.0, direction.y)
 	# Ease towards the wanted velocity so starting and stopping feel smooth, not abrupt.
-	var wanted := Vector2(wish.x, wish.z) * move_speed
+	var wanted := Vector2(wish.x, wish.z) * move_speed * (ZERO_G_SPEED_FACTOR if zero_g else 1.0)
 	var horizontal := Vector2(velocity.x, velocity.z)
 	var rate := ACCELERATION if wanted.length() > 0.01 else DECELERATION
+	if zero_g:
+		rate *= ZERO_G_RATE_FACTOR
 	horizontal = horizontal.move_toward(wanted, rate * delta)
 	velocity.x = horizontal.x
 	velocity.z = horizontal.y
-	if not is_on_floor():
+	if zero_g:
+		# Weightless: drift gently upward instead of standing on the floor.
+		var rise := ZERO_G_RISE_SPEED if position.y < ZERO_G_MAX_CENTER_Y else 0.0
+		velocity.y = move_toward(velocity.y, rise, 3.0 * delta)
+	elif not is_on_floor():
 		velocity.y -= gravity * delta
 	else:
 		velocity.y = 0.0
@@ -370,7 +381,7 @@ func _update_bob(delta: float, horizontal_speed: float) -> void:
 		# ray, which follows the camera) lands about where the character is facing.
 		_camera.rotation.y = atan(THIRD_OFFSET.x / (THIRD_OFFSET.z + THIRD_AIM_DISTANCE))
 		# The camera is above the eye, so tilt it down a little: the reticle then points where the eyes do.
-		_camera.rotation.x = _pitch - atan(THIRD_OFFSET.y / (THIRD_OFFSET.z + THIRD_AIM_DISTANCE))
+		_camera.rotation.x = _pitch - _third_person_tilt()
 		# With a wall right behind, the camera is squeezed close to the head: hide the
 		# body then, so it does not fill the screen.
 		_avatar.visible = _camera.position.distance_to(eye) > AVATAR_MIN_CAMERA_DISTANCE
@@ -379,6 +390,13 @@ func _update_bob(delta: float, horizontal_speed: float) -> void:
 		var dip := cos(_bob_phase * TAU * 2.0) * _bob_amount
 		_camera.position = eye + Vector3(0.0, dip * BOB_HEIGHT, 0.0)
 		_camera.rotation.y = 0.0
+
+
+## How far the third-person camera is tilted down (it sits above the eye but aims where the eye does).
+func _third_person_tilt() -> float:
+	if third_person and not front_view:
+		return atan(THIRD_OFFSET.y / (THIRD_OFFSET.z + THIRD_AIM_DISTANCE))
+	return 0.0
 
 
 ## Camera spot for third person: behind and beside the head, turned by the pitch, and

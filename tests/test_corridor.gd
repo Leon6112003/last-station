@@ -9,7 +9,7 @@ var _failures: int = 0
 func _initialize() -> void:
 	_test_hazard_cycle()
 	_test_gas_damage()
-	_test_laser()
+	_test_gravity()
 	_test_oracle_cost()
 	_test_manager_damage()
 	_test_doors()
@@ -29,8 +29,8 @@ func _gas(offset: float = 0.0) -> HazardZone:
 	return HazardZone.create(Vector3(6.0, 2.8, 3.0), Vector3.ZERO, offset)
 
 
-func _laser() -> LaserGrid:
-	return LaserGrid.create(Vector3.ZERO, 3.0, 2.8)
+func _gravity() -> GravityZone:
+	return GravityZone.create(Vector3.ZERO, 3.0, 2.8)
 
 
 func _test_hazard_cycle() -> void:
@@ -74,37 +74,40 @@ func _test_gas_damage() -> void:
 	_check(is_equal_approx(total[0], before), "being outside the gas costs nothing even while it vents")
 
 
-func _test_laser() -> void:
-	var laser := _laser()
+func _test_gravity() -> void:
+	var gravity := _gravity()
 	var touches := []
-	laser.touched.connect(func(seconds: float) -> void: touches.append(seconds))
-	laser.state_changed.connect(func(_armed: bool) -> void: pass)
-	_check(laser.armed and laser._barrier.collision_layer == Rules.LAYER_WORLD, "the laser grid starts on and solid")
-	laser.tick(0.1, false)
-	_check(touches.is_empty(), "no touch when nobody is near")
-	laser.tick(0.1, true)
-	laser.tick(0.1, true)
-	laser.tick(0.1, true)
-	_check(touches.size() == 1 and is_equal_approx(touches[0], Rules.LASER_TOUCH_PENALTY_SECONDS), "touching the beams costs 10 s once, not once per frame")
-	laser.tick(0.1, false)
-	laser.tick(0.1, true)
-	_check(touches.size() == 2, "stepping away and touching again is a new touch")
+	gravity.touched.connect(func(seconds: float) -> void: touches.append(seconds))
+	gravity.state_changed.connect(func(_armed: bool) -> void: pass)
+	_check(gravity.armed, "the zero-gravity zone starts active")
+	gravity.tick(0.1, false)
+	_check(touches.is_empty(), "no drain when nobody is inside")
+	gravity.tick(0.4, true)
+	gravity.tick(0.4, true)
+	_check(touches.is_empty(), "less than a second inside costs nothing yet")
+	gravity.tick(0.4, true)
+	_check(touches.size() == 1 and is_equal_approx(touches[0], Rules.gravity_penalty() * GravityZone.DRAIN_FRACTION), "each second floating costs reserve (2 s on Engineer)")
+	gravity.tick(2.0, true)
+	_check(touches.size() == 3, "it keeps draining once per second while you float there")
+	gravity.tick(0.5, false)
+	gravity.tick(0.5, true)
+	_check(touches.size() == 3, "leaving resets the clock")
 
-	laser.switch_off()
-	_check(not laser.armed and laser._barrier.collision_layer == 0, "a switch turns the grid off and removes the barrier")
-	laser.tick(1.0, true)
-	_check(touches.size() == 2, "walking through a switched-off grid costs nothing")
-	_check(is_equal_approx(laser.off_seconds_left(), Rules.LASER_OFF_SECONDS - 1.0), "the grid stays off for its set time")
-	laser.tick(Rules.LASER_OFF_SECONDS, true)
-	_check(not laser.armed, "it does not switch back on while someone stands in the beams")
-	laser.tick(0.1, false)
-	_check(laser.armed and laser._barrier.collision_layer == Rules.LAYER_WORLD, "it switches back on once the way is clear")
-	var again := _laser()
+	gravity.switch_off()
+	_check(not gravity.armed, "a switch restores gravity")
+	gravity.tick(1.0, true)
+	_check(touches.size() == 3, "walking through a restored zone costs nothing")
+	_check(is_equal_approx(gravity.off_seconds_left(), Rules.GRAVITY_OFF_SECONDS - 1.0), "gravity stays on for its set time")
+	gravity.tick(Rules.GRAVITY_OFF_SECONDS, true)
+	_check(not gravity.armed, "it does not fail again while someone stands in it")
+	gravity.tick(0.1, false)
+	_check(gravity.armed, "it fails again once the way is clear")
+	var again := _gravity()
 	again.switch_off()
-	again.tick(Rules.LASER_OFF_SECONDS - 2.0, false)
+	again.tick(Rules.GRAVITY_OFF_SECONDS - 2.0, false)
 	again.switch_off()
-	_check(is_equal_approx(again.off_seconds_left(), Rules.LASER_OFF_SECONDS), "pressing the switch again starts the time over")
-	laser.free()
+	_check(is_equal_approx(again.off_seconds_left(), Rules.GRAVITY_OFF_SECONDS), "pressing the switch again starts the time over")
+	gravity.free()
 	again.free()
 
 
@@ -134,9 +137,9 @@ func _test_manager_damage() -> void:
 	var start := gm.reserve
 	var hits := []
 	gm.hazard_hit.connect(func(kind: String, seconds: float) -> void: hits.append([kind, seconds]))
-	gm.hazard_damage("laser", 12.0)
+	gm.hazard_damage("gravity", 12.0)
 	_check(is_equal_approx(gm.reserve, start - 12.0) and gm.mistakes == 0, "a hazard takes reserve time but is not a puzzle mistake")
-	_check(hits.size() == 1 and hits[0][0] == "laser", "the manager announces the hazard hit")
+	_check(hits.size() == 1 and hits[0][0] == "gravity", "the manager announces the hazard hit")
 	_check(is_equal_approx(gm.hazard_seconds, 12.0), "hazard losses are tallied")
 	gm.hazard_damage("gas", -5.0)
 	_check(is_equal_approx(gm.reserve, start - 12.0), "negative damage is ignored")
@@ -178,12 +181,12 @@ func _test_in_the_real_scene() -> void:
 	await process_frame
 	var gm: GameManager = main.gm
 	var start := gm.reserve
-	main._on_laser_touched(Rules.LASER_TOUCH_PENALTY_SECONDS)
-	_check(is_equal_approx(gm.reserve, start - 10.0) and gm.mistakes == 0, "touching the laser in the real scene takes 10 s and is not a mistake")
-	var laser: LaserGrid = main._station["laser"]
-	_check(laser.touched.is_connected(main._on_laser_touched), "the laser grid is wired to the game")
-	main._on_interacted(main._station["laser_switches"][0], null)
-	_check(not laser.armed, "pressing a laser switch in the real scene turns the grid off")
+	main._on_gravity_touched(Rules.GRAVITY_TOUCH_PENALTY_SECONDS)
+	_check(is_equal_approx(gm.reserve, start - 10.0) and gm.mistakes == 0, "touching the gravity in the real scene takes 10 s and is not a mistake")
+	var gravity: GravityZone = main._station["gravity"]
+	_check(gravity.touched.is_connected(main._on_gravity_touched), "the gravity zone is wired to the game")
+	main._on_interacted(main._station["gravity_switches"][0], null)
+	_check(not gravity.armed, "pressing a gravity switch in the real scene turns the grid off")
 	_check(is_equal_approx(gm.reserve, start - 10.0 + 0.0) or gm.reserve < start, "a switch costs nothing by itself")
 	var before_question := gm.reserve
 	main._open_oracle()
@@ -206,7 +209,7 @@ func _test_manuals() -> void:
 		if record["id"] == "walk_hazards":
 			found = true
 			var text: String = record["text"]
-			_check(text.contains("Oxygen after Power") and text.contains("Cooling after Comms") and text.contains("gas") and text.contains("laser") and text.contains("12"), "the manuals explain the locked doors, the gas vents and the laser grid")
+			_check(text.contains("Oxygen, then Comms") and text.contains("Cooling") and text.contains("gas") and text.contains("gravity") and text.contains("12"), "the manuals explain the locked doors, the gas vents and the gravity zone")
 	_check(found, "there is a manual entry about doors and corridor hazards")
 	var results: Array = KnowledgeRetriever.retrieve("why is the oxygen door locked", records)
 	_check(results.size() > 0 and (results[0]["id"] == "walk_hazards" or results.any(func(r: Dictionary) -> bool: return r["id"] == "walk_hazards")), "ORACLE can find the doors entry when asked about a locked door")
