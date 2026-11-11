@@ -51,3 +51,17 @@ static func comms_target(comms: Dictionary) -> int:
 
 static func comms_matches(comms: Dictionary, mhz: int) -> bool:
 	return mhz == comms_target(comms)
+
+
+## Coolant flow in L/s: (core temperature - 400 K) divided by 20 on protocol A or 10 on B,
+## plus 5 when the reactor state is SURGE.
+static func cooling_target(cooling: Dictionary) -> int:
+	var divisor: int = Rules.COOLING_DIVISOR[cooling.get("protocol", "A")]
+	var flow: int = (int(cooling["temp"]) - Rules.COOLING_BASE_K) / divisor
+	if cooling["state"] == "SURGE":
+		flow += Rules.COOLING_SURGE_BONUS
+	return flow
+
+
+static func cooling_matches(cooling: Dictionary, flow: int) -> bool:
+	return flow == cooling_target(cooling)

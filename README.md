@@ -1,6 +1,6 @@
 # LAST STATION
 
-A short first-person repair puzzler for Godot 4 (GDScript only). The station is failing: you have 6 minutes of oxygen reserve (on the standard level; see Levels) to repair **Power**, **Oxygen** and **Comms**, then reboot the station. An offline help assistant, **ORACLE**, answers questions from the station manuals.
+A short first-person repair puzzler for Godot 4 (GDScript only). The station is failing: you have 6 minutes of oxygen reserve (on the standard level; see Levels) to repair **Power**, **Oxygen**, **Comms** and **Cooling**, then reboot the station. An offline help assistant, **ORACLE**, answers questions from the station manuals.
 
 Built as a two-day-scope prototype. Specification: `AGENTS.md` and `REQUIREMENTS.md`. Test evidence: `docs/TEST_REPORT.md`.
 
@@ -12,14 +12,14 @@ Built as a two-day-scope prototype. Specification: `AGENTS.md` and `REQUIREMENTS
 
 ## Purpose
 
-The Last Station has lost power, the crew are asleep in hibernation and the oxygen is running out. ORACLE, the station's old help system, remembers how every system works. You repair Power, Oxygen and Comms before the reserve reaches zero.
+The Last Station has lost power, the crew are asleep in hibernation and the oxygen is running out. ORACLE, the station's old help system, remembers how every system works. You repair Power, Oxygen, Comms and Cooling before the reserve reaches zero.
 
 As a project it is a demonstration of a **RAG assistant inside a game**: the rules live in written manuals, ORACLE finds the right manual by keyword and answers from it, and the game is built so the AI can never change the game.
 
 ## How to play
 
 1. Press **Play**. You wake up in the crew quarters, facing the door and the **PROTOCOL** sign beside it. The oxygen reserve (6:00 on shift 1 on Engineer) starts when you first move. **Shift 1 is a guided shift:** it always uses Protocol A and a line at the bottom tells you what to do next.
-2. The top-left checklist shows what is left and the current **PROTOCOL (A or B)**. Walk the corridor east to the three rooms and repair each system, then walk all the way back west and press **E** on the reboot terminal.
+2. The top-left checklist shows what is left and the current **PROTOCOL (A or B)**. Walk the corridor east to the four rooms and repair each system, then walk all the way back west and press **E** on the reboot terminal.
 3. Aim the `+` at a terminal until `E — ...` appears, then press **E**.
 4. **The game does not tell you the rules.** Read the panels in each room, then press **M** (manuals) or **H** (ORACLE) to look up what to do. The protocol changes the rules, so check it each shift.
 
@@ -35,9 +35,12 @@ As a project it is a demonstration of a **RAG assistant inside a game**: the rul
 |---|---|---|
 | **POWER** (left): flip the 4 breakers by voltage | `RESTORE` lowest first, `SHED` highest first | reversed: `RESTORE` highest first, `SHED` lowest first |
 | **OXYGEN** (middle): station mode, then valves A/B/C | NIGHT 30/40/50, DAY 50/60/70, EMERGENCY 70/80/90 | NIGHT 40/50/60, DAY 60/70/80, EMERGENCY 80/90/100 |
-| **COMMS** (right): count the lit beacons | 100 + 20 × lit MHz | 100 + 10 × lit MHz |
+| **COMMS** (third): count the lit beacons | 100 + 20 × lit MHz | 100 + 10 × lit MHz |
+| **COOLING** (fourth): read the CORE TEMP and the REACTOR state, set the coolant flow | (CORE TEMP − 400) ÷ 20 L/s | (CORE TEMP − 400) ÷ 10 L/s |
 
-A wrong breaker costs 15 s; wrong valves or a wrong frequency cost 10 s.
+In the Cooling room, add 5 L/s to the flow when the REACTOR state is SURGE.
+
+A wrong breaker costs 15 s; wrong valves, a wrong frequency or a wrong coolant flow cost 10 s.
 </details>
 
 ## Controls
@@ -84,9 +87,9 @@ Feel: a gentle head bob and footsteps while walking (each footstep sound plays w
 
 ## The walk (corridor, doors and hazards)
 
-The station is one long corridor (about 46 m) with the crew quarters, Power, Oxygen and Comms rooms along it, 12 m apart, and the reboot terminal at the far west end, so a shift is a real walk there and back.
+The station is one long corridor (about 58 m) with the crew quarters, Power, Oxygen, Comms and Cooling rooms along it, 12 m apart, and the reboot terminal at the far west end, so a shift is a real walk there and back.
 
-- **Doors in order:** the Oxygen door stays locked until Power is repaired, and the Comms door stays locked until Oxygen is repaired. Each shows what it needs and slides open when its system is repaired.
+- **Doors in order:** the Oxygen door stays locked until Power is repaired, the Comms door until Oxygen is repaired, and the Cooling door until Comms is repaired. Each shows what it needs and slides open when its system is repaired.
 - **Two gas vents** (one between the quarters and Power, one between Power and Oxygen): a lamp above each is grey (quiet), amber (warning) or red (venting). Standing in venting gas costs 12 reserve seconds per second. Wait for grey.
 - **Laser grid** (between Oxygen and Comms): six red beams that are a solid wall, so you cannot walk through. Touching them costs 10 reserve seconds. A **wall switch** on each side (press **E**) turns the grid off for 10 seconds; it flickers before it switches back on, and it waits while anyone stands in the beams.
 - **ORACLE costs time:** every question asked to ORACLE costs 5 reserve seconds (never the last second). The manuals (**M**) and the hint button's own 20 s cost are separate; the manuals are free.
@@ -137,7 +140,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 ```
 ./tests/run_all.sh        # needs `godot` on PATH
 ```
-21 headless test files, 828 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
+22 headless test files, 883 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
 
 ## Changes since the original spec
 
@@ -145,8 +148,9 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 - **Mission briefing:** the intro card is now a short story and no longer lists the rules.
 - **Escalating shifts and run total (added after playtesting):** reserve drops 45 s per shift (down to a floor that depends on the level), the run total adds the shift scores, and the best run is saved. The spec had identical shifts.
 - **Guided first shift and protocol board:** shift 1 is always Protocol A with a "what to do next" line; a big sign in the crew quarters shows the protocol.
-- **The walk (added after playtesting feedback):** the compact hub became a bedroom start, a long corridor, three far rooms, doors that unlock in order, and gas and spark hazards (see "The walk").
+- **The walk (added after playtesting feedback):** the compact hub became a bedroom start, a long corridor, far rooms, doors that unlock in order, and gas and spark hazards (see "The walk").
 - **Redesigned look (after playtesting feedback):** every door has a header sign, a frame and a light that turn from red to cyan when its system is repaired; two matching boards flank the middle door (the protocol, and how to get help); each room has a tinted floor and a ceiling strip, and the room lights up (bright cyan strip and floor) when repaired; the hub light flickers, and under a minute of reserve the station pulses red with a red screen-edge vignette (visual only, rules unchanged); breaker ratings are printed on the breakers; each room has one tidy display panel; the reboot terminal is labelled and turns cyan when ready.
+- **Fourth system, Cooling (added later):** a reactor room past Comms with a CORE TEMP and a REACTOR state; the coolant flow is a formula that differs by protocol, and the core cools from orange to cyan when repaired. Reboot now needs 4/4.
 - **Hints:** ORACLE's Get a hint button costs reserve time (20 s on Engineer). The hint is computed by the game, not the AI.
 - **Harder walk (after a friend found it easy):** a laser grid blocks the corridor until a wall switch turns it off, gas is harsher, and ORACLE questions cost reserve time.
 - **Levels:** a Rookie / Engineer / Survivor selector on the menu changes the reserve, hazards, help costs and score (see "Levels").

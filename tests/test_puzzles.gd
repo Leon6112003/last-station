@@ -181,14 +181,17 @@ func _test_full_solve_and_reboot() -> void:
 	for i in 3:
 		gm.adjust_valve(i, int(target[i]) / Rules.OXYGEN_STEP)
 	_check(gm.confirm_oxygen(), "correct valve settings repair oxygen")
-	_check(not gm.try_reboot(), "reboot refused at 2/3 systems")
+	_check(not gm.try_reboot(), "reboot refused with systems still broken")
 
 	var steps := (PuzzleValidators.comms_target(gm.puzzles["comms"]) - Rules.COMMS_MIN_MHZ) / Rules.COMMS_STEP_MHZ
 	gm.adjust_tuner(steps)
 	_check(gm.transmit(), "correct frequency repairs comms")
+	_check(not gm.try_reboot(), "reboot refused at 3/4 systems")
+	gm.adjust_coolant(PuzzleValidators.cooling_target(gm.puzzles["cooling"]))
+	_check(gm.engage_cooling(), "correct coolant flow repairs cooling")
 	_check(gm.mistakes == 0, "no mistakes in a clean solve")
 
-	_check(gm.try_reboot(), "reboot works at 3/3 systems")
+	_check(gm.try_reboot(), "reboot works at 4/4 systems")
 	_check(gm.state == GameManager.State.WON, "state is WON after reboot")
 	_check(results["won"] and results["score"] == 480, "clean instant solve scores 480 (got %d)" % results["score"])
 	_check(not gm.try_reboot(), "a second reboot is ignored")

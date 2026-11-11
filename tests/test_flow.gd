@@ -22,7 +22,7 @@ func _initialize() -> void:
 	var gm: GameManager = main.gm
 	_check(gm.state == GameManager.State.PLAYING, "main scene starts a shift in PLAYING state")
 	var text: String = main._checklist_text()
-	_check(text.contains("[ ] Power") and text.contains("[ ] Oxygen") and text.contains("[ ] Comms") and text.contains("Reboot (needs 3/3)"), "the checklist starts with nothing repaired")
+	_check(text.contains("[ ] Power") and text.contains("[ ] Oxygen") and text.contains("[ ] Comms") and text.contains("[ ] Cooling") and text.contains("Reboot (needs 4/4)"), "the checklist starts with nothing repaired")
 
 	# V switches between first and third person, and the choice survives a retry.
 	var key := InputEventKey.new()
@@ -55,7 +55,7 @@ func _initialize() -> void:
 	_check(gm.repaired["power"], "breakers repair power via interactables")
 	_check(main._checklist_text().contains("[x] Power") and main._checklist_text().contains("[ ] Oxygen"), "the checklist ticks Power once it is repaired")
 	var doors: Dictionary = main._station["doors"]
-	_check(not (doors["oxygen"] as DoorGate).locked and (doors["comms"] as DoorGate).locked, "repairing Power unlocks the Oxygen door but not the Comms door")
+	_check(not (doors["oxygen"] as DoorGate).locked and (doors["comms"] as DoorGate).locked and (doors["cooling"] as DoorGate).locked, "repairing Power unlocks the Oxygen door but not the Comms or Cooling doors")
 	var power_light: OmniLight3D = main._station["room_lights"]["power"]
 	_check(power_light.light_color == Rules.COLOR_CYAN, "power room light turns cyan when repaired")
 	var strip: StandardMaterial3D = main._station["room_strips"]["power"]
@@ -97,12 +97,23 @@ func _initialize() -> void:
 	main._panel._on_transmit()
 	await process_frame
 	_check(gm.repaired["comms"], "frequency repairs comms through the panel")
-	_check(main._checklist_text().contains("-> REBOOT"), "the checklist points to the reboot terminal at 3/3")
+	_check(not (doors["cooling"] as DoorGate).locked and not main._checklist_text().contains("-> REBOOT"), "repairing Comms unlocks the Cooling door, and the reboot is still not ready")
+
+	# Cooling.
+	_interact(main, "cooling_console")
+	_check(main._panel != null and not main._panel is Control == false, "the coolant panel opens")
+	gm.adjust_coolant(PuzzleValidators.cooling_target(gm.puzzles["cooling"]))
+	main._panel.refresh()
+	main._panel._on_engage_cooling()
+	await process_frame
+	_check(gm.repaired["cooling"] and main._panel == null, "the coolant flow repairs cooling through the panel")
+	_check((main._station["reactor"] as StandardMaterial3D).albedo_color == Rules.COLOR_CYAN, "the reactor core turns cyan when cooling is repaired")
+	_check(main._checklist_text().contains("-> REBOOT"), "the checklist points to the reboot terminal at 4/4")
 
 	# Win.
 	_interact(main, "reboot_terminal")
 	await process_frame
-	_check(gm.state == GameManager.State.WON, "reboot wins the shift at 3/3")
+	_check(gm.state == GameManager.State.WON, "reboot wins the shift at 4/4")
 	_check(main._modal_layer != null, "win screen is shown")
 	_check(main.save.best_score > 0 and SaveManager.new(SAVE_PATH).best_score == main.save.best_score, "the winning score is saved as the best score")
 	_check(not main._player.input_enabled and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE, "win screen frees the mouse and freezes the player")

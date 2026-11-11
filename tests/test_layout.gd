@@ -71,6 +71,8 @@ func _test_size(size: Vector2i) -> void:
 	gm.confirm_oxygen()
 	gm.adjust_tuner((PuzzleValidators.comms_target(gm.puzzles["comms"]) - Rules.COMMS_MIN_MHZ) / Rules.COMMS_STEP_MHZ)
 	gm.transmit()
+	gm.adjust_coolant(PuzzleValidators.cooling_target(gm.puzzles["cooling"]))
+	gm.engage_cooling()
 	gm.try_reboot()
 	await _settle()
 	_buttons_inside(main, size, "%s: win screen" % tag)

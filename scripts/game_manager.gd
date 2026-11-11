@@ -16,7 +16,7 @@ signal hint_used(cost_seconds: int)
 signal hazard_hit(kind: String, seconds: float)
 signal oracle_charged(seconds: int)
 
-const SYSTEM_IDS: Array[String] = ["power", "oxygen", "comms"]
+const SYSTEM_IDS: Array[String] = ["power", "oxygen", "comms", "cooling"]
 
 var state: State = State.MENU
 var seed_value: int = 0
@@ -37,6 +37,7 @@ var puzzles: Dictionary = {}
 var breakers_latched: Array[int] = []
 var oxygen_values: Array[int] = [0, 0, 0]
 var tuner_mhz: int = Rules.COMMS_MIN_MHZ
+var coolant_flow: int = 0
 
 
 # --- Shift lifecycle ----------------------------------------------------
@@ -74,10 +75,11 @@ func _reset_attempt() -> void:
 	hazard_seconds = 0.0
 	oracle_questions = 0
 	clock_running = false
-	repaired = {"power": false, "oxygen": false, "comms": false}
+	repaired = {"power": false, "oxygen": false, "comms": false, "cooling": false}
 	breakers_latched.clear()
 	oxygen_values = [0, 0, 0]
 	tuner_mhz = Rules.COMMS_MIN_MHZ
+	coolant_flow = 0
 	state = State.PLAYING
 	shift_started.emit()
 	reserve_changed.emit(reserve)
@@ -160,6 +162,24 @@ func transmit() -> bool:
 	return false
 
 
+# --- Cooling: coolant flow --------------------------------------------------
+
+func adjust_coolant(steps: int) -> void:
+	if state != State.PLAYING or repaired["cooling"]:
+		return
+	coolant_flow = clampi(coolant_flow + steps * Rules.COOLING_FLOW_STEP, 0, Rules.COOLING_FLOW_MAX)
+
+
+func engage_cooling() -> bool:
+	if state != State.PLAYING or repaired["cooling"]:
+		return false
+	if PuzzleValidators.cooling_matches(puzzles["cooling"], coolant_flow):
+		_mark_repaired("cooling")
+		return true
+	_penalize("cooling", Rules.confirm_penalty())
+	return false
+
+
 # --- Reboot / win --------------------------------------------------------
 
 ## Succeeds only at 3/3 systems. Freezes the clock and computes the score.
@@ -220,8 +240,10 @@ func _hint_text(system_id: String) -> String:
 			for mode in Rules.OXYGEN_MODES:
 				rows.append("%s %s" % [mode, ", ".join((table[mode] as Array).map(func(v: int) -> String: return str(v)))])
 			return "Next: OXYGEN (the second room; its door opens once Power is repaired). Protocol %s valve table: %s. Read the STATION MODE on the wall." % [protocol, ". ".join(rows)]
-		_:
+		"comms":
 			return "Next: COMMS (the third room; its door opens once Oxygen is repaired). Protocol %s: 100 MHz plus %d MHz for every lit beacon. Count the lit beacons." % [protocol, Rules.COMMS_PER_BEACON_MHZ[protocol]]
+		_:
+			return "Next: COOLING (the fourth room; its door opens once Comms is repaired). Protocol %s: coolant flow is the core temperature minus %d K, divided by %d, plus %d if the reactor state is SURGE. Read the CORE TEMP and the REACTOR state." % [protocol, Rules.COOLING_BASE_K, Rules.COOLING_DIVISOR[protocol], Rules.COOLING_SURGE_BONUS]
 
 
 # --- Internals -----------------------------------------------------------

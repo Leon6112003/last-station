@@ -71,6 +71,8 @@ func _solve(gm: GameManager) -> void:
 	gm.confirm_oxygen()
 	gm.adjust_tuner((PuzzleValidators.comms_target(gm.puzzles["comms"]) - Rules.COMMS_MIN_MHZ) / Rules.COMMS_STEP_MHZ)
 	gm.transmit()
+	gm.adjust_coolant(PuzzleValidators.cooling_target(gm.puzzles["cooling"]))
+	gm.engage_cooling()
 
 
 func _test_run_score() -> void:
@@ -110,8 +112,8 @@ func _test_hints() -> void:
 
 	# A hint never gives the answer: no frequency, no mode choice, no breaker order.
 	gm.start_shift(9, 2)
-	for id in ["power", "oxygen", "comms"]:
-		gm.repaired = {"power": id != "power", "oxygen": id != "oxygen", "comms": id != "comms"}
+	for id in ["power", "oxygen", "comms", "cooling"]:
+		gm.repaired = {"power": id != "power", "oxygen": id != "oxygen", "comms": id != "comms", "cooling": id != "cooling"}
 		var text: String = gm.use_hint()["text"]
 		_check(text.begins_with("Next: %s" % id.to_upper()), "the hint points at %s when it is next" % id.to_upper())
 		var lit: int = gm.puzzles["comms"]["lit"]
@@ -174,6 +176,9 @@ func _test_in_game() -> void:
 	_check(main._coach_text().contains("COMMS room"), "shift 1 coach: then COMMS")
 	gm.adjust_tuner((PuzzleValidators.comms_target(gm.puzzles["comms"]) - Rules.COMMS_MIN_MHZ) / Rules.COMMS_STEP_MHZ)
 	gm.transmit()
+	_check(main._coach_text().contains("COOLING room"), "shift 1 coach: then COOLING")
+	gm.adjust_coolant(PuzzleValidators.cooling_target(gm.puzzles["cooling"]))
+	gm.engage_cooling()
 	_check(main._coach_text().contains("reboot terminal"), "shift 1 coach: finally the reboot terminal")
 
 	# Win screen shows run information.

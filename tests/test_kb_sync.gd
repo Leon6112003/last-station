@@ -6,7 +6,7 @@ extends SceneTree
 const REQUIRED_IDS := [
 	"objective", "protocols", "help_topics", "first_steps", "hints", "controls", "reserve_timer", "scoring", "retry_rules",
 	"power_overview", "power_order", "oxygen_overview", "oxygen_table",
-	"comms_overview", "comms_formula", "mistake_penalties", "reboot_terminal",
+	"comms_overview", "comms_formula", "cooling_overview", "cooling_formula", "mistake_penalties", "reboot_terminal",
 	"oracle_limits", "offline_setup", "privacy",
 ]
 
@@ -66,6 +66,12 @@ func _initialize() -> void:
 	_has("mistake_penalties", str(Rules.SURGE_PENALTY_SECONDS))
 	_has("mistake_penalties", str(Rules.WRONG_CONFIRM_PENALTY_SECONDS))
 	_has("power_order", str(Rules.SURGE_PENALTY_SECONDS))
+	_has("cooling_formula", str(Rules.COOLING_BASE_K))
+	_has("cooling_formula", "divided by %d" % int(Rules.COOLING_DIVISOR["A"]))
+	_has("cooling_formula", "divided by %d" % int(Rules.COOLING_DIVISOR["B"]))
+	_has("cooling_formula", "add %d" % Rules.COOLING_SURGE_BONUS)
+	_has("cooling_formula", str(Rules.WRONG_CONFIRM_PENALTY_SECONDS))
+	_has("cooling_overview", "0 to %d L/s" % Rules.COOLING_FLOW_MAX)
 	_has("power_order", "RESTORE")
 	_has("power_order", "SHED")
 	for rating in Rules.BREAKER_RATINGS:

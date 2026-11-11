@@ -1,7 +1,7 @@
 class_name PuzzlePanel
 extends PanelContainer
-## Small modal panels for the two puzzles that need numeric input:
-## the oxygen valves and the comms frequency tuner.
+## Small modal panels for the three puzzles that need numeric input:
+## the oxygen valves, the comms frequency tuner and the cooling flow.
 ## The panel only forwards button presses to GameManager, which decides
 ## whether the settings are correct.
 
@@ -26,6 +26,8 @@ func refresh() -> void:
 	if _kind == "oxygen":
 		for i in _value_labels.size():
 			_value_labels[i].text = "%d" % _gm.oxygen_values[i]
+	elif _kind == "cooling":
+		_value_labels[0].text = "%d L/s" % _gm.coolant_flow
 	else:
 		_value_labels[0].text = "%d MHz" % _gm.tuner_mhz
 
@@ -42,13 +44,16 @@ func _build() -> void:
 	column.add_theme_constant_override("separation", 12)
 	margin.add_child(column)
 
-	var title := "VALVE CONTROLS" if _kind == "oxygen" else "FREQUENCY TUNER"
-	column.add_child(_make_label(title, 28, Rules.COLOR_CYAN))
+	var titles := {"oxygen": "VALVE CONTROLS", "comms": "FREQUENCY TUNER", "cooling": "COOLANT CONTROL"}
+	column.add_child(_make_label(titles[_kind], 28, Rules.COLOR_CYAN))
 
 	if _kind == "oxygen":
 		for i in 3:
 			column.add_child(_valve_row(i))
 		column.add_child(_make_button("CONFIRM SETTINGS", _on_confirm_oxygen))
+	elif _kind == "cooling":
+		column.add_child(_coolant_row())
+		column.add_child(_make_button("ENGAGE COOLING", _on_engage_cooling))
 	else:
 		column.add_child(_tuner_row())
 		column.add_child(_make_button("TRANSMIT", _on_transmit))
@@ -89,6 +94,34 @@ func _tuner_row() -> HBoxContainer:
 	row.add_child(_make_button("+5", func() -> void: _adjust_tuner(1), 56))
 	row.add_child(_make_button("+20", func() -> void: _adjust_tuner(4), 56))
 	return row
+
+
+func _coolant_row() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	row.add_child(_make_button("-5", func() -> void: _adjust_coolant(-5), 56))
+	row.add_child(_make_button("-1", func() -> void: _adjust_coolant(-1), 56))
+	var value := _make_label("0 L/s", 24, Rules.COLOR_GOLD)
+	value.custom_minimum_size = Vector2(120, 0)
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_value_labels.append(value)
+	row.add_child(value)
+	row.add_child(_make_button("+1", func() -> void: _adjust_coolant(1), 56))
+	row.add_child(_make_button("+5", func() -> void: _adjust_coolant(5), 56))
+	return row
+
+
+func _adjust_coolant(steps: int) -> void:
+	_gm.adjust_coolant(steps)
+	_message.text = ""
+	refresh()
+
+
+func _on_engage_cooling() -> void:
+	if _gm.engage_cooling():
+		solved.emit()
+	else:
+		_message.text = "PUMP OVERLOAD  -%d s" % Rules.confirm_penalty()
 
 
 func _adjust_valve(index: int, steps: int) -> void:

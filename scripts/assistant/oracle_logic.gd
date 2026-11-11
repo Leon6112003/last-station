@@ -15,8 +15,8 @@ const HEADER_EXACT := "ORACLE — Exact answer from the manual"
 ## Manual entries that hold puzzle rules, orders and numbers. Questions about
 ## these are answered exactly in code and never by the language model, because a
 ## small model reversed orders and reused example numbers in testing.
-const RULE_IDS := ["power_order", "oxygen_table", "comms_formula"]
-const SCOPE_REPLY := "I could not find that in the manuals. I can help with the Power breakers, the Oxygen valves, the Comms frequency, protocols A and B, scoring, retrying and the controls. Try: How do I fix the power breakers?"
+const RULE_IDS := ["power_order", "oxygen_table", "comms_formula", "cooling_formula"]
+const SCOPE_REPLY := "I could not find that in the manuals. I can help with the Power breakers, the Oxygen valves, the Comms frequency, the Cooling flow, protocols A and B, scoring, retrying and the controls. Try: How do I fix the power breakers?"
 
 const SHORT_ENTRY_LENGTH := 380
 const MODE_WORDS := ["night", "day", "emergency", "restore", "shed"]
@@ -213,6 +213,8 @@ static func compose_exact(question: String, excerpts: Array) -> Dictionary:
 	var answer := ""
 	if entry["id"] == "comms_formula":
 		answer = _comms_answer(question, entry)
+	elif entry["id"] == "cooling_formula":
+		answer = _cooling_answer(question, entry)
 	else:
 		answer = select_sentences(question, entry["text"])
 		if entry["id"] == "power_order":
@@ -273,6 +275,46 @@ static func _comms_answer(question: String, entry: Dictionary) -> String:
 		var mhz: int = Rules.COMMS_BASE_MHZ + per_beacon * lit
 		parts.append("Protocol %s: %d MHz plus %d MHz for each of the %d lit beacons is %d MHz." % [
 			p, Rules.COMMS_BASE_MHZ, per_beacon, lit, mhz])
+	return " ".join(parts)
+
+
+## Cooling: if the question gives the core temperature (a number from the room's display,
+## for example "core temp 560, protocol B, surge") the coolant flow is calculated with the
+## same rule as the game. Without a temperature the manual sentences are shown.
+static func _cooling_answer(question: String, entry: Dictionary) -> String:
+	var temp_regex := RegEx.new()
+	temp_regex.compile("\\b([3-9][0-9]{2})\\b")
+	var found := temp_regex.search(question)
+	if found == null:
+		return select_sentences(question, entry["text"])
+	var temp := int(found.get_string(1))
+	if temp <= Rules.COOLING_BASE_K or (temp - Rules.COOLING_BASE_K) % 10 != 0:
+		return select_sentences(question, entry["text"])
+	var surge := false
+	var named_state := false
+	for token in KnowledgeRetriever.tokenize(question):
+		if token == "surge":
+			surge = true
+			named_state = true
+		elif token == "normal":
+			named_state = true
+	var protocol := detect_protocol(question)
+	var protocols: Array = [protocol] if protocol != "" else Rules.PROTOCOLS
+	var parts: Array[String] = []
+	for p in protocols:
+		var divisor: int = Rules.COOLING_DIVISOR[p]
+		if (temp - Rules.COOLING_BASE_K) % divisor != 0:
+			parts.append("Protocol %s: %d K does not divide evenly by %d, so check the temperature you read." % [p, temp, divisor])
+			continue
+		var base_flow: int = (temp - Rules.COOLING_BASE_K) / divisor
+		var text := "Protocol %s: (%d - %d) / %d = %d L/s" % [p, temp, Rules.COOLING_BASE_K, divisor, base_flow]
+		if surge:
+			text += ", plus %d for SURGE = %d L/s." % [Rules.COOLING_SURGE_BONUS, base_flow + Rules.COOLING_SURGE_BONUS]
+		elif named_state:
+			text += " (NORMAL state, no bonus)."
+		else:
+			text += ", plus %d if the reactor state is SURGE (%d L/s)." % [Rules.COOLING_SURGE_BONUS, base_flow + Rules.COOLING_SURGE_BONUS]
+		parts.append(text)
 	return " ".join(parts)
 
 

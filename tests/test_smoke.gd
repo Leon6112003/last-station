@@ -14,13 +14,13 @@ func _initialize() -> void:
 	_check(station.has("spawn"), "station returns a spawn position")
 
 	var items: Array = station["interactables"]
-	_check(items.size() == 9, "station has 9 interactables (4 breakers, 2 consoles, reboot terminal, 2 laser switches), got %d" % items.size())
+	_check(items.size() == 10, "station has 10 interactables (4 breakers, 3 consoles, reboot terminal, 2 laser switches), got %d" % items.size())
 
 	var ids := items.map(func(i: Interactable) -> String: return i.id)
-	for expected in ["breaker_0", "breaker_1", "breaker_2", "breaker_3", "oxygen_console", "comms_console", "reboot_terminal"]:
+	for expected in ["breaker_0", "breaker_1", "breaker_2", "breaker_3", "oxygen_console", "comms_console", "cooling_console", "reboot_terminal"]:
 		_check(ids.has(expected), "interactable '%s' exists" % expected)
 
-	_check((station["room_lights"] as Dictionary).size() == 3, "three room lights exist")
+	_check((station["room_lights"] as Dictionary).size() == 4, "four room lights exist")
 
 	var bodies := world.find_children("*", "StaticBody3D", true, false)
 	_check(bodies.size() >= 12, "station contains solid bodies (found %d)" % bodies.size())
@@ -33,7 +33,7 @@ func _initialize() -> void:
 			return false   # the laser barrier has only a collider
 		var mesh := (b.get_child(0) as MeshInstance3D).mesh as BoxMesh
 		return b.position.y > 2.3 and b.position.y < 2.9 and absf(mesh.size.x - 2.0) < 0.01 and mesh.size.y < 1.0)
-	_check(headers.size() == 4, "there is a header above each of the four doorways: crew quarters and three systems (found %d)" % headers.size())
+	_check(headers.size() == 5, "there is a header above each of the five doorways: crew quarters and four systems (found %d)" % headers.size())
 	var clear_height := true
 	for header in headers:
 		var box := ((header as StaticBody3D).get_child(0) as MeshInstance3D).mesh as BoxMesh
@@ -41,13 +41,13 @@ func _initialize() -> void:
 			clear_height = false
 	_check(clear_height, "every doorway leaves at least 2 m of headroom")
 	var statuses: Dictionary = station["door_status"]
-	_check(statuses.size() == 3, "each door has a status material")
+	_check(statuses.size() == 4, "each door has a status material")
 	var all_red := true
 	for room in statuses:
 		if (statuses[room] as StandardMaterial3D).albedo_color != Rules.COLOR_FAULT:
 			all_red = false
 	_check(all_red, "doors start red (faulted)")
-	_check((station["room_strips"] as Dictionary).size() == 3 and (station["room_floors"] as Dictionary).size() == 3, "each room has a ceiling strip and a floor patch")
+	_check((station["room_strips"] as Dictionary).size() == 4 and (station["room_floors"] as Dictionary).size() == 4, "each room has a ceiling strip and a floor patch")
 	_check(station["hub_light"] is OmniLight3D, "the hub has an emergency light for the atmosphere")
 	var protocol_signs := world.find_children("*", "Label3D", true, false).filter(
 		func(l: Label3D) -> bool: return l.text.begins_with("PROTOCOL"))
@@ -71,9 +71,9 @@ func _initialize() -> void:
 
 	# The walk: doors, hazards, and the reboot terminal at the far end.
 	var doors: Dictionary = station["doors"]
-	_check(doors.size() == 2 and doors.has("oxygen") and doors.has("comms") and not doors.has("power"), "Oxygen and Comms have doors; Power is open from the start")
-	_check((doors["oxygen"] as DoorGate).locked and (doors["comms"] as DoorGate).locked, "the Oxygen and Comms doors start locked")
-	_check((doors["oxygen"] as DoorGate).requires == "power" and (doors["comms"] as DoorGate).requires == "oxygen", "Oxygen needs Power, Comms needs Oxygen")
+	_check(doors.size() == 3 and doors.has("oxygen") and doors.has("comms") and doors.has("cooling") and not doors.has("power"), "Oxygen, Comms and Cooling have doors; Power is open from the start")
+	_check((doors["oxygen"] as DoorGate).locked and (doors["comms"] as DoorGate).locked and (doors["cooling"] as DoorGate).locked, "the Oxygen, Comms and Cooling doors start locked")
+	_check((doors["oxygen"] as DoorGate).requires == "power" and (doors["comms"] as DoorGate).requires == "oxygen" and (doors["cooling"] as DoorGate).requires == "comms", "Oxygen needs Power, Comms needs Oxygen, Cooling needs Comms")
 	var hazards: Array = station["hazards"]
 	_check(hazards.size() == 2 and (hazards[0] as HazardZone).kind == "gas" and (hazards[1] as HazardZone).kind == "gas", "the corridor has two gas vents")
 	var gas_a: float = (hazards[0] as HazardZone).position.x

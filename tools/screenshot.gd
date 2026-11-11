@@ -21,6 +21,9 @@ const VIEWS := [
 	["06_laser_grid", Vector3(26.0, 0.9, 0.0), -90.0, 0.0],
 	["06b_laser_switch", Vector3(28.0, 0.9, -0.2), 180.0, 0.0],
 	["07_comms_room", Vector3(36.0, 0.9, -4.5), 0.0, 5.0],
+	["07b_cooling_room", Vector3(48.0, 0.9, -4.0), 0.0, 5.0],
+	["07c_cooling_reactor", Vector3(50.5, 0.9, -3.0), 90.0, 0.0],
+	["07d_corridor_east_end", Vector3(44.0, 0.9, 0.0), -90.0, 0.0],
 	["08_reboot_terminal", Vector3(-2.0, 0.9, 0.0), 90.0, 0.0],
 ]
 

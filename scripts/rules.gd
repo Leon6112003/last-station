@@ -142,7 +142,17 @@ const COMMS_STEP_MHZ := 5
 const BEACON_COUNT := 6
 const BEACON_LIT_MIN := 1
 const BEACON_LIT_MAX := 5
-const SYSTEMS_TOTAL := 3
+# Cooling (the fourth system): set the coolant flow from the reactor's core temperature.
+# flow = (core temperature - COOLING_BASE_K) / divisor for the protocol, plus a bonus when the
+# reactor state is SURGE.
+const COOLING_BASE_K := 400
+const COOLING_DIVISOR := {"A": 20, "B": 10}
+const COOLING_SURGE_BONUS := 5
+const COOLING_TEMPS: Array[int] = [440, 480, 520, 560, 600, 640]
+const COOLING_STATES: Array[String] = ["NORMAL", "SURGE"]
+const COOLING_FLOW_MAX := 40
+const COOLING_FLOW_STEP := 1
+const SYSTEMS_TOTAL := 4
 
 # --- Retry -------------------------------------------------------------
 const RETRY_HOLD_SECONDS := 1.0

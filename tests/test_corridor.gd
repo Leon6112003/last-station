@@ -206,7 +206,7 @@ func _test_manuals() -> void:
 		if record["id"] == "walk_hazards":
 			found = true
 			var text: String = record["text"]
-			_check(text.contains("Oxygen door") and text.contains("Comms door") and text.contains("gas") and text.contains("laser") and text.contains("12"), "the manuals explain the locked doors, the gas vents and the laser grid")
+			_check(text.contains("Oxygen after Power") and text.contains("Cooling after Comms") and text.contains("gas") and text.contains("laser") and text.contains("12"), "the manuals explain the locked doors, the gas vents and the laser grid")
 	_check(found, "there is a manual entry about doors and corridor hazards")
 	var results: Array = KnowledgeRetriever.retrieve("why is the oxygen door locked", records)
 	_check(results.size() > 0 and (results[0]["id"] == "walk_hazards" or results.any(func(r: Dictionary) -> bool: return r["id"] == "walk_hazards")), "ORACLE can find the doors entry when asked about a locked door")

@@ -50,6 +50,8 @@ func _solve_all(gm: GameManager) -> void:
 	gm.confirm_oxygen()
 	gm.adjust_tuner((PuzzleValidators.comms_target(gm.puzzles["comms"]) - Rules.COMMS_MIN_MHZ) / Rules.COMMS_STEP_MHZ)
 	gm.transmit()
+	gm.adjust_coolant(PuzzleValidators.cooling_target(gm.puzzles["cooling"]))
+	gm.engage_cooling()
 
 
 func _test_main_flow_and_leaks() -> void:

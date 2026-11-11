@@ -2,7 +2,7 @@
  {
   "id": "objective",
   "title": "Objective",
-  "text": "You wake up in the crew quarters and something is wrong with the station. Walk the corridor to the Power, Oxygen and Comms rooms, repair all three systems before the oxygen reserve runs out, then walk back to the reboot terminal at the west end of the corridor.",
+  "text": "You wake up in the crew quarters and something is wrong with the station. Walk the corridor to the Power, Oxygen, Comms and Cooling rooms, repair all four systems before the oxygen reserve runs out, then walk back to the reboot terminal at the west end of the corridor.",
   "keywords": [
    "objective",
    "goal",
@@ -16,7 +16,7 @@
  {
   "id": "help_topics",
   "title": "What ORACLE Can Help With",
-  "text": "Ask me about the Power breakers, the Oxygen valves, the Comms frequency, protocols A and B, scoring, retrying, or the controls. For example: How do I fix the power breakers? What are the oxygen valve settings? What frequency should I transmit?",
+  "text": "Ask me about the Power breakers, the Oxygen valves, the Comms frequency, the Cooling flow, protocols A and B, scoring, retrying, or the controls. For example: How do I fix the power breakers? What are the oxygen valve settings? What frequency should I transmit?",
   "keywords": [
    "hello",
    "hi",
@@ -41,7 +41,7 @@
  {
   "id": "first_steps",
   "title": "How to Start",
-  "text": "Read the checklist at the top left and note the protocol. Leave the crew quarters and walk east to the Power room. Read its panel, look up the rule in these manuals and repair it. The next door opens once the system before it is repaired. When all three are repaired, walk back west and press E on the reboot terminal.",
+  "text": "Read the checklist at the top left and note the protocol. Leave the crew quarters and walk east to the Power room. Read its panel, look up the rule in these manuals and repair it. The next door opens once the system before it is repaired. When all four are repaired, walk back west and press E on the reboot terminal.",
   "keywords": [
    "start",
    "begin",
@@ -79,7 +79,7 @@
  {
   "id": "protocols",
   "title": "Station Protocol",
-  "text": "Every shift runs under PROTOCOL A or B, shown on the sign in the crew quarters and in the checklist at the top left of the screen. The protocol changes the Power breaker order, the Oxygen valve table and the Comms frequency formula, so always check it before you repair a system. Shift 1 always uses Protocol A.",
+  "text": "Every shift runs under PROTOCOL A or B, shown on the sign in the crew quarters and in the checklist at the top left of the screen. The protocol changes the Power breaker order, the Oxygen valve table, the Comms frequency formula and the Cooling flow formula, so always check it before you repair a system. Shift 1 always uses Protocol A.",
   "keywords": [
    "protocol",
    "protocols",
@@ -135,7 +135,7 @@
  {
   "id": "scoring",
   "title": "Scoring",
-  "text": "When you reboot the station with all three systems repaired, your shift score is 300 plus half of your remaining reserve seconds (rounded down), minus 50 for each retry (the retry penalty is capped at 150). The highest possible score is 480, on shift 1. Mistakes already cost reserve time, so they have no separate score penalty. Your run total adds up the score of every shift you clear.",
+  "text": "When you reboot the station with all four systems repaired, your shift score is 300 plus half of your remaining reserve seconds (rounded down), minus 50 for each retry (the retry penalty is capped at 150). The highest possible score is 480, on shift 1. Mistakes already cost reserve time, so they have no separate score penalty. Your run total adds up the score of every shift you clear.",
   "keywords": [
    "score",
    "points",
@@ -271,9 +271,53 @@
   ]
  },
  {
+  "id": "cooling_overview",
+  "title": "Cooling room",
+  "text": "The Cooling room is the fourth and last room, past Comms. Its door opens once Comms is repaired. A reactor core glows in the room, and a display shows the CORE TEMP in kelvin and the REACTOR state, NORMAL or SURGE. Use the console to open the coolant control, set a flow from 0 to 40 L/s with the buttons, then press Engage Cooling.",
+  "keywords": [
+   "cooling",
+   "reactor",
+   "core",
+   "room",
+   "fourth",
+   "last",
+   "display",
+   "console",
+   "panel"
+  ]
+ },
+ {
+  "id": "cooling_formula",
+  "title": "Cooling formula",
+  "text": "Protocol A: coolant flow is the core temperature minus 400, divided by 20, in L/s, so 560 K is 8 L/s. Protocol B: the core temperature minus 400, divided by 10, so 560 K is 16 L/s. If the reactor state is SURGE, add 5 L/s to either result. A wrong flow costs 10 seconds of reserve.",
+  "keywords": [
+   "cooling",
+   "coolant",
+   "flow",
+   "formula",
+   "temperature",
+   "temp",
+   "core",
+   "reactor",
+   "surge",
+   "normal",
+   "engage",
+   "fix",
+   "repair",
+   "solve",
+   "protocol",
+   "pump",
+   "kelvin",
+   "set",
+   "how",
+   "do",
+   "what"
+  ]
+ },
+ {
   "id": "mistake_penalties",
   "title": "Mistake Penalties",
-  "text": "Mistakes cost reserve time (Engineer values). A wrong breaker (a power surge) costs 15 seconds. Wrong valve settings and a wrong frequency cost 10 seconds each. The reserve never goes below zero.",
+  "text": "Mistakes cost reserve time (Engineer values). A wrong breaker (a power surge) costs 15 seconds. Wrong valve settings, a wrong frequency and a wrong coolant flow cost 10 seconds each. The reserve never goes below zero.",
   "keywords": [
    "mistake",
    "mistakes",
@@ -288,7 +332,7 @@
  {
   "id": "reboot_terminal",
   "title": "Reboot Terminal",
-  "text": "The reboot terminal at the west end of the corridor works only when all three systems are repaired, and it turns cyan when ready. Using it earlier shows a warning. Using it with all three repaired wins the shift and shows your score. You have to walk all the way back to it.",
+  "text": "The reboot terminal at the west end of the corridor works only when all four systems are repaired, and it turns cyan when ready. Using it earlier shows a warning. Using it with all four repaired wins the shift and shows your score. You have to walk all the way back to it.",
   "keywords": [
    "reboot",
    "terminal",
@@ -306,7 +350,7 @@
  {
   "id": "walk_hazards",
   "title": "Doors and Corridor Hazards",
-  "text": "The Oxygen door stays locked until Power is repaired, and the Comms door until Oxygen is repaired. On Engineer, gas vents in the corridor drain the reserve fast while their lamp is red: 12 seconds of reserve for every second in the gas. Wait for a grey lamp; amber is a warning. A laser grid blocks the way to Comms; touching it costs 10 seconds. Press E on a wall switch beside it to turn it off for 10 seconds. Hazards are not puzzle mistakes.",
+  "text": "The doors open in order: Oxygen after Power, Comms after Oxygen, Cooling after Comms. On Engineer, gas vents in the corridor drain the reserve fast while their lamp is red: 12 seconds of reserve for every second in the gas. Wait for a grey lamp; amber is a warning. A laser grid blocks the way past Oxygen; touching it costs 10 seconds. Press E on a wall switch beside it to turn it off for 10 seconds. Hazards are not puzzle mistakes.",
   "keywords": [
    "block",
    "blocked",
@@ -339,7 +383,7 @@
  {
   "id": "oracle_limits",
   "title": "About ORACLE",
-  "text": "ORACLE quotes these manuals exactly for rules and numbers. It cannot see your rooms: not the load mode, the station mode, the number of lit beacons, the breaker voltages or the protocol. Tell it what you read (the breaker voltages, the protocol and the mode) and it works out the order. It cannot change the game. Press H to open it.",
+  "text": "ORACLE quotes these manuals exactly for rules and numbers. It cannot see your rooms: not the load mode, the station mode, the number of lit beacons, the core temperature, the breaker voltages or the protocol. Tell it what you read (the breaker voltages, the protocol and the mode) and it works out the order. It cannot change the game. Press H to open it.",
   "keywords": [
    "oracle",
    "assistant",

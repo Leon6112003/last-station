@@ -22,7 +22,7 @@ extends RefCounted
 ## console), never floating; text of one kind uses one size.
 
 const X_WEST := -5.0         # west end of the corridor (centre of the end wall)
-const X_EAST := 41.0         # east end of the corridor
+const X_EAST := 53.0         # east end of the corridor
 const HUB_FRONT_Z := 1.5     # south wall of the corridor
 const HUB_BACK_Z := -1.5     # wall between the corridor and the rooms
 const ROOM_BACK_Z := -7.5    # north wall of the rooms
@@ -30,15 +30,16 @@ const ROOM_HALF_WIDTH := 3.0
 const DOOR_HALF_WIDTH := 1.0
 const DOOR_HEIGHT := 2.3     # the header above a doorway starts here
 const BEDROOM_X := 0.0
-const ROOM_CENTERS_X := {"power": 12.0, "oxygen": 24.0, "comms": 36.0}
-const ROOM_LABELS := {"power": "POWER", "oxygen": "OXYGEN", "comms": "COMMS"}
+const ROOM_CENTERS_X := {"power": 12.0, "oxygen": 24.0, "comms": 36.0, "cooling": 48.0}
+const ROOM_LABELS := {"power": "POWER", "oxygen": "OXYGEN", "comms": "COMMS", "cooling": "COOLING"}
 ## Which system must be repaired before a room's door opens ("" = open from the start).
-const DOOR_REQUIRES := {"power": "", "oxygen": "power", "comms": "oxygen"}
-const DOOR_LOCK_TEXT := {"oxygen": "LOCKED\nREPAIR POWER\nFIRST", "comms": "LOCKED\nREPAIR OXYGEN\nFIRST"}
+const DOOR_REQUIRES := {"power": "", "oxygen": "power", "comms": "oxygen", "cooling": "comms"}
+const DOOR_LOCK_TEXT := {"oxygen": "LOCKED\nREPAIR POWER\nFIRST", "comms": "LOCKED\nREPAIR OXYGEN\nFIRST", "cooling": "LOCKED\nREPAIR COMMS\nFIRST"}
 const ROOM_FLOOR_TINT := {
 	"power": Color(0.20, 0.12, 0.36),
 	"oxygen": Color(0.07, 0.24, 0.28),
 	"comms": Color(0.30, 0.24, 0.10),
+	"cooling": Color(0.16, 0.20, 0.42),
 }
 const BUNK_X := BEDROOM_X - 1.6
 const BUNK_Z := (HUB_BACK_Z + ROOM_BACK_Z) * 0.5
@@ -60,7 +61,7 @@ const GAS_LENGTH := 6.0
 const LASER_X := 30.0                       # laser grid between Oxygen and Comms
 const LASER_SWITCH_DISTANCE := 3.5          # the two off-switches stand this far either side
 
-const WINDOW_XS := [12.0, 24.0, 36.0]        # viewports onto space in the corridor's south wall
+const WINDOW_XS := [12.0, 24.0, 36.0, 48.0]        # viewports onto space in the corridor's south wall
 const WINDOW_HALF_WIDTH := 1.6
 const WINDOW_SILL := 0.9
 const WINDOW_TOP := 2.4
@@ -86,7 +87,8 @@ const FONT_SMALL := 22
 ##   "bed_position": Vector3,                    # the eyes of someone lying in the lower bunk
 ##   "interactables": Array[Interactable],
 ##   "breakers": Array[Interactable],            # B1..B4 in index order
-##   "consoles": {"oxygen": Interactable, "comms": Interactable},
+##   "consoles": {"oxygen": Interactable, "comms": Interactable, "cooling": Interactable},
+##   "reactor": StandardMaterial3D,              # the cooling room's reactor core (orange until repaired)
 ##   "reboot": Interactable,
 ##   "room_lights": {room_id: OmniLight3D},
 ##   "door_labels": {room_id: Label3D},          # the room name on its header sign
@@ -151,7 +153,7 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}) -
 	var header_height := h - DOOR_HEIGHT
 	var hub_light := _add_light(parent, Vector3(BEDROOM_X, 2.9, 0.0), Rules.COLOR_FAULT, 0.0, 7.0)
 	# Dim corridor lights, one between every pair of doors, so the walk is never pitch black.
-	for corridor_light_x in [-2.5, 6.0, 18.0, 30.0, 38.5]:
+	for corridor_light_x in [-2.5, 6.0, 18.0, 30.0, 42.0, 51.0]:
 		_add_light(parent, Vector3(corridor_light_x, 2.6, 0.0), theme["hub_light"], HUB_LIGHT_ENERGY, 8.0)
 
 	for room_id in ROOM_CENTERS_X:
@@ -209,8 +211,8 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}) -
 	# Direction signs on the corridor's south wall, read by someone who has just walked out
 	# of the bedroom door and is facing south: east is on their left, west on their right.
 	var south_face_z := HUB_FRONT_Z - 0.2
-	_add_screen(parent, Vector3(BEDROOM_X + 3.3, 1.9, south_face_z + PLATE_OFFSET), Vector2(2.5, 0.6))
-	_add_label(parent, "<< POWER  OXYGEN  COMMS", Vector3(BEDROOM_X + 3.3, 1.9, south_face_z), 22, Rules.COLOR_CYAN, 180.0)
+	_add_screen(parent, Vector3(BEDROOM_X + 3.3, 1.9, south_face_z + PLATE_OFFSET), Vector2(3.2, 0.6))
+	_add_label(parent, "<< POWER  OXYGEN  COMMS  COOLING", Vector3(BEDROOM_X + 3.3, 1.9, south_face_z), 18, Rules.COLOR_CYAN, 180.0)
 	_add_screen(parent, Vector3(BEDROOM_X - 2.6, 1.9, south_face_z + PLATE_OFFSET), Vector2(2.0, 0.6))
 	_add_label(parent, "REBOOT >>", Vector3(BEDROOM_X - 2.6, 1.9, south_face_z), 24, Rules.COLOR_GOLD, 180.0)
 
@@ -251,6 +253,31 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}) -
 		Vector3(comms_x, TERMINAL_HEIGHT * 0.5, ROOM_BACK_Z + 0.5), Vector3(1.2, TERMINAL_HEIGHT, 0.6), Rules.COLOR_VIOLET)
 	interactables.append(comms_console)
 	_add_label(parent, "FREQUENCY\nTUNER", Vector3(comms_x, 1.35, ROOM_BACK_Z + 0.5 + 0.3 + 0.01), 30, Rules.COLOR_GOLD)
+
+	# --- Cooling room: a glowing reactor core, a display with the core temperature and the
+	# reactor state, and the coolant console. The core is hot orange until cooling is repaired.
+	var cooling: Dictionary = puzzles["cooling"]
+	var cooling_x: float = ROOM_CENTERS_X["cooling"]
+	_add_screen(parent, Vector3(cooling_x, 2.6, ROOM_FACE_Z - PLATE_OFFSET), Vector2(3.6, 0.9))
+	_add_label(parent, "CORE TEMP: %d K" % int(cooling["temp"]), Vector3(cooling_x, 2.85, ROOM_FACE_Z), FONT_MAIN, Rules.COLOR_CYAN)
+	_add_label(parent, "REACTOR: %s" % cooling["state"], Vector3(cooling_x, 2.35, ROOM_FACE_Z), FONT_MAIN, Rules.COLOR_GOLD)
+	var reactor_material := _glow_material(Color(1.0, 0.45, 0.15), 1.6)
+	var core := CylinderMesh.new()
+	core.top_radius = 0.45
+	core.bottom_radius = 0.45
+	core.height = 2.6
+	var core_instance := MeshInstance3D.new()
+	core_instance.name = "ReactorCore"
+	core_instance.mesh = core
+	core_instance.material_override = reactor_material
+	core_instance.position = Vector3(cooling_x - 2.0, 1.45, room_center_z)
+	parent.add_child(core_instance)
+	_add_box(parent, "ReactorBase", Vector3(cooling_x - 2.0, 0.15, room_center_z), Vector3(1.2, 0.3, 1.2), _solid_material(Color(0.2, 0.22, 0.3)))
+	var cooling_console := _add_interactable(
+		parent, "cooling_console", "OPEN COOLANT CONTROL",
+		Vector3(cooling_x, TERMINAL_HEIGHT * 0.5, ROOM_BACK_Z + 0.5), Vector3(1.2, TERMINAL_HEIGHT, 0.6), Rules.COLOR_VIOLET)
+	interactables.append(cooling_console)
+	_add_label(parent, "COOLANT\nCONTROL", Vector3(cooling_x, 1.35, ROOM_BACK_Z + 0.5 + 0.3 + 0.01), 30, Rules.COLOR_GOLD)
 
 	# --- The reboot terminal at the west end of the corridor, facing east. The player has
 	# to walk all the way back to it once everything is repaired.
@@ -293,7 +320,8 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}) -
 		"bed_position": Vector3(BUNK_X, 0.8, BUNK_Z - 0.55),   # the eyes while lying in the lower bunk
 		"interactables": interactables,
 		"breakers": breakers,
-		"consoles": {"oxygen": oxygen_console, "comms": comms_console},
+		"consoles": {"oxygen": oxygen_console, "comms": comms_console, "cooling": cooling_console},
+		"reactor": reactor_material,
 		"reboot": reboot,
 		"room_lights": room_lights,
 		"door_labels": door_labels,

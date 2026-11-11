@@ -39,15 +39,15 @@ only one awake who can repair them.
 
 GOAL
 You wake up in the crew quarters. Something is wrong with the
-station. Walk the corridor to Power, Oxygen and Comms and repair
+station. Walk the corridor to Power, Oxygen, Comms and Cooling and repair
 each one, then walk back and press E on the reboot terminal at the
 west end, before the reserve reaches zero.
 
 THE WALK
-The Oxygen door stays locked until Power is repaired, and the Comms
-door until Oxygen is repaired. In the corridor, GAS VENTS drain your
+The doors open in order: Oxygen after Power, Comms after Oxygen,
+Cooling after Comms. In the corridor, GAS VENTS drain your
 reserve fast while they vent (red lamp): wait for a grey lamp. A LASER
-GRID blocks the way to Comms and costs time if you touch it: press E
+GRID blocks the way to Comms and Cooling and costs time if you touch it: press E
 on a wall switch beside it to turn it off for a short time.
 
 COSTS
@@ -67,6 +67,7 @@ const MISTAKE_TEXT := {
 	"power": "POWER SURGE",
 	"oxygen": "PRESSURE MISMATCH",
 	"comms": "NO SIGNAL",
+	"cooling": "PUMP OVERLOAD",
 }
 
 ## Where the best score is saved. Tests change this before the node is added.
@@ -397,14 +398,16 @@ func _coach_text() -> String:
 				return "NEXT: leave the crew quarters and go east to the POWER room (first door). Read LOAD MODE and the breaker voltages, then press H and ask ORACLE which breaker first."
 			"oxygen":
 				return "NEXT: the OXYGEN room (second door, now unlocked). Mind the gas vent on the way. Read STATION MODE, then press H and ask ORACLE for the valve settings."
-			_:
+			"comms":
 				return "NEXT: the COMMS room (third door, now unlocked). Mind the laser grid on the way (use a wall switch to turn it off). Count the lit beacons, then press H and ask ORACLE for the frequency."
+			_:
+				return "NEXT: the COOLING room (fourth door, now unlocked). Read the CORE TEMP and the REACTOR state, then press H and ask ORACLE for the coolant flow."
 	return ""
 
 
 ## The on-screen objective list: which systems are repaired and what is next.
 func _checklist_text() -> String:
-	var rooms := {"power": "1st room", "oxygen": "2nd room", "comms": "3rd room"}
+	var rooms := {"power": "1st room", "oxygen": "2nd room", "comms": "3rd room", "cooling": "4th room"}
 	var protocol: String = gm.puzzles.get("protocol", "A")
 	var lines: Array[String] = ["REPAIR THE STATION  ·  PROTOCOL %s  ·  %s" % [protocol, Rules.level_name().to_upper()]]
 	for id in GameManager.SYSTEM_IDS:
@@ -413,7 +416,7 @@ func _checklist_text() -> String:
 	if gm.repaired_count() == Rules.SYSTEMS_TOTAL:
 		lines.append("-> REBOOT: terminal at the west end")
 	else:
-		lines.append("[ ] Reboot (needs 3/3)")
+		lines.append("[ ] Reboot (needs %d/%d)" % [Rules.SYSTEMS_TOTAL, Rules.SYSTEMS_TOTAL])
 	return "\n".join(lines)
 
 
@@ -1084,10 +1087,13 @@ func _on_interacted(item: Interactable, _player_node: Node) -> void:
 	elif id == "comms_console":
 		sound.play("hiss")
 		_open_panel("comms")
+	elif id == "cooling_console":
+		sound.play("hiss")
+		_open_panel("cooling")
 	elif id == "reboot_terminal":
 		if not gm.try_reboot():
 			sound.play("buzz")
-			_show_notice("ALL 3 SYSTEMS MUST BE REPAIRED")
+			_show_notice("ALL %d SYSTEMS MUST BE REPAIRED" % Rules.SYSTEMS_TOTAL)
 
 
 func _handle_breaker(index: int) -> void:
@@ -1130,6 +1136,11 @@ func _on_system_repaired(system_id: String) -> void:
 	var status: StandardMaterial3D = _station["door_status"][system_id]
 	status.albedo_color = Rules.COLOR_CYAN
 	status.emission = Rules.COLOR_CYAN
+	if system_id == "cooling":
+		# The reactor core cools from hot orange to cyan.
+		var reactor: StandardMaterial3D = _station["reactor"]
+		reactor.albedo_color = Rules.COLOR_CYAN
+		reactor.emission = Rules.COLOR_CYAN
 	if system_id == "power":
 		for breaker in _station["breakers"]:
 			(breaker as Interactable).set_color(Rules.COLOR_CYAN)
@@ -1165,8 +1176,8 @@ func _on_shift_won(result: Dictionary) -> void:
 	var best_line := "Best shift score: %d%s" % [save.best_score, "   NEW BEST!" if is_new_best else ""]
 	var run_line := "Run total after shift %d: %d     Best run: %d%s" % [
 		result["run_number"], result["run_total"], save.best_run, "   NEW BEST!" if is_new_run_best else ""]
-	var body := "Reserve remaining: %d s\nSystems repaired: 3/3\nMistakes: %d     Retries: %d     Hints: %d\n\nBase points: %d\nTime bonus: +%d\nRetry penalty: -%d\nLevel: %s (score x%.1f)\n\nSHIFT SCORE: %d\n%s\n%s\n\nNext shift: %d s of reserve     Seed: %d" % [
-		result["reserve_remaining"], result["mistakes"], result["retries"], result["hints"],
+	var body := "Reserve remaining: %d s\nSystems repaired: %d/%d\nMistakes: %d     Retries: %d     Hints: %d\n\nBase points: %d\nTime bonus: +%d\nRetry penalty: -%d\nLevel: %s (score x%.1f)\n\nSHIFT SCORE: %d\n%s\n%s\n\nNext shift: %d s of reserve     Seed: %d" % [
+		result["reserve_remaining"], Rules.SYSTEMS_TOTAL, Rules.SYSTEMS_TOTAL, result["mistakes"], result["retries"], result["hints"],
 		result["base"], result["time_bonus"], result["retry_penalty"],
 		Rules.level_name(), result["multiplier"],
 		result["final"], best_line, run_line, result["next_reserve"], result["seed"]]

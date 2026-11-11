@@ -1,6 +1,6 @@
 class_name PuzzleGenerator
 extends RefCounted
-## Pure, seeded generation of the three puzzles. No nodes, no rendering.
+## Pure, seeded generation of the four puzzles. No nodes, no rendering.
 ##
 ## The same (seed_value, attempt) always gives identical parameters, so tests
 ## are reproducible. A retry bumps `attempt`, which re-rolls the values so a
@@ -11,7 +11,8 @@ extends RefCounted
 ##   "protocol": "A" | "B"   (also copied into each puzzle below),
 ##   "power":  {"ratings": Array[int] (one volt rating per breaker), "mode": "RESTORE" | "SHED", "protocol": ...},
 ##   "oxygen": {"mode": "NIGHT" | "DAY" | "EMERGENCY", "protocol": ...},
-##   "comms":  {"lit": int (number of lit beacons), "protocol": ...}
+##   "comms":  {"lit": int (number of lit beacons), "protocol": ...},
+##   "cooling": {"temp": int (core temperature in K), "state": "NORMAL" | "SURGE", "protocol": ...}
 ## }
 
 
@@ -46,9 +47,14 @@ static func generate(seed_value: int, attempt: int, force_protocol: String = "")
 	if Rules.PROTOCOLS.has(force_protocol):
 		protocol = force_protocol
 
+	# Drawn after the protocol, so every value above stays the same for a given seed.
+	var cooling_temp: int = Rules.COOLING_TEMPS[rng.randi_range(0, Rules.COOLING_TEMPS.size() - 1)]
+	var cooling_state: String = Rules.COOLING_STATES[rng.randi_range(0, Rules.COOLING_STATES.size() - 1)]
+
 	return {
 		"protocol": protocol,
 		"power": {"ratings": ratings, "mode": power_mode, "protocol": protocol},
 		"oxygen": {"mode": oxygen_mode, "protocol": protocol},
 		"comms": {"lit": lit, "protocol": protocol},
+		"cooling": {"temp": cooling_temp, "state": cooling_state, "protocol": protocol},
 	}
