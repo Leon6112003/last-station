@@ -1,6 +1,6 @@
 # LAST STATION
 
-A short first-person repair puzzler for Godot 4 (GDScript only). The station is failing: you have 6 minutes of oxygen reserve to repair **Power**, **Oxygen** and **Comms**, then reboot the station. An offline help assistant, **ORACLE**, answers questions from the station manuals.
+A short first-person repair puzzler for Godot 4 (GDScript only). The station is failing: you have 6 minutes of oxygen reserve (on the standard level; see Levels) to repair **Power**, **Oxygen** and **Comms**, then reboot the station. An offline help assistant, **ORACLE**, answers questions from the station manuals.
 
 Built as a two-day-scope prototype. Specification: `AGENTS.md` and `REQUIREMENTS.md`. Test evidence: `docs/TEST_REPORT.md`.
 
@@ -18,14 +18,14 @@ As a project it is a demonstration of a **RAG assistant inside a game**: the rul
 
 ## How to play
 
-1. Press **Play**. You wake up in the crew quarters, facing the door and the **PROTOCOL** sign beside it. The oxygen reserve (6:00 on shift 1) starts when you first move. **Shift 1 is a guided shift:** it always uses Protocol A and a line at the bottom tells you what to do next.
+1. Press **Play**. You wake up in the crew quarters, facing the door and the **PROTOCOL** sign beside it. The oxygen reserve (6:00 on shift 1 on Engineer) starts when you first move. **Shift 1 is a guided shift:** it always uses Protocol A and a line at the bottom tells you what to do next.
 2. The top-left checklist shows what is left and the current **PROTOCOL (A or B)**. Walk the corridor east to the three rooms and repair each system, then walk all the way back west and press **E** on the reboot terminal.
 3. Aim the `+` at a terminal until `E — ...` appears, then press **E**.
 4. **The game does not tell you the rules.** Read the panels in each room, then press **M** (manuals) or **H** (ORACLE) to look up what to do. The protocol changes the rules, so check it each shift.
 
-**Score** = 300 + (reserve seconds left ÷ 2) − 50 per retry (retry penalty capped at 150). Maximum 540 on shift 1. Your best shift score is saved.
+**Score** = 300 + (reserve seconds left ÷ 2) − 50 per retry (retry penalty capped at 150). Maximum 480 on shift 1 on Engineer; the level multiplies it (see Levels). Your best shift score is saved.
 
-**Runs get harder.** Press **Next Shift** after a win to keep going: every shift has 45 seconds less reserve (360, 315, 270, 225, then 180 at the lowest), and your **run total** adds up the score of each shift you clear. Your best run is saved.
+**Runs get harder.** Press **Next Shift** after a win to keep going: every shift has 45 seconds less reserve (on Engineer: 360, 315, 270, 225, then 180 at the lowest), and your **run total** adds up the score of each shift you clear. Your best run is saved.
 
 **Hints.** In ORACLE (press H) the **Get a hint** button costs 20 seconds of reserve. It tells you the next system to repair and which protocol rules apply, but never the answer. (Typing "hint" to ORACLE does not use one.)
 
@@ -124,7 +124,8 @@ Press **H** and ask, for example, "How do I fix the power breakers?". It shows t
 | Rules and constants (single source of truth) | `scripts/rules.gd` |
 | Puzzles (seeded, pure data) and checks | `scripts/puzzle_generator.gd`, `scripts/puzzle_validators.gd` |
 | Game state, reserve, win/fail | `scripts/game_manager.gd`, `scripts/score_manager.gd` |
-| World, player, interaction | `scripts/station_builder.gd`, `scripts/player_controller.gd`, `scripts/interactable.gd` |
+| World, player, interaction | `scripts/station_builder.gd`, `scripts/player_controller.gd`, `scripts/interactable.gd`, `scripts/door_gate.gd`, `scripts/hazard_zone.gd`, `scripts/laser_grid.gd`, `scripts/shift_theme.gd` |
+| Sound and menu | `scripts/sound_bank.gd`, `scripts/theme_music.gd`, `scripts/menu_screen.gd` |
 | UI and flow | `scripts/main.gd`, `scripts/ui_puzzle_panels.gd`, `scripts/ui_manuals_panel.gd` |
 | Manuals and saving | `data/game_knowledge.json`, `scripts/knowledge_base.gd`, `scripts/save_manager.gd` |
 | ORACLE | `scripts/assistant/` (retriever, logic, Ollama client, controller, panel) |
@@ -142,19 +143,26 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 
 - **Protocol A/B (added after playtesting):** the spec had one fixed rule set, so once learned the manuals and ORACLE had nothing left to teach. Every shift now runs under protocol A or B, which changes the Power order, the Oxygen table and the Comms formula. The protocol is shown in the checklist but is not given to ORACLE.
 - **Mission briefing:** the intro card is now a short story and no longer lists the rules.
-- **Escalating shifts and run total (added after playtesting):** reserve drops 60 s per shift (minimum 240 s), the run total adds the shift scores, and the best run is saved. The spec had identical shifts.
+- **Escalating shifts and run total (added after playtesting):** reserve drops 45 s per shift (down to a floor that depends on the level), the run total adds the shift scores, and the best run is saved. The spec had identical shifts.
 - **Guided first shift and protocol board:** shift 1 is always Protocol A with a "what to do next" line; a big sign in the crew quarters shows the protocol.
 - **The walk (added after playtesting feedback):** the compact hub became a bedroom start, a long corridor, three far rooms, doors that unlock in order, and gas and spark hazards (see "The walk").
 - **Redesigned look (after playtesting feedback):** every door has a header sign, a frame and a light that turn from red to cyan when its system is repaired; two matching boards flank the middle door (the protocol, and how to get help); each room has a tinted floor and a ceiling strip, and the room lights up (bright cyan strip and floor) when repaired; the hub light flickers, and under a minute of reserve the station pulses red with a red screen-edge vignette (visual only, rules unchanged); breaker ratings are printed on the breakers; each room has one tidy display panel; the reboot terminal is labelled and turns cyan when ready.
-- **Hints:** ORACLE's Get a hint button costs 20 s of reserve. The hint is computed by the game, not the AI.
+- **Hints:** ORACLE's Get a hint button costs reserve time (20 s on Engineer). The hint is computed by the game, not the AI.
+- **Harder walk (after a friend found it easy):** a laser grid blocks the corridor until a wall switch turns it off, gas is harsher, and ORACLE questions cost reserve time.
+- **Levels:** a Rookie / Engineer / Survivor selector on the menu changes the reserve, hazards, help costs and score (see "Levels").
+- **Sound:** a survival soundscape and a two-layer theme song that gets more tense with danger (see "Sound and feel").
+- **Look:** a classic astronaut character (third person, **V**, and a front view, **C**), a proper bunk bed, and a station look with windows onto a planet, ceiling pipes, ribs and floor guide lights.
+- **Waking up:** you wake in bed only on the first shift of a run; later shifts and retries start you already awake.
+- **Smoother play:** anti-aliasing, a soft glow, and acceleration on movement.
 
-## Developer tool: screenshots
+## Developer tools
 
 `tools/screenshot.gd` renders the station from several viewpoints to PNG files (needs a real window, not `--headless`):
 ```
 godot --path . -s res://tools/screenshot.gd -- /path/to/output/folder            # as it starts
 godot --path . -s res://tools/screenshot.gd -- /path/to/output/folder repaired   # all systems repaired
 ```
+Others in `tools/` (all need a real window): `menu_shot.gd` (the main menu; add `plain` to skip the intro), `avatar_shot.gd` (the astronaut from the front, side and back), `audio_probe.gd` (prints how loud the game is with and without danger), and `export_theme.gd` (saves the theme song as a WAV).
 
 ## Known limitations
 
