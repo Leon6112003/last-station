@@ -14,6 +14,7 @@ signal shift_won(result: Dictionary)
 signal shift_failed
 signal hint_used(cost_seconds: int)
 signal hazard_hit(kind: String, seconds: float)
+signal oracle_charged(seconds: int)
 
 const SYSTEM_IDS: Array[String] = ["power", "oxygen", "comms"]
 
@@ -26,6 +27,7 @@ var reserve: float = float(Rules.RESERVE_START_SECONDS)
 var mistakes: int = 0
 var hints_used: int = 0
 var hazard_seconds: float = 0.0   # reserve lost to corridor hazards this attempt
+var oracle_questions: int = 0     # questions asked to ORACLE this attempt (each costs reserve)
 var run_score: int = 0
 var clock_running: bool = false
 var repaired: Dictionary = {}
@@ -70,6 +72,7 @@ func _reset_attempt() -> void:
 	mistakes = 0
 	hints_used = 0
 	hazard_seconds = 0.0
+	oracle_questions = 0
 	clock_running = false
 	repaired = {"power": false, "oxygen": false, "comms": false}
 	breakers_latched.clear()
@@ -223,7 +226,22 @@ func _hint_text(system_id: String) -> String:
 
 # --- Internals -----------------------------------------------------------
 
-## A corridor hazard (gas or sparks) took reserve time. Not a puzzle mistake: it does not
+## Every question asked to ORACLE costs reserve time (the manuals are free). It can never be
+## the thing that ends a shift: at least one second is always left. Returns the seconds charged.
+func charge_oracle_question() -> int:
+	if state != State.PLAYING:
+		return 0
+	var cost := mini(Rules.ORACLE_QUESTION_COST_SECONDS, maxi(0, int(floor(reserve)) - 1))
+	if cost <= 0:
+		return 0
+	reserve -= float(cost)
+	oracle_questions += 1
+	reserve_changed.emit(reserve)
+	oracle_charged.emit(cost)
+	return cost
+
+
+## A corridor hazard (gas or laser) took reserve time. Not a puzzle mistake: it does not
 ## count in `mistakes`. Only counts while a shift is running.
 func hazard_damage(kind: String, seconds: float) -> void:
 	if state != State.PLAYING or seconds <= 0.0:

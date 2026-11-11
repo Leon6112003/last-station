@@ -9,7 +9,7 @@ func _initialize() -> void:
 	_expect(ScoreManager.final_score(300.0, 0), 450, "reserve 300 s, 0 retries = 450")
 	_expect(ScoreManager.final_score(120.0, 1), 310, "reserve 120 s, 1 retry = 310")
 	_expect(ScoreManager.final_score(1.0, 3), 150, "reserve 1 s, 3 retries = 150")
-	_expect(ScoreManager.final_score(480.0, 0), 540, "reserve 480 s, 0 retries = 540 (maximum)")
+	_expect(ScoreManager.final_score(360.0, 0), 480, "reserve 360 s, 0 retries = 480 (maximum)")
 
 	_expect(ScoreManager.retry_penalty(0), 0, "no retries, no penalty")
 	_expect(ScoreManager.retry_penalty(3), 150, "3 retries = 150 penalty")

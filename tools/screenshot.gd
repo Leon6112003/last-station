@@ -15,7 +15,8 @@ const VIEWS := [
 	["03_gas_vent", Vector3(10.5, 0.9, 0.0), -90.0, 0.0],
 	["04_power_room", Vector3(12.0, 0.9, -4.5), 0.0, 5.0],
 	["05_oxygen_door_locked", Vector3(24.0, 0.9, 0.4), 0.0, 0.0],
-	["06_sparks", Vector3(26.0, 0.9, 0.0), -90.0, 0.0],
+	["06_laser_grid", Vector3(26.0, 0.9, 0.0), -90.0, 0.0],
+	["06b_laser_switch", Vector3(28.0, 0.9, -0.2), 180.0, 0.0],
 	["07_comms_room", Vector3(36.0, 0.9, -4.5), 0.0, 5.0],
 	["08_reboot_terminal", Vector3(-2.0, 0.9, 0.0), 90.0, 0.0],
 ]
@@ -56,7 +57,7 @@ func _initialize() -> void:
 		main._rebuild_world()
 		await process_frame
 	for zone in main._station["hazards"]:
-		(zone as HazardZone)._time = 7.0 if (zone as HazardZone).kind == "gas" else 4.2   # show them active
+		(zone as HazardZone)._time = 7.0   # show the gas active
 	var player: PlayerController = main._player
 	player.set_input_enabled(false)
 	if args.size() > 2 and args[2] == "third":

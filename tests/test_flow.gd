@@ -47,7 +47,7 @@ func _initialize() -> void:
 	# Wrong breaker -> surge.
 	var order := PuzzleValidators.power_order(gm.puzzles["power"])
 	_interact(main, "breaker_%d" % order[1])
-	_check(gm.mistakes == 1 and is_equal_approx(gm.reserve, 465.0), "wrong breaker applies the surge penalty in the real scene")
+	_check(gm.mistakes == 1 and is_equal_approx(gm.reserve, 345.0), "wrong breaker applies the surge penalty in the real scene")
 
 	# Power: correct order through the real interactables.
 	for index in order:

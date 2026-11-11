@@ -63,7 +63,7 @@
   {
     "id": "hints",
     "title": "Hints",
-    "text": "Open ORACLE with H and press the Get a hint button. A hint costs 20 seconds of oxygen reserve. It names the next system to repair and which protocol rules apply this shift, but it never gives the answer: you still read the room's panel. Typing the word hint to ORACLE does not use a hint.",
+    "text": "Open ORACLE with H and press the Get a hint button. A hint costs 20 seconds of oxygen reserve. It names the next system to repair and which protocol rules apply this shift, but it never gives the answer: you still read the room's panel. Typing the word hint to ORACLE does not use a hint. Every question you ask ORACLE also costs 5 seconds of reserve; the manuals (M) are free.",
     "keywords": [
       "hint",
       "hints",
@@ -113,7 +113,7 @@
   {
     "id": "reserve_timer",
     "title": "Oxygen Reserve",
-    "text": "Shift 1 starts with 480 seconds (8 minutes) of oxygen reserve. Each later shift has 60 seconds less, down to a minimum of 240 seconds. The countdown starts when you first move, and it stops while the game is paused or the manuals or ORACLE are open. If it reaches zero the shift is lost.",
+    "text": "Shift 1 starts with 360 seconds (6 minutes) of oxygen reserve. Each later shift has 45 seconds less, down to a minimum of 180 seconds. The countdown starts when you first move, and it stops while the game is paused or the manuals or ORACLE are open. If it reaches zero the shift is lost.",
     "keywords": [
       "reserve",
       "oxygen",
@@ -135,7 +135,7 @@
   {
     "id": "scoring",
     "title": "Scoring",
-    "text": "When you reboot the station with all three systems repaired, your shift score is 300 plus half of your remaining reserve seconds (rounded down), minus 50 for each retry (the retry penalty is capped at 150). The highest possible score is 540, on shift 1. Mistakes already cost reserve time, so they have no separate score penalty. Your run total adds up the score of every shift you clear.",
+    "text": "When you reboot the station with all three systems repaired, your shift score is 300 plus half of your remaining reserve seconds (rounded down), minus 50 for each retry (the retry penalty is capped at 150). The highest possible score is 480, on shift 1. Mistakes already cost reserve time, so they have no separate score penalty. Your run total adds up the score of every shift you clear.",
     "keywords": [
       "score",
       "points",
@@ -150,7 +150,7 @@
   {
     "id": "retry_rules",
     "title": "Retry and Next Shift",
-    "text": "Hold R for one second, or choose Retry Shift in the pause menu, to restart the same station with that shift's full reserve (480 seconds on shift 1). Each retry costs 50 points. The puzzle values and the protocol are re-rolled on every retry, so an old answer will not work. Next Shift starts a new station with less reserve and clears the retry count.",
+    "text": "Hold R for one second, or choose Retry Shift in the pause menu, to restart the same station with that shift's full reserve (360 seconds on shift 1). Each retry costs 50 points. The puzzle values and the protocol are re-rolled on every retry, so an old answer will not work. Next Shift starts a new station with less reserve and clears the retry count.",
     "keywords": [
       "retry",
       "restart",
@@ -306,27 +306,34 @@
   {
     "id": "walk_hazards",
     "title": "Doors and Corridor Hazards",
-    "text": "The Oxygen door stays locked until Power is repaired, and the Comms door until Oxygen is repaired. A gas vent between Power and Oxygen drains the reserve fast while its lamp is red: 8 seconds of reserve for every second in the gas. Live wires between Oxygen and Comms cost 12 seconds if they spark as you cross. Wait for a grey lamp; amber is a warning. Hazards are not puzzle mistakes.",
+    "text": "The Oxygen door stays locked until Power is repaired, and the Comms door until Oxygen is repaired. Gas vents in the corridor drain the reserve fast while their lamp is red: 12 seconds of reserve for every second in the gas. Wait for a grey lamp; amber is a warning. A laser grid blocks the way to Comms; touching it costs 10 seconds. Press E on a wall switch beside it to turn it off for 10 seconds. Hazards are not puzzle mistakes.",
     "keywords": [
-      "doors",
+      "block",
+      "blocked",
+      "corridor",
       "door",
-      "locked",
-      "unlock",
+      "doors",
+      "drain",
+      "gas",
+      "grid",
       "hazard",
       "hazards",
-      "gas",
-      "vent",
-      "sparks",
+      "lamp",
+      "laser",
+      "lasers",
+      "locked",
+      "lost",
+      "off",
+      "slow",
       "spark",
-      "wires",
-      "corridor",
+      "sparks",
+      "switch",
+      "time",
+      "unlock",
+      "vent",
       "walk",
       "walking",
-      "lamp",
-      "drain",
-      "slow",
-      "time",
-      "lost"
+      "wires"
     ]
   },
   {

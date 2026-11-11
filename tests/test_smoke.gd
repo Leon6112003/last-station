@@ -14,7 +14,7 @@ func _initialize() -> void:
 	_check(station.has("spawn"), "station returns a spawn position")
 
 	var items: Array = station["interactables"]
-	_check(items.size() == 7, "station has 7 interactables (4 breakers, 2 consoles, reboot terminal), got %d" % items.size())
+	_check(items.size() == 9, "station has 9 interactables (4 breakers, 2 consoles, reboot terminal, 2 laser switches), got %d" % items.size())
 
 	var ids := items.map(func(i: Interactable) -> String: return i.id)
 	for expected in ["breaker_0", "breaker_1", "breaker_2", "breaker_3", "oxygen_console", "comms_console", "reboot_terminal"]:
@@ -29,6 +29,8 @@ func _initialize() -> void:
 	# Headers are 2 m wide, about 0.7 m tall, and sit above the doorways (Godot renames
 	# duplicate node names, so find them by their size and height instead).
 	var headers := world.find_children("*", "StaticBody3D", true, false).filter(func(b: StaticBody3D) -> bool:
+		if not (b.get_child(0) is MeshInstance3D):
+			return false   # the laser barrier has only a collider
 		var mesh := (b.get_child(0) as MeshInstance3D).mesh as BoxMesh
 		return b.position.y > 2.3 and b.position.y < 2.9 and absf(mesh.size.x - 2.0) < 0.01 and mesh.size.y < 1.0)
 	_check(headers.size() == 4, "there is a header above each of the four doorways: crew quarters and three systems (found %d)" % headers.size())
@@ -73,10 +75,14 @@ func _initialize() -> void:
 	_check((doors["oxygen"] as DoorGate).locked and (doors["comms"] as DoorGate).locked, "the Oxygen and Comms doors start locked")
 	_check((doors["oxygen"] as DoorGate).requires == "power" and (doors["comms"] as DoorGate).requires == "oxygen", "Oxygen needs Power, Comms needs Oxygen")
 	var hazards: Array = station["hazards"]
-	_check(hazards.size() == 2 and (hazards[0] as HazardZone).kind == "gas" and (hazards[1] as HazardZone).kind == "spark", "the corridor has a gas vent and a spark gap")
-	var gas_x: float = (hazards[0] as HazardZone).position.x
-	var spark_x: float = (hazards[1] as HazardZone).position.x
-	_check(gas_x > StationBuilder.ROOM_CENTERS_X["power"] and gas_x < StationBuilder.ROOM_CENTERS_X["oxygen"] and spark_x > StationBuilder.ROOM_CENTERS_X["oxygen"] and spark_x < StationBuilder.ROOM_CENTERS_X["comms"], "gas lies between Power and Oxygen, sparks between Oxygen and Comms")
+	_check(hazards.size() == 2 and (hazards[0] as HazardZone).kind == "gas" and (hazards[1] as HazardZone).kind == "gas", "the corridor has two gas vents")
+	var gas_a: float = (hazards[0] as HazardZone).position.x
+	var gas_b: float = (hazards[1] as HazardZone).position.x
+	_check(gas_a > StationBuilder.BEDROOM_X and gas_a < StationBuilder.ROOM_CENTERS_X["power"] and gas_b > StationBuilder.ROOM_CENTERS_X["power"] and gas_b < StationBuilder.ROOM_CENTERS_X["oxygen"], "one vent lies between the quarters and Power, the other between Power and Oxygen")
+	var laser: LaserGrid = station["laser"]
+	_check(laser.position.x > StationBuilder.ROOM_CENTERS_X["oxygen"] and laser.position.x < StationBuilder.ROOM_CENTERS_X["comms"] and laser.armed, "the laser grid is on, between Oxygen and Comms")
+	var switches: Array = station["laser_switches"]
+	_check(switches.size() == 2 and (switches[0] as Interactable).position.x < laser.position.x and (switches[1] as Interactable).position.x > laser.position.x, "there is a laser switch on each side of the grid")
 	var reboot_position: Vector3 = (station["reboot"] as Interactable).position
 	_check(reboot_position.x < StationBuilder.BEDROOM_X - 3.0, "the reboot terminal is at the far west end of the corridor (x=%.1f)" % reboot_position.x)
 	var far_room_x: float = StationBuilder.ROOM_CENTERS_X["comms"]

@@ -40,7 +40,9 @@ const ROOM_FLOOR_TINT := {
 	"oxygen": Color(0.07, 0.24, 0.28),
 	"comms": Color(0.30, 0.24, 0.10),
 }
-const SPAWN_POSITION := Vector3(0.0, 0.9, -5.0)
+const BUNK_X := BEDROOM_X - 1.6
+const BUNK_Z := (HUB_BACK_Z + ROOM_BACK_Z) * 0.5
+const SPAWN_POSITION := Vector3(BEDROOM_X - 0.6, 0.9, BUNK_Z)   # beside the bunk, in line with the door
 const SPAWN_YAW_DEGREES := 180.0    # the player wakes facing south, toward the bedroom door
 # Terminals must be taller than the eye line (1.55 m) so the interaction ray,
 # which starts at the eyes, hits them without the player having to look down.
@@ -52,12 +54,11 @@ const HUB_FACE_Z := HUB_BACK_Z + 0.2        # text on the corridor side of the r
 const BEDROOM_FACE_Z := HUB_BACK_Z - 0.2    # text on the bedroom side of that wall
 const ROOM_FACE_Z := ROOM_BACK_Z + 0.2      # text on a room's back wall
 const PLATE_OFFSET := 0.03                  # plates sit this far behind their text
-const GAS_X := 18.0                         # gas vent between Power and Oxygen
-const SPARK_X := 30.0                       # spark gap between Oxygen and Comms
+const GAS_XS := [6.0, 18.0]                 # gas vents: Bedroom-Power and Power-Oxygen
+const GAS_PHASE_OFFSETS := [8.0, 4.5]       # seconds into each cycle when a shift starts
 const GAS_LENGTH := 6.0
-const SPARK_LENGTH := 1.6
-const GAS_PHASE_OFFSET := 4.5               # seconds into its cycle when a shift starts
-const SPARK_PHASE_OFFSET := 1.0
+const LASER_X := 30.0                       # laser grid between Oxygen and Comms
+const LASER_SWITCH_DISTANCE := 3.5          # the two off-switches stand this far either side
 
 const STRIP_ENERGY_OFF := 0.5     # ceiling strip while the system is down
 const STRIP_ENERGY_ON := 1.1     # ... and once repaired
@@ -75,6 +76,7 @@ const FONT_SMALL := 22
 ## Returns:
 ## {
 ##   "spawn": Vector3, "spawn_yaw": float,        # where and which way the player wakes up
+##   "bed_position": Vector3,                    # the eyes of someone lying in the lower bunk
 ##   "interactables": Array[Interactable],
 ##   "breakers": Array[Interactable],            # B1..B4 in index order
 ##   "consoles": {"oxygen": Interactable, "comms": Interactable},
@@ -83,7 +85,9 @@ const FONT_SMALL := 22
 ##   "door_labels": {room_id: Label3D},          # the room name on its header sign
 ##   "door_status": {room_id: StandardMaterial3D}, # frame and light: red, then cyan when repaired
 ##   "doors": {room_id: DoorGate},               # sliding doors (oxygen, comms) locked in order
-##   "hazards": Array[HazardZone],               # gas vent and spark gap in the corridor
+##   "hazards": Array[HazardZone],               # the two gas vents in the corridor
+##   "laser": LaserGrid,                         # the laser barrier between Oxygen and Comms
+##   "laser_switches": Array[Interactable],      # the two wall switches that turn it off
 ##   "protocol_board": Label3D,                  # big "PROTOCOL A/B" sign in the bedroom
 ##   "room_floors": {room_id: StandardMaterial3D}, # tinted floor patch; brightens when repaired
 ##   "room_strips": {room_id: StandardMaterial3D}, # ceiling light strip: dim red, then bright cyan
@@ -251,23 +255,34 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}) -
 	# looks east (+X), so the label is turned 90 degrees.
 	_add_label(parent, "REBOOT\nSTATION", Vector3(reboot_x + 0.25 + 0.01, 1.2, 0.0), 36, Color(0.06, 0.05, 0.12), 90.0, 0)
 
-	# --- Corridor hazards: a gas vent between Power and Oxygen, sparks between Oxygen and Comms.
+	# --- Corridor hazards: two gas vents, and a laser grid between Oxygen and Comms.
 	var hazards: Array[HazardZone] = []
-	var gas := HazardZone.create(HazardZone.KIND_GAS, Vector3(GAS_LENGTH, 2.8, 3.0), Vector3(GAS_X, 1.4, 0.0), GAS_PHASE_OFFSET)
-	parent.add_child(gas)
-	hazards.append(gas)
-	var sparks := HazardZone.create(HazardZone.KIND_SPARK, Vector3(SPARK_LENGTH, 2.8, 3.0), Vector3(SPARK_X, 1.4, 0.0), SPARK_PHASE_OFFSET)
-	parent.add_child(sparks)
-	hazards.append(sparks)
-	# Warning signs on the wall beside each hazard (readable from the corridor).
-	_add_screen(parent, Vector3(GAS_X, 1.9, HUB_FACE_Z - PLATE_OFFSET - 0.1), Vector2(2.2, 0.55))
-	_add_label(parent, "GAS VENT\nWAIT FOR GREEN", Vector3(GAS_X, 1.9, HUB_FACE_Z - 0.1), 20, Color(0.5, 1.0, 0.6))
-	_add_screen(parent, Vector3(SPARK_X, 1.9, HUB_FACE_Z - PLATE_OFFSET - 0.1), Vector2(2.2, 0.55))
-	_add_label(parent, "LIVE WIRES\nWAIT FOR GREY", Vector3(SPARK_X, 1.9, HUB_FACE_Z - 0.1), 20, Color(0.7, 0.9, 1.0))
+	for i in GAS_XS.size():
+		var gas_x: float = GAS_XS[i]
+		var gas := HazardZone.create(Vector3(GAS_LENGTH, 2.8, 3.0), Vector3(gas_x, 1.4, 0.0), GAS_PHASE_OFFSETS[i])
+		parent.add_child(gas)
+		hazards.append(gas)
+		# A warning sign on the wall beside the vent (readable from the corridor).
+		_add_screen(parent, Vector3(gas_x, 1.9, HUB_FACE_Z - PLATE_OFFSET - 0.1), Vector2(2.2, 0.55))
+		_add_label(parent, "GAS VENT\nWAIT FOR GREY LAMP", Vector3(gas_x, 1.9, HUB_FACE_Z - 0.1), 18, Color(0.5, 1.0, 0.6))
+
+	var laser := LaserGrid.create(Vector3(LASER_X, 0.0, 0.0), HUB_FRONT_Z - HUB_BACK_Z, Rules.WALL_HEIGHT)
+	parent.add_child(laser)
+	# Two switches on the south wall, one each side of the grid, that turn it off for a while.
+	var laser_switches: Array[Interactable] = []
+	for side in [-1.0, 1.0]:
+		var switch_x: float = LASER_X + side * LASER_SWITCH_DISTANCE
+		var laser_switch := _add_interactable(
+			parent, "laser_switch_%s" % ("west" if side < 0.0 else "east"), "TURN LASER GRID OFF (%d s)" % int(Rules.LASER_OFF_SECONDS),
+			Vector3(switch_x, TERMINAL_HEIGHT * 0.5, HUB_FRONT_Z - 0.25), Vector3(0.9, TERMINAL_HEIGHT, 0.5), Rules.COLOR_VIOLET)
+		laser_switches.append(laser_switch)
+		interactables.append(laser_switch)
+		_add_label(parent, "LASER\nGRID", Vector3(switch_x, 1.35, HUB_FRONT_Z - 0.25 - 0.25 - 0.01), 28, Rules.COLOR_GOLD, 180.0)
 
 	return {
 		"spawn": SPAWN_POSITION,
 		"spawn_yaw": SPAWN_YAW_DEGREES,
+		"bed_position": Vector3(BUNK_X, 0.8, BUNK_Z - 0.55),   # the eyes while lying in the lower bunk
 		"interactables": interactables,
 		"breakers": breakers,
 		"consoles": {"oxygen": oxygen_console, "comms": comms_console},
@@ -277,6 +292,8 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}) -
 		"door_status": door_status,
 		"doors": door_gates,
 		"hazards": hazards,
+		"laser": laser,
+		"laser_switches": laser_switches,
 		"protocol_board": protocol_board,
 		"room_floors": room_floors,
 		"room_strips": room_strips,
@@ -291,8 +308,8 @@ static func _add_bedroom_furniture(parent: Node3D) -> void:
 	var mattress := _solid_material(Color(0.55, 0.7, 0.85))
 	var pillow := _solid_material(Color(0.92, 0.93, 0.96))
 	var locker := _solid_material(Color(0.2, 0.24, 0.34))
-	var bunk_x := BEDROOM_X - 2.1
-	var bunk_z := (HUB_BACK_Z + ROOM_BACK_Z) * 0.5
+	var bunk_x := BUNK_X
+	var bunk_z := BUNK_Z
 	_add_box(parent, "BunkFrame", Vector3(bunk_x, 0.9, bunk_z), Vector3(1.0, 1.8, 2.1), frame)
 	for level_y in [0.62, 1.42]:
 		_add_glow_box(parent, Vector3(bunk_x + 0.02, level_y, bunk_z), Vector3(0.9, 0.14, 2.0), mattress)

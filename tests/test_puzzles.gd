@@ -142,7 +142,7 @@ func _test_penalties() -> void:
 	var result := gm.flip_breaker(wrong)
 	_check(result == "surge", "wrong breaker causes a surge")
 	_check(gm.mistakes == 1, "surge counts one mistake")
-	_check(is_equal_approx(gm.reserve, 480.0 - 15.0), "surge costs 15 s of reserve (got %.1f)" % gm.reserve)
+	_check(is_equal_approx(gm.reserve, 360.0 - 15.0), "surge costs 15 s of reserve (got %.1f)" % gm.reserve)
 	_check(gm.breakers_latched.is_empty(), "surge resets the breakers")
 
 	var before := gm.reserve
@@ -190,7 +190,7 @@ func _test_full_solve_and_reboot() -> void:
 
 	_check(gm.try_reboot(), "reboot works at 3/3 systems")
 	_check(gm.state == GameManager.State.WON, "state is WON after reboot")
-	_check(results["won"] and results["score"] == 540, "clean instant solve scores 540 (got %d)" % results["score"])
+	_check(results["won"] and results["score"] == 480, "clean instant solve scores 480 (got %d)" % results["score"])
 	_check(not gm.try_reboot(), "a second reboot is ignored")
 	gm.free()
 
@@ -205,7 +205,7 @@ func _test_fail_state() -> void:
 	_check(gm.state == GameManager.State.PLAYING, "reserve does not run before the first movement")
 
 	gm.begin_clock()
-	gm._process(479.0)
+	gm._process(359.0)
 	_check(gm.state == GameManager.State.PLAYING and gm.reserve > 0.0, "still playing with 1 s left")
 	gm._process(2.0)
 	_check(gm.state == GameManager.State.FAILED, "reserve at 0 fails the shift")

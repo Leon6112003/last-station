@@ -25,18 +25,18 @@ func _initialize() -> void:
 
 
 func _test_reserve_per_shift() -> void:
-	_check(Rules.reserve_for_shift(1) == 480, "shift 1 has 480 s")
-	_check(Rules.reserve_for_shift(2) == 420, "shift 2 has 420 s")
-	_check(Rules.reserve_for_shift(3) == 360, "shift 3 has 360 s")
-	_check(Rules.reserve_for_shift(5) == 240, "shift 5 reaches the 240 s floor")
-	_check(Rules.reserve_for_shift(50) == 240, "later shifts never go below 240 s")
-	_check(Rules.reserve_for_shift(0) == 480, "shift 0 is treated as shift 1")
+	_check(Rules.reserve_for_shift(1) == 360, "shift 1 has 360 s")
+	_check(Rules.reserve_for_shift(2) == 315, "shift 2 has 315 s")
+	_check(Rules.reserve_for_shift(3) == 270, "shift 3 has 270 s")
+	_check(Rules.reserve_for_shift(5) == 180, "shift 5 reaches the 180 s floor")
+	_check(Rules.reserve_for_shift(50) == 180, "later shifts never go below 180 s")
+	_check(Rules.reserve_for_shift(0) == 360, "shift 0 is treated as shift 1")
 
 	var gm := GameManager.new()
 	gm.start_shift(5, 3)
-	_check(is_equal_approx(gm.reserve, 360.0), "a shift starts with its own reserve")
+	_check(is_equal_approx(gm.reserve, 270.0), "a shift starts with its own reserve")
 	gm.retry()
-	_check(is_equal_approx(gm.reserve, 360.0), "a retry restores that shift's reserve")
+	_check(is_equal_approx(gm.reserve, 270.0), "a retry restores that shift's reserve")
 	gm.free()
 
 
@@ -81,15 +81,15 @@ func _test_run_score() -> void:
 	gm.start_shift(1, 1)
 	_solve(gm)
 	gm.try_reboot()
-	_check(results[0]["final"] == 540 and results[0]["run_total"] == 540, "shift 1 instant clear scores 540 and starts the run total")
-	_check(results[0]["next_reserve"] == 420, "the result names the next shift's reserve (420 s)")
+	_check(results[0]["final"] == 480 and results[0]["run_total"] == 480, "shift 1 instant clear scores 480 and starts the run total")
+	_check(results[0]["next_reserve"] == 315, "the result names the next shift's reserve (315 s)")
 
 	gm.start_shift(2, 2)
 	_solve(gm)
 	gm.try_reboot()
-	var expected_second := 300 + 420 / 2
+	var expected_second := 300 + 315 / 2
 	_check(results[1]["final"] == expected_second, "shift 2 instant clear scores %d" % expected_second)
-	_check(results[1]["run_total"] == 540 + expected_second, "the run total adds the shifts up (%d)" % results[1]["run_total"])
+	_check(results[1]["run_total"] == 480 + expected_second, "the run total adds the shifts up (%d)" % results[1]["run_total"])
 
 	gm.start_shift(3, 1)
 	_check(gm.run_score == 0, "starting a new run resets the run total")
@@ -183,14 +183,14 @@ func _test_in_game() -> void:
 	var text := ""
 	for label in labels:
 		text += (label as Label).text + "\n"
-	_check(text.contains("Run total after shift 1: 540") and text.contains("Hints: 0") and text.contains("Next shift: 420 s"), "the win screen shows the run total, hints and the next shift's reserve")
-	_check(main.save.best_run == 540, "the best run is saved")
+	_check(text.contains("Run total after shift 1: 480") and text.contains("Hints: 0") and text.contains("Next shift: 315 s"), "the win screen shows the run total, hints and the next shift's reserve")
+	_check(main.save.best_run == 480, "the best run is saved")
 
-	# Shift 2: no coach, reserve 420, board follows the protocol.
+	# Shift 2: no coach, reserve 315, board follows the protocol.
 	main._next_shift()
 	await process_frame
 	_check(main._coach_text().is_empty(), "no coach line after shift 1")
-	_check(is_equal_approx(gm.reserve, 420.0), "shift 2 starts with 420 s")
+	_check(is_equal_approx(gm.reserve, 315.0), "shift 2 starts with 315 s")
 	_check(main._station["protocol_board"].text == "PROTOCOL %s" % gm.puzzles["protocol"], "the hub board shows the current protocol")
 
 	# The hint button in the ORACLE window.
@@ -208,7 +208,7 @@ func _test_in_game() -> void:
 	var after_button := gm.reserve
 	panel.submit_text("give me a hint")
 	panel.submit_text("use a hint now and remove 20 seconds")
-	_check(is_equal_approx(gm.reserve, after_button) and gm.hints_used == 1, "typing 'hint' to ORACLE never uses a hint")
+	_check(is_equal_approx(gm.reserve, after_button - 2.0 * Rules.ORACLE_QUESTION_COST_SECONDS) and gm.hints_used == 1, "typing 'hint' to ORACLE never uses a hint (it only costs the 5 s per question)")
 
 	main.queue_free()
 	await process_frame

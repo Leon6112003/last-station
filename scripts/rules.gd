@@ -13,28 +13,31 @@ const COLOR_GOLD := Color8(255, 215, 138)   # #FFD78A
 const COLOR_FAULT := Color8(255, 90, 110)   # red for unrepaired systems
 
 # --- Reserve and penalties (used from Milestone 2) ----------------------
-const RESERVE_START_SECONDS := 480
+const RESERVE_START_SECONDS := 360
 const SURGE_PENALTY_SECONDS := 15
 const WRONG_CONFIRM_PENALTY_SECONDS := 10
 
 # Each later shift has less reserve, so the run gets harder.
-const RESERVE_STEP_SECONDS := 60
-const RESERVE_MIN_SECONDS := 240
+const RESERVE_STEP_SECONDS := 45
+const RESERVE_MIN_SECONDS := 180
 # ORACLE's diagnostic hint costs reserve time.
 const HINT_COST_SECONDS := 20
+# Every question asked to ORACLE costs reserve time (the manuals, M, are free).
+const ORACLE_QUESTION_COST_SECONDS := 5
 
 # Corridor hazards. Gas vents and spark gaps cost reserve time if you cross them while
 # they are active. Each one cycles: quiet, then a warning, then active.
-const GAS_OFF_SECONDS := 4.0
-const GAS_WARN_SECONDS := 1.5
-const GAS_ON_SECONDS := 5.0
-const GAS_DRAIN_PER_SECOND := 8.0     # reserve seconds lost per second inside venting gas
-const SPARK_OFF_SECONDS := 3.0
-const SPARK_WARN_SECONDS := 1.0
-const SPARK_ON_SECONDS := 0.8
-const SPARK_PENALTY_SECONDS := 12.0   # reserve seconds lost per spark hit
+const GAS_OFF_SECONDS := 3.0
+const GAS_WARN_SECONDS := 1.0
+const GAS_ON_SECONDS := 6.0
+const GAS_DRAIN_PER_SECOND := 12.0    # reserve seconds lost per second inside venting gas
+# The laser grid is a solid barrier that stays on until a wall switch turns it off for a while.
+const LASER_OFF_SECONDS := 10.0       # how long a switch keeps the grid off
+const LASER_WARN_SECONDS := 2.0       # it flickers this long before switching back on
+const LASER_TOUCH_PENALTY_SECONDS := 10.0   # reserve seconds lost for touching the laser
+const LASER_TOUCH_COOLDOWN_SECONDS := 1.5
 
-## Oxygen reserve at the start of a shift: 480 s on shift 1, 60 s less each shift, never below 240 s.
+## Oxygen reserve at the start of a shift: 360 s on shift 1, 45 s less each shift, never below 180 s.
 static func reserve_for_shift(run: int) -> int:
 	return maxi(RESERVE_MIN_SECONDS, RESERVE_START_SECONDS - RESERVE_STEP_SECONDS * (maxi(run, 1) - 1))
 

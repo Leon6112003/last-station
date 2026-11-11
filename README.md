@@ -1,6 +1,6 @@
 # LAST STATION
 
-A short first-person repair puzzler for Godot 4 (GDScript only). The station is failing: you have 8 minutes of oxygen reserve to repair **Power**, **Oxygen** and **Comms**, then reboot the station. An offline help assistant, **ORACLE**, answers questions from the station manuals.
+A short first-person repair puzzler for Godot 4 (GDScript only). The station is failing: you have 6 minutes of oxygen reserve to repair **Power**, **Oxygen** and **Comms**, then reboot the station. An offline help assistant, **ORACLE**, answers questions from the station manuals.
 
 Built as a two-day-scope prototype. Specification: `AGENTS.md` and `REQUIREMENTS.md`. Test evidence: `docs/TEST_REPORT.md`.
 
@@ -18,14 +18,14 @@ As a project it is a demonstration of a **RAG assistant inside a game**: the rul
 
 ## How to play
 
-1. Press **Play**. You wake up in the crew quarters, facing the door and the **PROTOCOL** sign beside it. The oxygen reserve (8:00 on shift 1) starts when you first move. **Shift 1 is a guided shift:** it always uses Protocol A and a line at the bottom tells you what to do next.
+1. Press **Play**. You wake up in the crew quarters, facing the door and the **PROTOCOL** sign beside it. The oxygen reserve (6:00 on shift 1) starts when you first move. **Shift 1 is a guided shift:** it always uses Protocol A and a line at the bottom tells you what to do next.
 2. The top-left checklist shows what is left and the current **PROTOCOL (A or B)**. Walk the corridor east to the three rooms and repair each system, then walk all the way back west and press **E** on the reboot terminal.
 3. Aim the `+` at a terminal until `E — ...` appears, then press **E**.
 4. **The game does not tell you the rules.** Read the panels in each room, then press **M** (manuals) or **H** (ORACLE) to look up what to do. The protocol changes the rules, so check it each shift.
 
 **Score** = 300 + (reserve seconds left ÷ 2) − 50 per retry (retry penalty capped at 150). Maximum 540 on shift 1. Your best shift score is saved.
 
-**Runs get harder.** Press **Next Shift** after a win to keep going: every shift has 60 seconds less reserve (480, 420, 360, 300, then 240 at the lowest), and your **run total** adds up the score of each shift you clear. Your best run is saved.
+**Runs get harder.** Press **Next Shift** after a win to keep going: every shift has 45 seconds less reserve (360, 315, 270, 225, then 180 at the lowest), and your **run total** adds up the score of each shift you clear. Your best run is saved.
 
 **Hints.** In ORACLE (press H) the **Get a hint** button costs 20 seconds of reserve. It tells you the next system to repair and which protocol rules apply, but never the answer. (Typing "hint" to ORACLE does not use one.)
 
@@ -67,12 +67,13 @@ Feel: a gentle head bob and footsteps while walking (each footstep sound plays w
 The station is one long corridor (about 46 m) with the crew quarters, Power, Oxygen and Comms rooms along it, 12 m apart, and the reboot terminal at the far west end, so a shift is a real walk there and back.
 
 - **Doors in order:** the Oxygen door stays locked until Power is repaired, and the Comms door stays locked until Oxygen is repaired. Each shows what it needs and slides open when its system is repaired.
-- **Gas vent** (between Power and Oxygen): a lamp above it is grey (quiet), amber (warning) or red (venting). Standing in venting gas costs 8 reserve seconds per second. Wait for grey.
-- **Live wires** (between Oxygen and Comms): they spark on a cycle; crossing while they spark costs 12 reserve seconds once. Wait for grey.
+- **Two gas vents** (one between the quarters and Power, one between Power and Oxygen): a lamp above each is grey (quiet), amber (warning) or red (venting). Standing in venting gas costs 12 reserve seconds per second. Wait for grey.
+- **Laser grid** (between Oxygen and Comms): six red beams that are a solid wall, so you cannot walk through. Touching them costs 10 reserve seconds. A **wall switch** on each side (press **E**) turns the grid off for 10 seconds; it flickers before it switches back on, and it waits while anyone stands in the beams.
+- **ORACLE costs time:** every question asked to ORACLE costs 5 reserve seconds (never the last second). The manuals (**M**) and the hint button's own 20 s cost are separate; the manuals are free.
 - Hazards use the shift's real reserve and are not counted as puzzle mistakes. They start in a fixed state each attempt, so a retry plays the same walk.
-- You wake with the camera rising from the bunk and a pulsing red alarm in the quarters.
+- **Waking up in bed:** a new run starts with you lying in the lower bunk, eyes shut, looking up at the bunk above. Your eyes open, you blink, sit up, turn toward the room and stand, facing the door, about 6 seconds in all, with a pulsing red alarm. Movement, looking and interacting are locked until you are up; a key press skips it after 2 seconds. Retries and later shifts use a shorter version (about 3 seconds).
 
-Not tuned yet: the reserve time (8:00 on shift 1) and the hazard costs were chosen by reasoning, not by playing; walking the corridor takes about 10 s one way.
+Not tuned yet: made harder after a friend found it easy (shorter reserve, harsher gas, a blocking laser, paid ORACLE questions). The new numbers were chosen by reasoning, not by playing; walking the corridor takes about 10 s one way.
 
 ## Window and full screen
 
@@ -115,7 +116,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 ```
 ./tests/run_all.sh        # needs `godot` on PATH
 ```
-19 headless test files, 678 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
+20 headless test files, 725 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
 
 ## Changes since the original spec
 

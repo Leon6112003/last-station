@@ -19,6 +19,7 @@ func _initialize() -> void:
 	await _walk_into_west_wall()
 	await _third_person_view()
 	await _hazard_hits_the_player()
+	await _laser_blocks_then_switch_opens()
 
 	print("")
 	if _failures == 0:
@@ -179,10 +180,10 @@ func _third_person_view() -> void:
 
 ## Standing in an active gas cloud reaches the hazard through real physics.
 func _hazard_hits_the_player() -> void:
-	var made := await _make_player(Vector3(StationBuilder.GAS_X, 0.9, 0.0), 0.0)
+	var made := await _make_player(Vector3(float(StationBuilder.GAS_XS[1]), 0.9, 0.0), 0.0)
 	var world: Node3D = made[0]
 	var station: Dictionary = made[2]
-	var gas: HazardZone = station["hazards"][0]
+	var gas: HazardZone = station["hazards"][1]
 	gas._time = Rules.GAS_OFF_SECONDS + Rules.GAS_WARN_SECONDS + 0.1   # active
 	var damage := [0.0]
 	gas.hit.connect(func(_kind: String, seconds: float, _first: bool) -> void: damage[0] += seconds)
@@ -196,6 +197,31 @@ func _hazard_hits_the_player() -> void:
 	for i in 5:
 		await physics_frame
 	_check(is_equal_approx(damage[0], before), "no damage while the vent is quiet")
+
+	world.queue_free()
+	await process_frame
+
+
+## The laser grid is a solid wall while it is on; switching it off lets the player through.
+func _laser_blocks_then_switch_opens() -> void:
+	var laser_x: float = StationBuilder.LASER_X
+	var made := await _make_player(Vector3(laser_x - 3.0, 0.9, 0.0), -90.0)   # facing east, toward the grid
+	var world: Node3D = made[0]
+	var player: PlayerController = made[1]
+	var station: Dictionary = made[2]
+	var laser: LaserGrid = station["laser"]
+	var touches := [0]
+	laser.touched.connect(func(_seconds: float) -> void: touches[0] += 1)
+
+	await _hold("move_forward", 150)
+	_check(player.global_position.x < laser_x, "the laser grid is a solid wall: the player cannot walk through it (x=%.2f)" % player.global_position.x)
+	_check(touches[0] == 1, "pushing against the beams counts as one touch, not one per frame (%d)" % touches[0])
+
+	laser.switch_off()
+	await physics_frame
+	await _hold("move_forward", 120)
+	_check(player.global_position.x > laser_x + 1.0, "with the grid switched off the player walks through (x=%.2f)" % player.global_position.x)
+	_check(touches[0] == 1, "walking through a switched-off grid is not a touch")
 
 	world.queue_free()
 	await process_frame

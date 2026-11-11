@@ -5,6 +5,7 @@ extends CharacterBody3D
 
 signal target_changed(target: Interactable)
 signal first_move
+signal woke_up   ## the wake-up sequence has finished and the player has control
 signal stepped  ## a footstep landed (for the sound effect)
 
 @export var move_speed: float = Rules.PLAYER_SPEED
@@ -20,7 +21,15 @@ var _target: Interactable = null
 var _has_moved: bool = false
 var _bob_phase: float = 0.0
 var _bob_amount: float = 0.0       # 0 standing still, 1 walking: smooths the bob in and out
-var _wake_offset: float = 0.0      # the camera starts low and rises when a shift begins
+## The wake-up sequence: the player lies in the bunk looking up, blinks awake, sits up,
+## turns toward the room and stands. Movement, looking and interacting are locked until it
+## ends (any key press skips it after a few seconds).
+var waking: bool = false
+var wake_blink: float = 0.0            # 0 = eyes open, 1 = eyes shut (main.gd draws it as black)
+var wake_bed_position: Vector3 = Vector3.INF   # where the eyes are while lying (world position)
+var _wake_time: float = 0.0
+var _wake_short: bool = false
+var _lying_local: Vector3 = Vector3.ZERO   # where the eyes are while lying, relative to the body (facing north)
 var _camera_base_y: float = 0.0
 var third_person: bool = false
 var _avatar: Node3D
@@ -36,8 +45,15 @@ const LEG_SWING := 0.6                          # radians
 const BOB_HEIGHT := 0.03           # metres up and down while walking
 const BOB_STRIDE := 3.2            # metres per full stride (two steps: left, then right)
 const BOB_BLEND_SPEED := 8.0
-const WAKE_DEPTH := 0.95           # how far below eye height the camera starts
-const WAKE_SECONDS := 2.4
+const WAKE_EYES_OPEN_AT := 0.7      # seconds: eyes start to open
+const WAKE_EYES_OPEN_DONE := 1.7
+const WAKE_BLINK_AT := 2.4          # a second, quick blink
+const WAKE_SIT_START := 3.0
+const WAKE_STAND_START := 4.6
+const WAKE_TOTAL := 6.2
+const WAKE_SKIP_AFTER := 2.0        # a key press skips the sequence after this many seconds
+const WAKE_LYING_PITCH_DEGREES := 65.0
+const WAKE_SITTING_PITCH_DEGREES := 15.0
 
 
 func _ready() -> void:
@@ -171,11 +187,78 @@ func set_third_person(enabled: bool) -> void:
 	_update_bob(0.0, 0.0)
 
 
-## The camera rises from a low start to eye height, like waking up.
-func play_wake_up() -> void:
-	_wake_offset = -WAKE_DEPTH
-	var tween := create_tween()
-	tween.tween_property(self, "_wake_offset", 0.0, WAKE_SECONDS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+## Starts waking up in bed. `full` = lie, blink, sit up, stand; otherwise (a retry or a later
+## shift) the player starts sitting up. Body and collider never move; only the view does.
+func play_wake_up(full: bool = true) -> void:
+	waking = true
+	_wake_short = not full
+	_wake_time = 0.0 if full else WAKE_SIT_START
+	rotation.y = 0.0   # lying with the head to the north
+	_lying_local = Vector3(0.0, _camera_base_y, 0.0) + Vector3(-1.0, -0.8, -0.7)
+	if wake_bed_position != Vector3.INF and is_inside_tree():
+		_lying_local = wake_bed_position - global_position
+	velocity = Vector3.ZERO
+	_set_target(null)
+	_avatar.visible = false
+	_apply_wake()
+
+
+## Ends the sequence now and gives control to the player, facing the bedroom door.
+func skip_wake() -> void:
+	if waking:
+		_finish_wake()
+
+
+func _finish_wake() -> void:
+	waking = false
+	wake_blink = 0.0
+	_pitch = 0.0
+	_camera.rotation.x = 0.0
+	rotation.y = -PI   # facing south, toward the bedroom door
+	set_third_person(third_person)
+	_update_bob(0.0, 0.0)
+	woke_up.emit()
+
+
+func _advance_wake(delta: float) -> void:
+	_wake_time += delta
+	if _wake_time >= WAKE_TOTAL:
+		_finish_wake()
+	else:
+		_apply_wake()
+
+
+## Places the camera, pitch, yaw and eyelids for the current moment of the sequence.
+func _apply_wake() -> void:
+	var t := _wake_time
+	var standing := Vector3(0.0, _camera_base_y, 0.0)
+	var lying := _lying_local
+	var sitting := standing + Vector3(-0.5, -0.5, -0.15)
+	var sit := smoothstep(WAKE_SIT_START, WAKE_STAND_START, t)
+	var stand := smoothstep(WAKE_STAND_START, WAKE_TOTAL, t)
+	var place := lying.lerp(sitting, sit).lerp(standing, stand)
+	# Gentle breathing while lying still.
+	place.y += sin(t * 2.2) * 0.012 * (1.0 - sit)
+	_camera.position = place
+	_pitch = lerpf(lerpf(deg_to_rad(WAKE_LYING_PITCH_DEGREES), deg_to_rad(WAKE_SITTING_PITCH_DEGREES), sit), 0.0, stand)
+	_camera.rotation.x = _pitch
+	_camera.rotation.y = 0.0
+	# Facing: head north in bed, turning east as they sit up, then south toward the door.
+	rotation.y = lerpf(lerpf(0.0, -PI * 0.5, sit), -PI, stand)
+	if _wake_short:
+		wake_blink = clampf(1.0 - (t - WAKE_SIT_START) / 0.5, 0.0, 1.0)
+	elif t < WAKE_EYES_OPEN_AT:
+		wake_blink = 1.0
+	elif t < WAKE_EYES_OPEN_DONE:
+		wake_blink = 1.0 - smoothstep(WAKE_EYES_OPEN_AT, WAKE_EYES_OPEN_DONE, t)
+	elif t < WAKE_BLINK_AT:
+		wake_blink = 0.0
+	elif t < WAKE_BLINK_AT + 0.15:
+		wake_blink = (t - WAKE_BLINK_AT) / 0.15
+	elif t < WAKE_BLINK_AT + 0.5:
+		wake_blink = 1.0 - (t - WAKE_BLINK_AT - 0.15) / 0.35
+	else:
+		wake_blink = 0.0
 
 
 func set_input_enabled(enabled: bool) -> void:
@@ -185,6 +268,11 @@ func set_input_enabled(enabled: bool) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if waking:
+		# Everything is locked while waking; a key press skips the rest after a moment.
+		if event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo and _wake_time >= WAKE_SKIP_AFTER:
+			skip_wake()
+		return
 	if not input_enabled:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
@@ -198,8 +286,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if waking:
+		_advance_wake(delta)
 	var direction := Vector2.ZERO
-	if input_enabled:
+	if input_enabled and not waking:
 		direction = Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
 
 	var wish := transform.basis * Vector3(direction.x, 0.0, direction.y)
@@ -231,12 +321,14 @@ func _update_bob(delta: float, horizontal_speed: float) -> void:
 		_bob_phase += horizontal_speed * delta / BOB_STRIDE
 		if floorf(_bob_phase * 2.0 - 0.5) > previous_step:
 			stepped.emit()
+	if waking:
+		return   # the wake-up sequence places the camera
 	var swing := sin(_bob_phase * TAU) * _bob_amount
 	for i in _legs.size():
 		_legs[i].rotation.x = swing * LEG_SWING * (1.0 if i == 0 else -1.0)
 	for i in _arms.size():
 		_arms[i].rotation.x = swing * LEG_SWING * (-1.0 if i == 0 else 1.0)   # arms swing against the legs
-	var eye := Vector3(0.0, _camera_base_y + _wake_offset, 0.0)
+	var eye := Vector3(0.0, _camera_base_y, 0.0)
 	if third_person:
 		_camera.position = _third_person_position(eye)
 		# Turn the camera a little toward the middle so the reticle (and the interaction

@@ -6,6 +6,7 @@ extends PanelContainer
 
 signal closed
 signal hint_requested
+signal question_sent   ## a question was accepted (the game charges its reserve cost)
 
 var controller: OracleController
 
@@ -37,6 +38,7 @@ func submit_text(text: String) -> bool:
 	# Add the question first: exact answers arrive instantly, inside ask().
 	_add_line("You: %s" % shown, Color.WHITE, 20)
 	_input.clear()
+	question_sent.emit()
 	return controller.ask(text)
 
 
@@ -67,7 +69,7 @@ func _build() -> void:
 	_log.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_log.add_theme_constant_override("separation", 8)
 	_scroll.add_child(_log)
-	_add_line("I am ORACLE. Ask me how the station's systems work: the rules for Power, Oxygen and Comms under each protocol, the controls, or scoring. I answer from the manuals. I cannot see your rooms, so tell me what you read on the panels, for example: \"protocol B, power room, restore mode\". For rules and numbers I quote the manual exactly. For other questions I can write a short answer if Ollama is running.", Rules.COLOR_VIOLET, 20)
+	_add_line("I am ORACLE. Ask me how the station's systems work: the rules for Power, Oxygen and Comms under each protocol, the controls, or scoring. I answer from the manuals. Every question costs 5 seconds of oxygen reserve, so the manuals (M) are the free way. I cannot see your rooms, so tell me what you read on the panels, for example: \"protocol B, power room, restore mode\". For rules and numbers I quote the manual exactly. For other questions I can write a short answer if Ollama is running.", Rules.COLOR_VIOLET, 20)
 
 	_status = Label.new()
 	_status.add_theme_font_size_override("font_size", 18)
@@ -125,6 +127,12 @@ func show_hint(result: Dictionary) -> void:
 		prefix = "NO HINT"
 	var label := _add_line("%s: %s" % [prefix, result["text"]], Rules.COLOR_GOLD, 22)
 	_scroll_to_label.call_deferred(label)
+
+
+## Shows what the question cost, in the chat.
+func add_cost_line(seconds: int) -> void:
+	if seconds > 0:
+		_add_line("(asking ORACLE cost %d s of oxygen reserve; the manuals are free)" % seconds, Rules.COLOR_FAULT, 16)
 
 
 func focus_input() -> void:

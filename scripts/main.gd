@@ -28,9 +28,14 @@ west end, before the reserve reaches zero.
 
 THE WALK
 The Oxygen door stays locked until Power is repaired, and the Comms
-door until Oxygen is repaired. In the corridor, a GAS VENT drains
-your reserve fast while it is venting (red lamp), and LIVE WIRES cost
-12 seconds if they spark as you cross (red lamp). Wait for a grey lamp.
+door until Oxygen is repaired. In the corridor, GAS VENTS drain your
+reserve fast while they vent (red lamp): wait for a grey lamp. A LASER
+GRID blocks the way to Comms and costs time if you touch it: press E
+on a wall switch beside it to turn it off for 10 seconds.
+
+COSTS
+Every question to ORACLE (H) costs 5 seconds of reserve. The manuals
+(M) are free.
 
 HOW
 There are no instructions in the rooms. Read the panels, then ask
@@ -87,6 +92,8 @@ var _menu_best_label: Label
 var _menu_screen: MenuScreen
 ## Plays the typed wake-up intro when the game first opens. Off in headless runs (tests).
 var boot_intro: bool = DisplayServer.get_name() != "headless"
+## Plays the wake-up-in-bed sequence at the start of a shift. Off in headless runs (tests).
+var play_wake_sequence: bool = DisplayServer.get_name() != "headless"
 var _panel_center: CenterContainer
 var _panel: PuzzlePanel = null
 var _manuals: ManualsPanel = null
@@ -181,6 +188,9 @@ func _update_mood(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
+	# While waking up in bed, the player's eyelids drive the black overlay.
+	if is_instance_valid(_player) and _player.waking:
+		_fade.color.a = _player.wake_blink
 	var seconds_left := int(ceil(gm.reserve))
 	_reserve_label.text = "RESERVE %02d:%02d" % [floori(seconds_left / 60.0), seconds_left % 60]
 	_reserve_label.add_theme_color_override(
@@ -257,7 +267,7 @@ func _coach_text() -> String:
 			"oxygen":
 				return "NEXT: the OXYGEN room (second door, now unlocked). Mind the gas vent on the way. Read STATION MODE, then press H and ask ORACLE for the valve settings."
 			_:
-				return "NEXT: the COMMS room (third door, now unlocked). Mind the live wires on the way. Count the lit beacons, then press H and ask ORACLE for the frequency."
+				return "NEXT: the COMMS room (third door, now unlocked). Mind the laser grid on the way (use a wall switch to turn it off). Count the lit beacons, then press H and ask ORACLE for the frequency."
 	return ""
 
 
@@ -354,6 +364,7 @@ func _free_world() -> void:
 		_world = null
 	_player = null
 	_station = {}
+	_fade.color.a = 0.0   # never leave the screen black if the player was still waking up
 
 
 func _retry() -> void:
@@ -404,13 +415,21 @@ func _rebuild_world() -> void:
 	_player.rotation.y = deg_to_rad(float(_station["spawn_yaw"]))
 	for zone in _station["hazards"]:
 		(zone as HazardZone).hit.connect(_on_hazard_zone_hit)
+	var laser: LaserGrid = _station["laser"]
+	laser.touched.connect(_on_laser_touched)
+	laser.state_changed.connect(_on_laser_state_changed)
 	_world.add_child(_player)
 	_player.target_changed.connect(_on_target_changed)
 	_player.first_move.connect(gm.begin_clock)
 	_player.stepped.connect(sound.play.bind("step"))
 	_player.set_third_person(_third_person)
-	_player.play_wake_up()
-	_fade_in()
+	_player.wake_bed_position = _station["bed_position"]
+	_player.woke_up.connect(_on_player_woke_up)
+	if play_wake_sequence:
+		# The first shift of a run wakes you up in bed; retries and later shifts are shorter.
+		_player.play_wake_up(gm.run_number == 1 and gm.retry_count == 0)
+	else:
+		_fade_in()
 
 	for item in _station["interactables"]:
 		(item as Interactable).interacted.connect(_on_interacted)
@@ -736,6 +755,7 @@ func _open_oracle() -> void:
 	_oracle_panel = OraclePanel.create(oracle)
 	_oracle_panel.closed.connect(_close_oracle)
 	_oracle_panel.hint_requested.connect(_on_hint_requested)
+	_oracle_panel.question_sent.connect(_on_oracle_question_sent)
 	_panel_center.add_child(_oracle_panel)
 	_prompt_label.text = ""
 	get_tree().paused = true
@@ -754,6 +774,27 @@ func _close_oracle() -> void:
 
 ## The hint button is handled here, in game code. The language model is never involved,
 ## and nothing ORACLE (or the player) types can trigger a hint.
+## The player touched the laser grid while it was on.
+func _on_laser_touched(seconds: float) -> void:
+	gm.hazard_damage("laser", seconds)
+	_flash_fault()
+	sound.play("buzz")
+	_show_notice("LASER!  -%d s. Use a wall switch to turn the grid off." % int(seconds))
+
+
+func _on_laser_state_changed(armed: bool) -> void:
+	for laser_switch in _station["laser_switches"]:
+		(laser_switch as Interactable).set_color(Rules.COLOR_VIOLET if armed else Rules.COLOR_CYAN)
+	if armed:
+		sound.play("tick")
+
+
+func _on_oracle_question_sent() -> void:
+	var cost := gm.charge_oracle_question()
+	if is_instance_valid(_oracle_panel):
+		_oracle_panel.add_cost_line(cost)
+
+
 func _on_hint_requested() -> void:
 	var result := gm.use_hint()
 	if is_instance_valid(_oracle_panel):
@@ -855,6 +896,10 @@ func _close_modal() -> void:
 	_refresh_input_state()
 
 
+func _on_player_woke_up() -> void:
+	_fade.color.a = 0.0
+
+
 ## Fades the screen in from black when a shift (or a retry) begins.
 func _fade_in() -> void:
 	_fade.color.a = 1.0
@@ -875,6 +920,10 @@ func _on_interacted(item: Interactable, _player_node: Node) -> void:
 	item.play_press()
 	if id.begins_with("breaker_"):
 		_handle_breaker(int(id.substr("breaker_".length())))
+	elif id.begins_with("laser_switch"):
+		sound.play("click")
+		(_station["laser"] as LaserGrid).switch_off()
+		_show_notice("LASER GRID OFF FOR %d s. Walk through now." % int(Rules.LASER_OFF_SECONDS), 3.0)
 	elif id == "oxygen_console":
 		sound.play("hiss")
 		_open_panel("oxygen")
@@ -942,12 +991,8 @@ func _on_hazard_zone_hit(kind: String, seconds: float, first: bool) -> void:
 	gm.hazard_damage(kind, seconds)
 	if first:
 		_flash_fault()
-		if kind == HazardZone.KIND_GAS:
-			sound.play("hiss")
-			_show_notice("GAS LEAK!  Reserve is draining. Get out or wait for the lamp to turn grey.")
-		else:
-			sound.play("buzz")
-			_show_notice("SPARKS!  -%d s" % int(seconds))
+		sound.play("hiss")
+		_show_notice("GAS LEAK!  Reserve is draining fast. Get out, or wait for the lamp to turn grey.")
 
 
 func _on_mistake_made(system_id: String, penalty_seconds: int) -> void:
