@@ -11,6 +11,9 @@ const SAVE_PATH := "user://screenshot_tool_save.cfg"
 # name, player position, yaw in degrees (0 = looking north), pitch in degrees
 const VIEWS := [
 	["01_bedroom_wake", Vector3(0.0, 0.9, -5.0), 180.0, 0.0],
+	["01b_bed", Vector3(0.9, 0.9, -4.6), 90.0, -10.0],
+	["01c_bed_foot", Vector3(-1.6, 0.9, -2.6), 0.0, -5.0],
+	["01d_window_space", Vector3(11.0, 0.9, -0.6), 160.0, 5.0],
 	["02_corridor_east", Vector3(1.0, 0.9, 0.0), -90.0, 0.0],
 	["03_gas_vent", Vector3(10.5, 0.9, 0.0), -90.0, 0.0],
 	["04_power_room", Vector3(12.0, 0.9, -4.5), 0.0, 5.0],
@@ -59,6 +62,7 @@ func _initialize() -> void:
 	for zone in main._station["hazards"]:
 		(zone as HazardZone)._time = 7.0   # show the gas active
 	var player: PlayerController = main._player
+	player.skip_wake()   # the wake-up sequence keeps the eyes shut
 	player.set_input_enabled(false)
 	if args.size() > 2 and args[2] == "third":
 		player.set_third_person(true)

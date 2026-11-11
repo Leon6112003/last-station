@@ -60,6 +60,13 @@ const GAS_LENGTH := 6.0
 const LASER_X := 30.0                       # laser grid between Oxygen and Comms
 const LASER_SWITCH_DISTANCE := 3.5          # the two off-switches stand this far either side
 
+const WINDOW_XS := [12.0, 24.0, 36.0]        # viewports onto space in the corridor's south wall
+const WINDOW_HALF_WIDTH := 1.6
+const WINDOW_SILL := 0.9
+const WINDOW_TOP := 2.4
+const STAR_COUNT := 500
+const RIB_SPACING := 6.0                     # structural ribs along the corridor
+
 const STRIP_ENERGY_OFF := 0.5     # ceiling strip while the system is down
 const STRIP_ENERGY_ON := 1.1     # ... and once repaired
 const FLOOR_ENERGY_OFF := 0.25    # tinted floor patch while the system is down
@@ -117,7 +124,7 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}) -
 	_add_box(parent, "CorridorCeiling", Vector3(corridor_center_x, h + 0.1, 0.0), Vector3(corridor_length + t, 0.2, corridor_depth + t), ceiling_material)
 	_add_box(parent, "WallWestEnd", Vector3(X_WEST, h * 0.5, 0.0), Vector3(t, h, corridor_depth + t), wall_material)
 	_add_box(parent, "WallEastEnd", Vector3(X_EAST, h * 0.5, 0.0), Vector3(t, h, corridor_depth + t), wall_material)
-	_add_box(parent, "WallSouth", Vector3(corridor_center_x, h * 0.5, HUB_FRONT_Z), Vector3(corridor_length + t, h, t), wall_material)
+	_add_south_wall(parent, wall_material, header_material)
 	for room_x in room_xs:
 		_add_box(parent, "RoomFloor", Vector3(room_x, -0.1, room_center_z), Vector3(ROOM_HALF_WIDTH * 2.0 + t, 0.2, room_depth + t), floor_material)
 		_add_box(parent, "RoomCeiling", Vector3(room_x, h + 0.1, room_center_z), Vector3(ROOM_HALF_WIDTH * 2.0 + t, 0.2, room_depth + t), ceiling_material)
@@ -131,6 +138,7 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}) -
 		_add_wall_segment(parent, cursor, door_x - DOOR_HALF_WIDTH, wall_material)
 		cursor = door_x + DOOR_HALF_WIDTH
 	_add_wall_segment(parent, cursor, X_EAST, wall_material)
+	_add_station_details(parent, theme)
 
 	# --- Doors: a header above each doorway carrying the room's sign, and a frame and
 	# light that are red until the system is repaired.
@@ -308,15 +316,221 @@ static func _add_bedroom_furniture(parent: Node3D) -> void:
 	var mattress := _solid_material(Color(0.55, 0.7, 0.85))
 	var pillow := _solid_material(Color(0.92, 0.93, 0.96))
 	var locker := _solid_material(Color(0.2, 0.24, 0.34))
+	var blanket := _solid_material(Color(0.36, 0.28, 0.62))
+	var rail := _solid_material(Color(0.16, 0.18, 0.26))
 	var bunk_x := BUNK_X
 	var bunk_z := BUNK_Z
-	_add_box(parent, "BunkFrame", Vector3(bunk_x, 0.9, bunk_z), Vector3(1.0, 1.8, 2.1), frame)
-	for level_y in [0.62, 1.42]:
-		_add_glow_box(parent, Vector3(bunk_x + 0.02, level_y, bunk_z), Vector3(0.9, 0.14, 2.0), mattress)
-		_add_glow_box(parent, Vector3(bunk_x, level_y + 0.12, bunk_z - 0.8), Vector3(0.6, 0.1, 0.35), pillow)
+	# An open bunk bed (the lower bunk is the player's): four posts, a solid base for the
+	# lower bed so nobody walks through it, a platform for the upper bunk, mattresses,
+	# a pillow and blanket on each, a headboard at the north end and a ladder at the foot.
+	for corner_x in [-0.5, 0.5]:
+		for corner_z in [-1.05, 1.05]:
+			_add_box(parent, "BunkPost", Vector3(bunk_x + corner_x, 0.95, bunk_z + corner_z), Vector3(0.1, 1.9, 0.1), frame)
+	_add_box(parent, "BedBase", Vector3(bunk_x, 0.25, bunk_z), Vector3(1.0, 0.5, 2.1), frame)
+	_add_box(parent, "UpperBunk", Vector3(bunk_x, 1.3, bunk_z), Vector3(1.0, 0.1, 2.1), frame)
+	_add_box(parent, "Headboard", Vector3(bunk_x, 0.85, bunk_z - 1.07), Vector3(1.0, 1.7, 0.06), rail)
+	for level_y in [0.57, 1.42]:
+		_add_glow_box(parent, Vector3(bunk_x, level_y, bunk_z), Vector3(0.9, 0.14, 2.0), mattress)
+		_add_glow_box(parent, Vector3(bunk_x, level_y + 0.1, bunk_z - 0.8), Vector3(0.6, 0.1, 0.35), pillow)
+		_add_glow_box(parent, Vector3(bunk_x, level_y + 0.09, bunk_z + 0.35), Vector3(0.92, 0.06, 1.15), blanket)
+	# A cyan trim along the head of the bed, so the bunk reads clearly in the dark.
+	_add_glow_box(parent, Vector3(bunk_x, 1.78, bunk_z - 1.04), Vector3(0.9, 0.05, 0.04), _glow_material(Rules.COLOR_CYAN, 1.2))
+	for side in [-0.38, 0.38]:
+		_add_glow_box(parent, Vector3(bunk_x + side, 0.9, bunk_z + 1.14), Vector3(0.05, 1.8, 0.05), rail)
+	for rung_y in [0.3, 0.65, 1.0, 1.35]:
+		_add_glow_box(parent, Vector3(bunk_x, rung_y, bunk_z + 1.14), Vector3(0.76, 0.04, 0.04), rail)
 	for i in 3:
 		_add_box(parent, "Locker", Vector3(BEDROOM_X + 2.6, 0.95, bunk_z - 1.3 + float(i) * 1.0), Vector3(0.5, 1.9, 0.8), locker)
 	_add_box(parent, "Table", Vector3(BEDROOM_X + 0.9, 0.4, ROOM_BACK_Z + 0.6), Vector3(1.0, 0.8, 0.6), frame)
+
+
+## The corridor's south wall: solid, except for three big viewports looking out at space.
+## Each viewport is a thin glass pane (solid, so nobody walks out) in a frame.
+static func _add_south_wall(parent: Node3D, wall_material: Material, frame_material: Material) -> void:
+	var h := Rules.WALL_HEIGHT
+	var t := Rules.WALL_THICKNESS
+	var cursor := X_WEST - t * 0.5
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(0.45, 0.75, 1.0, 0.1)
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.roughness = 0.1
+	var trim := _glow_material(Rules.COLOR_CYAN, 0.9)
+	for window_x in WINDOW_XS:
+		var x0: float = window_x - WINDOW_HALF_WIDTH
+		var x1: float = window_x + WINDOW_HALF_WIDTH
+		_add_box(parent, "WallSouth", Vector3((cursor + x0) * 0.5, h * 0.5, HUB_FRONT_Z), Vector3(x0 - cursor, h, t), wall_material)
+		_add_box(parent, "WallSouth", Vector3(window_x, WINDOW_SILL * 0.5, HUB_FRONT_Z), Vector3(x1 - x0, WINDOW_SILL, t), wall_material)
+		_add_box(parent, "WallSouth", Vector3(window_x, (WINDOW_TOP + h) * 0.5, HUB_FRONT_Z), Vector3(x1 - x0, h - WINDOW_TOP, t), wall_material)
+		_add_box(parent, "WindowGlass", Vector3(window_x, (WINDOW_SILL + WINDOW_TOP) * 0.5, HUB_FRONT_Z), Vector3(x1 - x0, WINDOW_TOP - WINDOW_SILL, 0.06), glass)
+		# A frame on the inside face, and a mullion down the middle.
+		var face_z := HUB_FRONT_Z - t * 0.5 - 0.02
+		var mid_y := (WINDOW_SILL + WINDOW_TOP) * 0.5
+		_add_glow_box(parent, Vector3(window_x, WINDOW_SILL, face_z), Vector3(x1 - x0 + 0.2, 0.1, 0.06), frame_material)
+		_add_glow_box(parent, Vector3(window_x, WINDOW_TOP, face_z), Vector3(x1 - x0 + 0.2, 0.1, 0.06), frame_material)
+		for side in [-1.0, 1.0]:
+			_add_glow_box(parent, Vector3(window_x + side * WINDOW_HALF_WIDTH, mid_y, face_z), Vector3(0.1, WINDOW_TOP - WINDOW_SILL + 0.1, 0.06), frame_material)
+		_add_glow_box(parent, Vector3(window_x, mid_y, face_z), Vector3(0.06, WINDOW_TOP - WINDOW_SILL, 0.05), frame_material)
+		_add_glow_box(parent, Vector3(window_x, WINDOW_SILL + 0.07, face_z - 0.02), Vector3(x1 - x0, 0.03, 0.03), trim)
+		cursor = x1
+	var east := X_EAST + t * 0.5
+	_add_box(parent, "WallSouth", Vector3((cursor + east) * 0.5, h * 0.5, HUB_FRONT_Z), Vector3(east - cursor, h, t), wall_material)
+	_add_space_outside(parent)
+
+
+## What the windows look at: a field of stars and a big planet with a lit crescent and a
+## thin atmosphere. All unshaded and fog-free, so it looks the same in every theme.
+static func _add_space_outside(parent: Node3D) -> void:
+	var star_material := StandardMaterial3D.new()
+	star_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	star_material.vertex_color_use_as_albedo = true
+	star_material.disable_fog = true
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.use_colors = true
+	multi.mesh = BoxMesh.new()
+	multi.instance_count = STAR_COUNT
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5150   # fixed, so every shift has the same sky
+	for i in STAR_COUNT:
+		var position := Vector3(rng.randf_range(-30.0, 80.0), rng.randf_range(-20.0, 45.0), rng.randf_range(25.0, 90.0))
+		var size := rng.randf_range(0.12, 0.34) * position.z / 40.0
+		multi.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3(size, size, size)), position))
+		var tint := rng.randf()
+		multi.set_instance_color(i, Color(1.0, 0.95, 0.85).lerp(Color(0.7, 0.85, 1.0), tint) * rng.randf_range(0.6, 1.0))
+	var stars := MultiMeshInstance3D.new()
+	stars.name = "Stars"
+	stars.multimesh = multi
+	stars.material_override = star_material
+	parent.add_child(stars)
+
+	var centre := Vector3(24.0, 14.0, 125.0)
+	_add_space_sphere(parent, "Atmosphere", centre + Vector3(0.0, 0.0, 2.0), 44.0, Color(0.3, 0.8, 1.0, 0.35))
+	_add_space_sphere(parent, "Planet", centre, 40.0, Color(0.2, 0.42, 0.85))
+	# A second, darker sphere shifted towards the camera and away from the light leaves
+	# only a bright crescent of the planet showing.
+	_add_space_sphere(parent, "PlanetNight", centre + Vector3(13.0, -6.0, -5.0), 40.5, Color(0.015, 0.02, 0.07))
+
+
+static func _add_space_sphere(parent: Node3D, node_name: String, center: Vector3, radius: float, color: Color) -> void:
+	var sphere := SphereMesh.new()
+	sphere.radius = radius
+	sphere.height = radius * 2.0
+	sphere.radial_segments = 48
+	sphere.rings = 24
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_color = color
+	material.disable_fog = true
+	if color.a < 1.0:
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.mesh = sphere
+	instance.material_override = material
+	instance.position = center
+	parent.add_child(instance)
+
+
+## Purely visual details that make the interior read as a space station: structural
+## ribs, ceiling pipes and cable runs, hazard stripes and guide lights along the floor,
+## panel seams in the walls and floor grating. None of it has collision.
+static func _add_station_details(parent: Node3D, theme: Dictionary) -> void:
+	var h := Rules.WALL_HEIGHT
+	var t := Rules.WALL_THICKNESS
+	var wall_color: Color = theme["wall"]
+	var rib_material := _solid_material(wall_color.darkened(0.45))
+	var pipe_material := _solid_material(Color(0.42, 0.46, 0.55))
+	pipe_material.metallic = 0.6
+	pipe_material.roughness = 0.45
+	var cable_material := _solid_material(Color(0.07, 0.07, 0.1))
+	var seam_material := _solid_material(wall_color.darkened(0.55))
+	var north_face := HUB_BACK_Z + t * 0.5
+	var south_face := HUB_FRONT_Z - t * 0.5
+	var length := X_EAST - X_WEST
+	var centre_x := (X_EAST + X_WEST) * 0.5
+
+	# Structural ribs: a frame of two posts and a beam every few metres.
+	var rib_x := X_WEST + RIB_SPACING * 0.5
+	while rib_x < X_EAST:
+		_add_glow_box(parent, Vector3(rib_x, h - 0.2, 0.0), Vector3(0.35, 0.4, HUB_FRONT_Z - HUB_BACK_Z), rib_material)
+		for face in [north_face + 0.1, south_face - 0.1]:
+			_add_glow_box(parent, Vector3(rib_x, h * 0.5, face), Vector3(0.35, h, 0.2), rib_material)
+		rib_x += RIB_SPACING
+
+	# Pipes and a cable bundle along the ceiling.
+	for pipe_z in [-1.05, -0.8, 1.05]:
+		var radius := 0.12 if pipe_z != -0.8 else 0.07
+		_add_pipe(parent, Vector3(centre_x, h - 0.2, pipe_z), length, radius, pipe_material)
+	_add_pipe(parent, Vector3(centre_x, h - 0.12, 0.8), length, 0.05, cable_material)
+	_add_pipe(parent, Vector3(centre_x, h - 0.12, 0.65), length, 0.05, cable_material)
+
+	# Guide lights along the foot of both walls, and a hazard-striped kerb below them.
+	var guide := _glow_material(Rules.COLOR_CYAN, 1.1)
+	var stripes := _hazard_material(length / 0.9)
+	for face in [north_face + 0.02, south_face - 0.02]:
+		_add_glow_box(parent, Vector3(centre_x, 0.3, face), Vector3(length, 0.04, 0.04), guide)
+	for edge_z in [HUB_BACK_Z + 0.4, HUB_FRONT_Z - 0.4]:
+		_add_glow_box(parent, Vector3(centre_x, 0.012, edge_z), Vector3(length, 0.02, 0.22), stripes)
+
+	# Panel seams down the corridor walls and across the floor, like bolted plates.
+	var seam_x := X_WEST + 3.0
+	while seam_x < X_EAST:
+		var near_door := false
+		for door_x in [BEDROOM_X, 12.0, 24.0, 36.0]:
+			near_door = near_door or absf(seam_x - door_x) < 1.4
+		var near_window := false
+		for window_x in WINDOW_XS:
+			near_window = near_window or absf(seam_x - float(window_x)) < WINDOW_HALF_WIDTH + 0.2
+		if not near_door:
+			_add_glow_box(parent, Vector3(seam_x, h * 0.5, north_face + 0.01), Vector3(0.06, h, 0.02), seam_material)
+		if not near_window:
+			_add_glow_box(parent, Vector3(seam_x, h * 0.5, south_face - 0.01), Vector3(0.06, h, 0.02), seam_material)
+		_add_glow_box(parent, Vector3(seam_x, 0.008, 0.0), Vector3(0.05, 0.016, HUB_FRONT_Z - HUB_BACK_Z - 0.9), seam_material)
+		seam_x += 3.0
+
+	# Rooms: ceiling beams and a pipe, so they match the corridor.
+	var room_center_z := (HUB_BACK_Z + ROOM_BACK_Z) * 0.5
+	var room_depth := HUB_BACK_Z - ROOM_BACK_Z
+	var room_xs: Array = [BEDROOM_X] + ROOM_CENTERS_X.values()
+	for room_x in room_xs:
+		for beam_z in [room_center_z - 2.0, room_center_z + 2.0]:
+			_add_glow_box(parent, Vector3(room_x, h - 0.15, beam_z), Vector3(ROOM_HALF_WIDTH * 2.0, 0.3, 0.3), rib_material)
+		_add_pipe(parent, Vector3(room_x + 2.4, h - 0.25, room_center_z), room_depth - 0.4, 0.1, pipe_material, true)
+		_add_pipe(parent, Vector3(room_x - 2.4, h - 0.25, room_center_z), room_depth - 0.4, 0.07, cable_material, true)
+
+
+## A cylinder lying along X (or along Z when `along_z`), centred on `center`.
+static func _add_pipe(parent: Node3D, center: Vector3, length: float, radius: float, material: Material, along_z: bool = false) -> void:
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = radius
+	cylinder.bottom_radius = radius
+	cylinder.height = length
+	cylinder.radial_segments = 10
+	var instance := MeshInstance3D.new()
+	instance.name = "Pipe"
+	instance.mesh = cylinder
+	instance.material_override = material
+	instance.position = center
+	instance.rotation.x = PI * 0.5 if along_z else 0.0
+	instance.rotation.z = 0.0 if along_z else PI * 0.5
+	parent.add_child(instance)
+
+
+## Yellow-and-black warning stripes: a small generated texture repeated `repeats` times.
+static func _hazard_material(repeats: float) -> StandardMaterial3D:
+	var image := Image.create(16, 4, false, Image.FORMAT_RGB8)
+	for x in 16:
+		for y in 4:
+			var yellow := ((x + y * 2) / 4) % 2 == 0
+			image.set_pixel(x, y, Color(0.95, 0.72, 0.1) if yellow else Color(0.08, 0.08, 0.1))
+	var material := StandardMaterial3D.new()
+	material.albedo_texture = ImageTexture.create_from_image(image)
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	material.uv1_scale = Vector3(repeats, 1.0, 1.0)
+	material.emission_enabled = true
+	material.emission = Color(0.95, 0.72, 0.1)
+	material.emission_energy_multiplier = 0.15
+	return material
 
 
 static func _add_beacons(parent: Node3D, center_x: float, lit_count: int) -> void:

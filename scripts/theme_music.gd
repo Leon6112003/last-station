@@ -1,45 +1,56 @@
 class_name ThemeMusic
 extends RefCounted
 ## The game's theme song, composed and synthesised in code (no audio files).
-## Survival mood: slow, dark and tense. Detuned pads that shimmer and beat against each
-## other, harmony full of semitone clashes (D minor, B-flat, G minor with a flat sixth,
-## then an A7 with a flat ninth that never quite resolves), a muted pulse like a nervous
-## heartbeat, a sonar ping with long echoes, a thin haunting bell melody that leans on
-## the semitone, and a hiss that swells before each turn of the loop. It stays in the
-## middle and upper register on purpose: there is no low drone or sub-bass, because a
-## constant low tone is tiring. Eight bars at 66 BPM, about 29 seconds, looping without a
-## seam (every note rings over the end of the loop and wraps to the start).
+## Survival mood: urgent and dangerous rather than ambient. It builds in three stages over
+## twelve bars at 100 BPM (about 29 seconds), then drops back and loops:
+##   bars 1-4   quiet dread: a heartbeat (lub-dub), a rasping string pad on clashing chords,
+##              a metal impact with long echoes, thin bells leaning on the semitone;
+##   bars 5-8   a tense, stalking eighth-note ostinato enters, built on a flat second and a
+##              tritone (A, Bb, Eb), with the heartbeat now closer;
+##   bars 9-12  pressure: the heartbeat doubles, ticking hi-hats, a distant two-tone alarm
+##              (a tritone apart), and a hiss that swells and cuts out before the loop restarts.
+## There is no sustained low tone or sub-bass (a constant low hum is tiring): every pitched
+## note is at or above A3, and the heartbeat is a short thump, not a drone. Every note rings
+## over the end of the loop and wraps to the start, so there is no seam.
 
 const SAMPLE_RATE := 16000
-const BEAT_SAMPLES := 14545                 # 66 BPM at 16000 Hz (about 0.91 s)
+const BEAT_SAMPLES := 9600                  # 100 BPM at 16000 Hz (0.6 s)
 const BEATS_PER_BAR := 4
-const BAR_COUNT := 8
+const BAR_COUNT := 12
 const A3_HZ := 220.0
 
-# Chords as semitones above A3: Dm(add9) with a clash, Bbmaj7, Gm(b6), A7(b9).
+# Chords as semitones above A3, three bars each: Am(b9), Bb, A diminished 7, E7(b9).
 const CHORDS := [
-	[0, 5, 7, 8],
-	[1, 5, 8, 12],
-	[-2, 1, 5, 6],
-	[0, 4, 7, 13],
+	[0, 3, 7, 13],
+	[1, 5, 8, 13],
+	[0, 3, 6, 9],
+	[7, 11, 14, 20],
 ]
-# The pulse: one entry per eighth note of a bar. 0 = rest, otherwise a gain; a nervous,
-# off-beat heartbeat. The pitch alternates between the chord's first two tones.
-const PULSE := [1.0, 0.0, 0.0, 0.55, 0.0, 0.8, 0.0, 0.0]
-# Melody bells: [bar, beat within the bar, semitones above A3]. Sparse, leaning on semitones.
+const BARS_PER_CHORD := 3
+# The ostinato: one entry per eighth note of a bar, [semitones above the chord root, gain].
+const OSTINATO := [
+	[0, 1.0], [0, 0.5], [12, 0.7], [0, 0.5], [1, 0.9], [0, 0.5], [6, 0.8], [0, 0.6],
+]
+const OSTINATO_FIRST_BAR := 4
+const PRESSURE_FIRST_BAR := 8
+# Melody bells: [bar, beat within the bar, semitones above A3]. High, sparse, on the semitone.
 const MELODY := [
-	[0, 0.0, 12], [0, 3.0, 13], [1, 0.0, 12], [1, 2.0, 8],
-	[2, 0.0, 10], [2, 3.0, 8], [3, 0.0, 13], [3, 2.0, 12],
-	[4, 1.0, 19], [5, 2.0, 20], [6, 0.0, 17], [7, 0.0, 16],
+	[1, 0.0, 24], [1, 2.5, 25], [3, 0.0, 24], [3, 3.0, 20],
+	[5, 1.0, 25], [7, 0.0, 24], [7, 2.0, 22],
+	[9, 0.0, 25], [11, 0.0, 24], [11, 2.0, 18],
 ]
-# Sonar pings: [bar, semitones above A3].
-const PINGS := [[2, 24], [6, 22]]
+# Metal impacts: [bar, beat, gain].
+const IMPACTS := [[0, 0.0, 1.0], [6, 2.0, 0.7]]
+const ALARM_SEMITONES := [12, 18]           # A4 then Eb5: a tritone apart
 
-const PAD_GAIN := 0.1
-const PULSE_GAIN := 0.2
-const MELODY_GAIN := 0.3
-const PING_GAIN := 0.22
-const ECHO_DELAY_BEATS := 1.5               # a slow echo for the ping and bells
+const PAD_GAIN := 0.06
+const HEART_GAIN := 0.38
+const OSTINATO_GAIN := 0.15
+const TICK_GAIN := 0.07
+const MELODY_GAIN := 0.2
+const IMPACT_GAIN := 0.32
+const ALARM_GAIN := 0.05
+const ECHO_DELAY_BEATS := 1.5
 const RISER_GAIN := 0.1
 const PEAK := 0.7                           # the finished loop is scaled to this peak
 
@@ -60,100 +71,161 @@ static func build() -> AudioStreamWAV:
 	var cache := {}
 	var bar_samples := BEAT_SAMPLES * BEATS_PER_BAR
 	var eighth := BEAT_SAMPLES / 2
+	var echo := int(ECHO_DELAY_BEATS * BEAT_SAMPLES)
 
 	for bar in BAR_COUNT:
-		var chord: Array = CHORDS[bar % CHORDS.size()]
+		var chord: Array = CHORDS[(bar / BARS_PER_CHORD) % CHORDS.size()]
 		var bar_start := bar * bar_samples
-		# Pad: each chord tone swells in and out over the bar, shimmering against itself.
 		for semitone in chord:
 			_add_pad(mix, bar_start, bar_samples, int(semitone), cache)
-		# Pulse: muted plucks on the chord's first two tones.
-		for step in PULSE.size():
-			var gain: float = PULSE[step]
-			if gain > 0.0:
-				var tone: int = int(chord[0 if step % 4 < 2 else 1])
-				_add_wave(mix, bar_start + step * eighth, _muted_pluck(tone, cache), PULSE_GAIN * gain)
+		_add_heartbeat(mix, bar, bar_start, cache)
+		if bar >= OSTINATO_FIRST_BAR:
+			var level := 1.0 if bar >= PRESSURE_FIRST_BAR else 0.6
+			for step in OSTINATO.size():
+				var tone: int = int(chord[0]) + int(OSTINATO[step][0])
+				var gain: float = float(OSTINATO[step][1]) * level
+				_add_wave(mix, bar_start + step * eighth, _saw_pluck(tone, cache), OSTINATO_GAIN * gain)
+		if bar >= PRESSURE_FIRST_BAR:
+			for step in range(1, 8, 2):   # hi-hat ticks on the off eighths
+				_add_wave(mix, bar_start + step * eighth, _tick(cache), TICK_GAIN)
+			for beat in 2:
+				var note: int = ALARM_SEMITONES[beat]
+				_add_wave(mix, bar_start + beat * BEAT_SAMPLES, _alarm(note, cache), ALARM_GAIN)
 	for note in MELODY:
 		var start := int(note[0]) * bar_samples + int(float(note[1]) * BEAT_SAMPLES)
-		var echo := int(ECHO_DELAY_BEATS * BEAT_SAMPLES)
 		_add_wave(mix, start, _bell(int(note[2]), cache), MELODY_GAIN)
 		_add_wave(mix, start + echo, _bell(int(note[2]), cache), MELODY_GAIN * 0.3)
-	for ping in PINGS:
-		var start := int(ping[0]) * bar_samples
-		var echo := int(ECHO_DELAY_BEATS * BEAT_SAMPLES)
-		_add_wave(mix, start, _ping(int(ping[1]), cache), PING_GAIN)
-		_add_wave(mix, start + echo, _ping(int(ping[1]), cache), PING_GAIN * 0.5)
-		_add_wave(mix, start + 2 * echo, _ping(int(ping[1]), cache), PING_GAIN * 0.25)
-	# A hiss swells through the last bar, then drops away just before the loop restarts.
-	_add_riser(mix, (BAR_COUNT - 1) * bar_samples, bar_samples)
-	# A smaller one before the halfway point.
-	_add_riser(mix, 3 * bar_samples, bar_samples)
+	for hit in IMPACTS:
+		var start := int(hit[0]) * bar_samples + int(float(hit[1]) * BEAT_SAMPLES)
+		var gain: float = IMPACT_GAIN * float(hit[2])
+		_add_wave(mix, start, _impact(cache), gain)
+		_add_wave(mix, start + echo, _impact(cache), gain * 0.35)
+		_add_wave(mix, start + 2 * echo, _impact(cache), gain * 0.12)
+	# A hiss swells through the last bar of each half; the second drops away before the loop restarts.
+	_add_riser(mix, 7 * bar_samples, bar_samples)
+	_add_riser(mix, 11 * bar_samples, bar_samples)
 
 	return _to_stream(mix, total)
 
 
-## A plucked note: a sine with a quick-decaying second harmonic.
-static func _pluck(semitone: int, cache: Dictionary) -> PackedFloat32Array:
-	var key := "p%d" % semitone
+## The heartbeat: a "lub-dub" on beats 1 and 3, doubling to every beat in the pressure section.
+static func _add_heartbeat(mix: PackedFloat32Array, bar: int, bar_start: int, cache: Dictionary) -> void:
+	var beats := [0.0, 1.0, 2.0, 3.0] if bar >= PRESSURE_FIRST_BAR else [0.0, 2.0]
+	var dub_delay := int(0.42 * BEAT_SAMPLES)
+	for beat in beats:
+		var start := bar_start + int(float(beat) * BEAT_SAMPLES)
+		_add_wave(mix, start, _thump(cache), HEART_GAIN)
+		_add_wave(mix, start + dub_delay, _thump(cache), HEART_GAIN * 0.6)
+
+
+## A thump: a short sine that falls quickly in pitch, so it is felt as a beat, not a tone.
+static func _thump(cache: Dictionary) -> PackedFloat32Array:
+	if cache.has("thump"):
+		return cache["thump"]
+	var count := int(0.35 * SAMPLE_RATE)
+	var wave := PackedFloat32Array()
+	wave.resize(count)
+	var phase := 0.0
+	for i in count:
+		var t := float(i) / SAMPLE_RATE
+		var f := 62.0 + 80.0 * exp(-t * 28.0)
+		phase += TAU * f / SAMPLE_RATE
+		wave[i] = sin(phase) * exp(-t * 11.0) * minf(1.0, t * 600.0)
+	cache["thump"] = wave
+	return wave
+
+
+## A stalking note: a sawtooth-ish pluck (harmonics falling off at different speeds), so
+## it sounds bowed and rasping, with a short decay.
+static func _saw_pluck(semitone: int, cache: Dictionary) -> PackedFloat32Array:
+	var key := "s%d" % semitone
 	if cache.has(key):
 		return cache[key]
 	var f := hz(semitone)
-	var count := int(1.4 * SAMPLE_RATE)
+	var count := int(0.3 * SAMPLE_RATE)
 	var wave := PackedFloat32Array()
 	wave.resize(count)
 	for i in count:
 		var t := float(i) / SAMPLE_RATE
-		var attack := minf(1.0, t * 400.0)
-		wave[i] = (sin(TAU * f * t) * exp(-t * 3.2) + 0.35 * sin(TAU * 2.0 * f * t) * exp(-t * 7.0)) * attack
+		var sum := 0.0
+		for h in range(1, 6):
+			sum += sin(TAU * f * h * t) / h * exp(-t * (6.0 + 5.0 * h))
+		wave[i] = sum * minf(1.0, t * 500.0)
 	cache[key] = wave
 	return wave
 
 
-## A bell: a sine plus a slightly inharmonic overtone, ringing longer than a pluck.
+## A bell: a sine plus a slightly inharmonic overtone, ringing long.
 static func _bell(semitone: int, cache: Dictionary) -> PackedFloat32Array:
 	var key := "b%d" % semitone
 	if cache.has(key):
 		return cache[key]
 	var f := hz(semitone)
-	var count := int(2.6 * SAMPLE_RATE)
+	var count := int(2.2 * SAMPLE_RATE)
 	var wave := PackedFloat32Array()
 	wave.resize(count)
 	for i in count:
 		var t := float(i) / SAMPLE_RATE
 		var attack := minf(1.0, t * 250.0)
-		wave[i] = (sin(TAU * f * t) * exp(-t * 1.7) + 0.3 * sin(TAU * 2.01 * f * t) * exp(-t * 3.5)) * attack
+		wave[i] = (sin(TAU * f * t) * exp(-t * 1.9) + 0.3 * sin(TAU * 2.01 * f * t) * exp(-t * 3.8)) * attack
 	cache[key] = wave
 	return wave
 
 
-## A muted, short pluck: the pulse. Low in loudness, with almost no ring.
-static func _muted_pluck(semitone: int, cache: Dictionary) -> PackedFloat32Array:
-	var key := "m%d" % semitone
-	if cache.has(key):
-		return cache[key]
-	var f := hz(semitone)
-	var count := int(0.45 * SAMPLE_RATE)
-	var wave := PackedFloat32Array()
-	wave.resize(count)
-	for i in count:
-		var t := float(i) / SAMPLE_RATE
-		wave[i] = (sin(TAU * f * t) + 0.3 * sin(TAU * 2.0 * f * t)) * exp(-t * 11.0) * minf(1.0, t * 300.0)
-	cache[key] = wave
-	return wave
-
-
-## A sonar ping: a clean sine with a slow decay, meant to be echoed.
-static func _ping(semitone: int, cache: Dictionary) -> PackedFloat32Array:
-	var key := "g%d" % semitone
-	if cache.has(key):
-		return cache[key]
-	var f := hz(semitone)
+## A metallic impact: a burst of noise and inharmonic partials, like a pipe struck in a
+## big dark room. Meant to be echoed.
+static func _impact(cache: Dictionary) -> PackedFloat32Array:
+	if cache.has("impact"):
+		return cache["impact"]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 100
 	var count := int(1.8 * SAMPLE_RATE)
 	var wave := PackedFloat32Array()
 	wave.resize(count)
+	var base := 310.0
+	var ratios := [1.0, 2.76, 5.4, 8.93]
 	for i in count:
 		var t := float(i) / SAMPLE_RATE
-		wave[i] = sin(TAU * f * t) * exp(-t * 2.4) * minf(1.0, t * 120.0)
+		var sum := rng.randf_range(-1.0, 1.0) * exp(-t * 60.0) * 0.8
+		for k in ratios.size():
+			sum += sin(TAU * base * float(ratios[k]) * t) * exp(-t * (2.2 + 1.6 * k)) / float(k + 1)
+		wave[i] = sum * minf(1.0, t * 800.0)
+	cache["impact"] = wave
+	return wave
+
+
+## A hi-hat tick: a very short burst of high-passed noise.
+static func _tick(cache: Dictionary) -> PackedFloat32Array:
+	if cache.has("tick"):
+		return cache["tick"]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var count := int(0.05 * SAMPLE_RATE)
+	var wave := PackedFloat32Array()
+	wave.resize(count)
+	var previous := 0.0
+	for i in count:
+		var t := float(i) / SAMPLE_RATE
+		var noise := rng.randf_range(-1.0, 1.0)
+		wave[i] = (noise - previous) * exp(-t * 110.0)
+		previous = noise
+	cache["tick"] = wave
+	return wave
+
+
+## A distant alarm beep: a soft square-ish tone (odd harmonics) with a gentle shape.
+static func _alarm(semitone: int, cache: Dictionary) -> PackedFloat32Array:
+	var key := "a%d" % semitone
+	if cache.has(key):
+		return cache[key]
+	var f := hz(semitone)
+	var count := int(0.42 * SAMPLE_RATE)
+	var wave := PackedFloat32Array()
+	wave.resize(count)
+	for i in count:
+		var t := float(i) / SAMPLE_RATE
+		var shape := minf(1.0, t * 80.0) * minf(1.0, (0.42 - t) * 40.0)
+		wave[i] = (sin(TAU * f * t) + sin(TAU * 3.0 * f * t) / 3.0 + sin(TAU * 5.0 * f * t) / 5.0) * shape
 	cache[key] = wave
 	return wave
 
@@ -175,9 +247,10 @@ static func _add_riser(mix: PackedFloat32Array, start: int, span: int) -> void:
 		mix[(start + i) % total] += smooth * envelope * RISER_GAIN
 
 
-## One pad tone across a bar. A one-second cycle of the tone is rendered once (the pitch
-## is rounded to a whole number of hertz so the cycle repeats cleanly) and then tiled
-## under a slow swell envelope that overlaps into the next bar.
+## One string-pad tone across a bar. A one-second cycle of the tone (a sawtooth built from a
+## few harmonics, with a second copy one hertz higher beating against it) is rendered once,
+## with the pitch rounded to a whole number of hertz so the cycle repeats cleanly, and then
+## tiled under a swell envelope that overlaps into the next bar.
 static func _add_pad(mix: PackedFloat32Array, bar_start: int, bar_samples: int, semitone: int, cache: Dictionary) -> void:
 	var f := roundf(hz(semitone))
 	var key := "pad%d" % int(f)
@@ -186,8 +259,10 @@ static func _add_pad(mix: PackedFloat32Array, bar_start: int, bar_samples: int, 
 		cycle.resize(SAMPLE_RATE)
 		for i in SAMPLE_RATE:
 			var t := float(i) / SAMPLE_RATE
-			# A second oscillator one hertz higher beats against the first: an eerie shimmer.
-			cycle[i] = sin(TAU * f * t) * 0.5 + sin(TAU * (f + 1.0) * t) * 0.4 + sin(TAU * 2.0 * f * t) * 0.12
+			var sum := 0.0
+			for h in range(1, 5):
+				sum += (sin(TAU * f * h * t) * 0.6 + sin(TAU * (f + 1.0) * h * t) * 0.4) / h
+			cycle[i] = sum
 		cache[key] = cycle
 	var cycle: PackedFloat32Array = cache[key]
 	var length := bar_samples + int(0.8 * SAMPLE_RATE)
@@ -225,6 +300,5 @@ static func _to_stream(mix: PackedFloat32Array, total: int) -> AudioStreamWAV:
 	stream.stereo = false
 	stream.data = bytes
 	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
-	stream.loop_begin = 0
 	stream.loop_end = total
 	return stream
