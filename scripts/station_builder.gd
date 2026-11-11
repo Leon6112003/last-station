@@ -22,7 +22,7 @@ extends RefCounted
 ## console), never floating; text of one kind uses one size.
 
 const X_WEST := -5.0         # west end of the corridor (centre of the end wall)
-const X_EAST := 53.0         # east end of the corridor
+const X_EAST := 65.0         # east end of the corridor
 const HUB_FRONT_Z := 1.5     # south wall of the corridor
 const HUB_BACK_Z := -1.5     # wall between the corridor and the rooms
 const ROOM_BACK_Z := -7.5    # north wall of the rooms
@@ -41,6 +41,7 @@ const ROOM_FLOOR_TINT := {
 	"comms": Color(0.30, 0.24, 0.10),
 	"cooling": Color(0.16, 0.20, 0.42),
 }
+const CRYO_X := 60.0         # the optional Cryo Bay, past the Cooling room (never locked)
 const BUNK_X := BEDROOM_X - 1.6
 const BUNK_Z := (HUB_BACK_Z + ROOM_BACK_Z) * 0.5
 const SPAWN_POSITION := Vector3(BEDROOM_X - 0.6, 0.9, BUNK_Z)   # beside the bunk, in line with the door
@@ -89,6 +90,7 @@ const FONT_SMALL := 22
 ##   "interactables": Array[Interactable],
 ##   "breakers": Array[Interactable],            # B1..B4 in index order
 ##   "consoles": {"oxygen": Interactable, "comms": Interactable, "cooling": Interactable},
+##   "pods": Array[StandardMaterial3D],         # the glow of each cryo pod (red while the station is broken)
 ##   "reactor": StandardMaterial3D,              # the cooling room's reactor core (orange until repaired)
 ##   "reboot": Interactable,
 ##   "room_lights": {room_id: OmniLight3D},
@@ -121,7 +123,7 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 	var corridor_depth := HUB_FRONT_Z - HUB_BACK_Z                  # 3 m
 	var room_depth := HUB_BACK_Z - ROOM_BACK_Z                      # 6 m
 	var room_center_z := (HUB_BACK_Z + ROOM_BACK_Z) * 0.5           # -4.5 m
-	var room_xs: Array = [BEDROOM_X] + ROOM_CENTERS_X.values()
+	var room_xs: Array = [BEDROOM_X] + ROOM_CENTERS_X.values() + [CRYO_X]
 
 	# --- Shell: the corridor, then each room, built from boxes.
 	_add_box(parent, "CorridorFloor", Vector3(corridor_center_x, -0.1, 0.0), Vector3(corridor_length + t, 0.2, corridor_depth + t), floor_material)
@@ -155,7 +157,7 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 	var header_height := h - DOOR_HEIGHT
 	var hub_light := _add_light(parent, Vector3(BEDROOM_X, 2.9, 0.0), Rules.COLOR_FAULT, 0.0, 7.0)
 	# Dim corridor lights, one between every pair of doors, so the walk is never pitch black.
-	for corridor_light_x in [-2.5, 6.0, 18.0, 30.0, 42.0, 51.0]:
+	for corridor_light_x in [-2.5, 6.0, 18.0, 30.0, 42.0, 54.0, 62.5]:
 		_add_light(parent, Vector3(corridor_light_x, 2.6, 0.0), theme["hub_light"], HUB_LIGHT_ENERGY, 8.0)
 
 	for room_id in ROOM_CENTERS_X:
@@ -281,6 +283,9 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 	interactables.append(cooling_console)
 	_add_label(parent, "COOLANT\nCONTROL", Vector3(cooling_x, 1.35, ROOM_BACK_Z + 0.5 + 0.3 + 0.01), 30, Rules.COLOR_GOLD)
 
+	# --- The optional Cryo Bay at the east end: the sleeping crew and four log terminals.
+	var pods := _add_cryo_bay(parent, theme, interactables)
+
 	# --- The reboot terminal at the west end of the corridor, facing east. The player has
 	# to walk all the way back to it once everything is repaired.
 	var reboot_x := X_WEST + 0.6
@@ -330,6 +335,7 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 		"breakers": breakers,
 		"consoles": {"oxygen": oxygen_console, "comms": comms_console, "cooling": cooling_console},
 		"reactor": reactor_material,
+		"pods": pods,
 		"reboot": reboot,
 		"room_lights": room_lights,
 		"door_labels": door_labels,
@@ -504,7 +510,7 @@ static func _add_station_details(parent: Node3D, theme: Dictionary) -> void:
 	# Guide lights along the foot of both walls, and a hazard-striped kerb beside them. On the
 	# wall with the doors they stop at each doorway instead of running across the opening.
 	var guide := _glow_material(Rules.COLOR_CYAN, 1.1)
-	var door_xs: Array = [BEDROOM_X] + ROOM_CENTERS_X.values()
+	var door_xs: Array = [BEDROOM_X] + ROOM_CENTERS_X.values() + [CRYO_X]
 	var runs: Array = []   # [from_x, to_x] stretches of that wall between the doorways
 	var run_start := X_WEST
 	for door_x in door_xs:
@@ -523,7 +529,7 @@ static func _add_station_details(parent: Node3D, theme: Dictionary) -> void:
 	var seam_x := X_WEST + 3.0
 	while seam_x < X_EAST:
 		var near_door := false
-		for door_x in [BEDROOM_X, 12.0, 24.0, 36.0]:
+		for door_x in [BEDROOM_X, 12.0, 24.0, 36.0, 48.0, CRYO_X]:
 			near_door = near_door or absf(seam_x - door_x) < 1.4
 		var near_window := false
 		for window_x in WINDOW_XS:
@@ -537,7 +543,7 @@ static func _add_station_details(parent: Node3D, theme: Dictionary) -> void:
 	# Rooms: ceiling beams and a pipe, so they match the corridor.
 	var room_center_z := (HUB_BACK_Z + ROOM_BACK_Z) * 0.5
 	var room_depth := HUB_BACK_Z - ROOM_BACK_Z
-	var room_xs: Array = [BEDROOM_X] + ROOM_CENTERS_X.values()
+	var room_xs: Array = [BEDROOM_X] + ROOM_CENTERS_X.values() + [CRYO_X]
 	for room_x in room_xs:
 		for beam_z in [room_center_z - 0.5, room_center_z + 2.0]:   # none near the back wall, where the displays are
 			_add_glow_box(parent, Vector3(room_x, h - 0.15, beam_z), Vector3(ROOM_HALF_WIDTH * 2.0, 0.3, 0.3), rib_material)
@@ -577,6 +583,84 @@ static func _hazard_material(repeats: float) -> StandardMaterial3D:
 	material.emission = Color(0.95, 0.72, 0.1)
 	material.emission_energy_multiplier = 0.15
 	return material
+
+
+## The Cryo Bay: an open doorway (never locked), six pods with the sleeping crew, and four
+## terminals that show the crew's logs. Optional: nothing in it affects the rules. The pods
+## glow red while the station is broken and turn cyan as it is repaired (see main.gd).
+## Returns the pods' glow materials.
+static func _add_cryo_bay(parent: Node3D, theme: Dictionary, interactables: Array[Interactable]) -> Array[StandardMaterial3D]:
+	var h := Rules.WALL_HEIGHT
+	var t := Rules.WALL_THICKNESS
+	var header_height := h - DOOR_HEIGHT
+	var room_center_z := (HUB_BACK_Z + ROOM_BACK_Z) * 0.5
+	var room_depth := HUB_BACK_Z - ROOM_BACK_Z
+	var cx := CRYO_X
+	# The doorway's header and sign, and a calm cyan frame (this door is never locked).
+	_add_box(parent, "Header", Vector3(cx, DOOR_HEIGHT + header_height * 0.5, HUB_BACK_Z),
+		Vector3(DOOR_HALF_WIDTH * 2.0, header_height, t), _solid_material((theme["wall"] as Color).darkened(0.35)))
+	_add_screen(parent, Vector3(cx, DOOR_HEIGHT + header_height * 0.55, HUB_FACE_Z - PLATE_OFFSET), Vector2(1.7, 0.46))
+	_add_label(parent, "CRYO BAY", Vector3(cx, DOOR_HEIGHT + header_height * 0.55, HUB_FACE_Z), 32, Rules.COLOR_CYAN)
+	var frame := _glow_material(Rules.COLOR_CYAN, 1.1)
+	var face_z := HUB_BACK_Z + t * 0.5 + 0.01
+	_add_glow_box(parent, Vector3(cx, DOOR_HEIGHT + 0.06, face_z), Vector3(DOOR_HALF_WIDTH * 2.0 - 0.1, 0.05, 0.02), frame)
+	for side in [-1.0, 1.0]:
+		_add_glow_box(parent, Vector3(cx + side * (DOOR_HALF_WIDTH - 0.04), DOOR_HEIGHT * 0.5, face_z), Vector3(0.06, DOOR_HEIGHT, 0.02), frame)
+	# Cold light, a pale floor patch and a ceiling strip.
+	_add_light(parent, Vector3(cx, 2.6, room_center_z), Color(0.5, 0.75, 1.0), 1.3, 7.0)
+	_add_flat(parent, "RoomFloor", Vector3(cx, 0.011, room_center_z), Vector2(ROOM_HALF_WIDTH * 2.0 - 0.3, room_depth - 0.3), Color(0.12, 0.2, 0.34))
+	_add_glow_box(parent, Vector3(cx, h - 0.04, room_center_z), Vector3(0.25, 0.05, room_depth - 1.0), _glow_material(Color(0.5, 0.75, 1.0), 0.6))
+	_add_label(parent, "THE CREW SLEEPS", Vector3(cx, 2.75, ROOM_FACE_Z), 36, Color(0.6, 0.85, 1.0))
+
+	# Six pods, three along each side wall. Each has a solid base, a glass lid, a sleeper
+	# in a coloured suit, and a name plate facing the middle of the room.
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(0.5, 0.8, 1.0, 0.16)
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.roughness = 0.1
+	var base_material := _solid_material(Color(0.22, 0.25, 0.34))
+	var skin := _solid_material(Color(0.88, 0.7, 0.58))
+	var pods: Array[StandardMaterial3D] = []
+	for i in CrewLogs.CREW.size():
+		var side := -1.0 if i < 3 else 1.0
+		var pod_x := cx + side * 2.35
+		var pod_z := ROOM_BACK_Z + 2.4 + float(i % 3) * 1.35
+		_add_box(parent, "PodBase", Vector3(pod_x, 0.3, pod_z), Vector3(0.9, 0.6, 1.25), base_material)
+		var glow := _glow_material(Rules.COLOR_FAULT, 1.0)
+		pods.append(glow)
+		_add_glow_box(parent, Vector3(pod_x - side * 0.38, 0.45, pod_z), Vector3(0.05, 0.08, 1.2), glow)   # a light strip on the inner side
+		_add_glow_box(parent, Vector3(pod_x, 0.96, pod_z), Vector3(0.84, 0.5, 1.2), glass)
+		# The sleeper: a capsule lying along the pod in a suit colour, with a head.
+		var suit := _solid_material(CrewLogs.CREW[i]["suit"])
+		var body := CapsuleMesh.new()
+		body.radius = 0.15
+		body.height = 0.95
+		var body_instance := MeshInstance3D.new()
+		body_instance.mesh = body
+		body_instance.material_override = suit
+		body_instance.position = Vector3(pod_x, 0.82, pod_z + 0.05)
+		body_instance.rotation.x = PI * 0.5
+		parent.add_child(body_instance)
+		var head := SphereMesh.new()
+		head.radius = 0.12
+		head.height = 0.24
+		var head_instance := MeshInstance3D.new()
+		head_instance.mesh = head
+		head_instance.material_override = skin
+		head_instance.position = Vector3(pod_x, 0.84, pod_z - 0.5)
+		parent.add_child(head_instance)
+		_add_label(parent, "%s\n%s" % [CrewLogs.CREW[i]["pod"], CrewLogs.CREW[i]["name"]],
+			Vector3(pod_x - side * 0.46, 1.4, pod_z), 16, Color(0.8, 0.92, 1.0), -90.0 * side)
+
+	# Four log terminals along the back wall.
+	for n in CrewLogs.count():
+		var terminal_x := cx + (float(n) - 1.5) * 1.5
+		var terminal := _add_interactable(
+			parent, "crew_log_%d" % (n + 1), "READ CREW LOG %d" % (n + 1),
+			Vector3(terminal_x, TERMINAL_HEIGHT * 0.5, ROOM_BACK_Z + 0.4), Vector3(0.9, TERMINAL_HEIGHT, 0.4), Rules.COLOR_CYAN)
+		interactables.append(terminal)
+		_add_label(parent, "CREW\nLOG %d" % (n + 1), Vector3(terminal_x, 1.35, ROOM_BACK_Z + 0.4 + 0.2 + 0.01), 28, Color(0.06, 0.05, 0.12), 0.0, 0)
+	return pods
 
 
 static func _add_beacons(parent: Node3D, center_x: float, lit_count: int) -> void:

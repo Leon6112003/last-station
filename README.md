@@ -75,6 +75,10 @@ Pick **Rookie**, **Engineer** or **Survivor** on the main menu (your choice is s
 
 All the numbers live in `scripts/rules.gd` (`LEVELS`); the manuals have a "Levels" entry that `tests/test_kb_sync.gd` keeps in sync with it. The numbers are estimates and have not been tuned by play.
 
+## The Cryo Bay (optional story)
+
+Past the Cooling room, at the east end of the corridor, an open door leads to the **Cryo Bay**: six pods with the sleeping crew (their name plates are on the pods) and four terminals, **CREW LOG 1 to 4**, that tell what happened to the station. The pods glow red while the station is broken and turn cyan as you repair it. Press **E** at a terminal to read a log; like the manuals it pauses the game, so reading costs no reserve. The logs are story only: no rule, score or puzzle answer, and nothing in the room changes the game. Which logs you have read is remembered in the save file. It is a detour (about 12 m past Cooling and back), so it costs real time if you go while the clock runs.
+
 ## Sound and feel
 
 **Theme song:** a 29-second, 100 BPM loop in two layers that play in sync. The calm layer is always on: a slow heartbeat, a rasping string pad on clashing chords, thin bells and a metal impact with long echoes. The tense layer is already faintly there when a shift begins and swells in as the danger rises (the reserve draining, a gas vent open near you, the live laser grid close, or a hit you just took) and fades out again when you are safe: a stalking ostinato built on a flat second and a tritone, a second heartbeat, hi-hat ticks, a distant alarm and a rising hiss. It plays over the opening intro and the menu (calm only) and carries on into the shift without restarting. It is composed and synthesised in code when the game opens (about half a second, no audio file); every pitched note is A3 or higher and there is no sustained low tone, only short heartbeat thumps. It fades in and stops in pause and on the results screens. **B** turns it off, **N** mutes everything. It is verified by tests for length, loop seam, loudness and pitch range; how it sounds has not been judged by a person yet.
@@ -87,7 +91,7 @@ Feel: a gentle head bob and footsteps while walking (each footstep sound plays w
 
 ## The walk (corridor, doors and hazards)
 
-The station is one long corridor (about 58 m) with the crew quarters, Power, Oxygen, Comms and Cooling rooms along it, 12 m apart, and the reboot terminal at the far west end, so a shift is a real walk there and back.
+The station is one long corridor (about 70 m) with the crew quarters, Power, Oxygen, Comms and Cooling rooms along it, 12 m apart (and the optional Cryo Bay at the far east end), and the reboot terminal at the far west end, so a shift is a real walk there and back.
 
 - **Doors in order:** the Oxygen door stays locked until Power is repaired, the Comms door until Oxygen is repaired, and the Cooling door until Comms is repaired. Each shows what it needs and slides open when its system is repaired.
 - **Two gas vents** (one between the quarters and Power, one between Power and Oxygen): a lamp above each is grey (quiet), amber (warning) or red (venting). Standing in venting gas costs 12 reserve seconds per second. Wait for grey.
@@ -141,7 +145,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 ```
 ./tests/run_all.sh        # needs `godot` on PATH
 ```
-23 headless test files, 934 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
+24 headless test files, 966 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
 
 ## Changes since the original spec
 
@@ -151,6 +155,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 - **Guided first shift and protocol board:** shift 1 is always Protocol A with a "what to do next" line; a big sign in the crew quarters shows the protocol.
 - **The walk (added after playtesting feedback):** the compact hub became a bedroom start, a long corridor, far rooms, doors that unlock in order, and gas and spark hazards (see "The walk").
 - **Redesigned look (after playtesting feedback):** every door has a header sign, a frame and a light that turn from red to cyan when its system is repaired; two matching boards flank the middle door (the protocol, and how to get help); each room has a tinted floor and a ceiling strip, and the room lights up (bright cyan strip and floor) when repaired; the hub light flickers, and under a minute of reserve the station pulses red with a red screen-edge vignette (visual only, rules unchanged); breaker ratings are printed on the breakers; each room has one tidy display panel; the reboot terminal is labelled and turns cyan when ready.
+- **Cryo Bay (added later):** an optional room with the sleeping crew and four story logs (see "The Cryo Bay").
 - **Hazards that grow (added later):** vents and laser switches get harsher each shift, and a second laser grid appears from shift 3 (see "The walk").
 - **Fourth system, Cooling (added later):** a reactor room past Comms with a CORE TEMP and a REACTOR state; the coolant flow is a formula that differs by protocol, and the core cools from orange to cyan when repaired. Reboot now needs 4/4.
 - **Hints:** ORACLE's Get a hint button costs reserve time (20 s on Engineer). The hint is computed by the game, not the AI.

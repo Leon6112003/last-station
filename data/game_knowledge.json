@@ -315,6 +315,27 @@
   ]
  },
  {
+  "id": "cryo_bay",
+  "title": "Cryo Bay",
+  "text": "The Cryo Bay is an optional room at the east end of the corridor, past the Cooling room. Its door is never locked. Six pods hold the sleeping crew; they glow red while the station is broken and turn cyan as you repair it. Four terminals show the crew's logs, which tell the story. Reading them pauses the game and changes nothing: no rule, no score, no reserve.",
+  "keywords": [
+   "cryo",
+   "bay",
+   "crew",
+   "pods",
+   "pod",
+   "sleeping",
+   "logs",
+   "log",
+   "story",
+   "optional",
+   "terminal",
+   "read",
+   "east",
+   "end"
+  ]
+ },
+ {
   "id": "mistake_penalties",
   "title": "Mistake Penalties",
   "text": "Mistakes cost reserve time (Engineer values). A wrong breaker (a power surge) costs 15 seconds. Wrong valve settings, a wrong frequency and a wrong coolant flow cost 10 seconds each. The reserve never goes below zero.",

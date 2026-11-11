@@ -14,7 +14,7 @@ func _initialize() -> void:
 	_check(station.has("spawn"), "station returns a spawn position")
 
 	var items: Array = station["interactables"]
-	_check(items.size() == 10, "station has 10 interactables (4 breakers, 3 consoles, reboot terminal, 2 laser switches), got %d" % items.size())
+	_check(items.size() == 14, "station has 14 interactables (4 breakers, 3 consoles, reboot terminal, 2 laser switches, 4 crew logs), got %d" % items.size())
 
 	var ids := items.map(func(i: Interactable) -> String: return i.id)
 	for expected in ["breaker_0", "breaker_1", "breaker_2", "breaker_3", "oxygen_console", "comms_console", "cooling_console", "reboot_terminal"]:
@@ -33,7 +33,7 @@ func _initialize() -> void:
 			return false   # the laser barrier has only a collider
 		var mesh := (b.get_child(0) as MeshInstance3D).mesh as BoxMesh
 		return b.position.y > 2.3 and b.position.y < 2.9 and absf(mesh.size.x - 2.0) < 0.01 and mesh.size.y < 1.0)
-	_check(headers.size() == 5, "there is a header above each of the five doorways: crew quarters and four systems (found %d)" % headers.size())
+	_check(headers.size() == 6, "there is a header above each of the six doorways: crew quarters, four systems and the cryo bay (found %d)" % headers.size())
 	var clear_height := true
 	for header in headers:
 		var box := ((header as StaticBody3D).get_child(0) as MeshInstance3D).mesh as BoxMesh

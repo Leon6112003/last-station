@@ -95,6 +95,10 @@ func _test_size(size: Vector2i) -> void:
 	main._open_oracle()
 	await _settle()
 	_panel_inside(main._oracle_panel, size, "%s: ORACLE panel" % tag)
+	main._open_log(2)
+	await _settle()
+	_panel_inside(main._log_panel, size, "%s: crew log panel" % tag)
+	main._close_log()
 	main._close_oracle()
 
 	# Main menu.

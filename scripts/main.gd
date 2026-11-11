@@ -45,7 +45,8 @@ west end, before the reserve reaches zero.
 
 THE WALK
 The doors open in order: Oxygen after Power, Comms after Oxygen,
-Cooling after Comms. In the corridor, GAS VENTS drain your
+Cooling after Comms. Past Cooling, an optional CRYO BAY holds the
+sleeping crew and their logs. In the corridor, GAS VENTS drain your
 reserve fast while they vent (red lamp): wait for a grey lamp. A LASER
 GRID blocks the corridor and costs time if you touch it: press E on a
 wall switch beside it to turn it off for a short time. Later shifts are
@@ -132,6 +133,7 @@ var play_wake_sequence: bool = DisplayServer.get_name() != "headless"
 var _panel_center: CenterContainer
 var _panel: PuzzlePanel = null
 var _manuals: ManualsPanel = null
+var _log_panel: LogPanel = null
 var _oracle_panel: OraclePanel = null
 var _modal_layer: CanvasLayer = null
 var _paused: bool = false
@@ -350,6 +352,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_close_oracle()
 		elif _manuals != null:
 			_close_manuals()
+		elif _log_panel != null:
+			_close_log()
 		elif _panel != null:
 			_close_panel()
 		else:
@@ -438,7 +442,7 @@ func _new_seed() -> int:
 
 func _can_open_overlay() -> bool:
 	return (gm.state == GameManager.State.PLAYING and not _paused
-		and _panel == null and _manuals == null and _oracle_panel == null and _modal_layer == null)
+		and _panel == null and _manuals == null and _log_panel == null and _oracle_panel == null and _modal_layer == null)
 
 
 # --- Input map ----------------------------------------------------------
@@ -492,6 +496,7 @@ func _start_new_game() -> void:
 func _go_to_menu() -> void:
 	_close_panel()
 	_close_manuals()
+	_close_log()
 	_close_oracle()
 	_close_modal()
 	_free_world()
@@ -538,6 +543,7 @@ func _next_shift() -> void:
 func _rebuild_world() -> void:
 	_close_panel()
 	_close_manuals()
+	_close_log()
 	_close_oracle()
 	_close_modal()
 	_free_world()
@@ -571,6 +577,7 @@ func _rebuild_world() -> void:
 	_world.add_child(world_environment)
 
 	_station = StationBuilder.build(_world, gm.puzzles, _theme, gm.run_number)
+	_update_pods()
 
 	_player = PlayerController.new()
 	_player.name = "Player"
@@ -618,7 +625,7 @@ func _rebuild_world() -> void:
 ## Player input and mouse capture follow the UI state in exactly one place.
 func _refresh_input_state() -> void:
 	_input_free = (gm.state == GameManager.State.PLAYING and not _paused
-		and _panel == null and _manuals == null and _oracle_panel == null and _modal_layer == null)
+		and _panel == null and _manuals == null and _log_panel == null and _oracle_panel == null and _modal_layer == null)
 	if is_instance_valid(_player):
 		_player.set_input_enabled(_input_free)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if _input_free else Input.MOUSE_MODE_VISIBLE
@@ -919,6 +926,41 @@ func _close_manuals() -> void:
 	_refresh_input_state()
 
 
+## A crew log from the Cryo Bay. Like the manuals it pauses the game, so reading is free.
+func _open_log(number: int) -> void:
+	if gm.state != GameManager.State.PLAYING or _log_panel != null or number < 1 or number > CrewLogs.count():
+		return
+	save.mark_log_read(number)
+	var footer := "Logs read: %d/%d   (nothing here changes the game)" % [save.logs_read_count(), CrewLogs.count()]
+	_log_panel = LogPanel.create(CrewLogs.title(number - 1), CrewLogs.text(number - 1), footer)
+	_log_panel.closed.connect(_close_log)
+	_panel_center.add_child(_log_panel)
+	_prompt_label.text = ""
+	get_tree().paused = true
+	_refresh_input_state()
+
+
+func _close_log() -> void:
+	if _log_panel != null:
+		_log_panel.queue_free()
+		_log_panel = null
+		get_tree().paused = _paused
+	_refresh_input_state()
+
+
+## The sleeping crew's pods glow red while the station is broken and turn cyan as it is
+## repaired. Looks only; it reads the repair count and changes nothing.
+func _update_pods() -> void:
+	if _station.is_empty() or not _station.has("pods"):
+		return
+	var repaired_share := float(gm.repaired_count()) / float(Rules.SYSTEMS_TOTAL)
+	for glow in _station["pods"]:
+		var color := Rules.COLOR_FAULT.lerp(Rules.COLOR_CYAN, repaired_share)
+		(glow as StandardMaterial3D).albedo_color = color
+		(glow as StandardMaterial3D).emission = color
+		(glow as StandardMaterial3D).emission_energy_multiplier = 0.8 + 0.8 * repaired_share
+
+
 ## ORACLE pauses the whole game (and so the reserve) while open.
 func _open_oracle() -> void:
 	if _oracle_panel != null:
@@ -1109,6 +1151,9 @@ func _on_interacted(item: Interactable, _player_node: Node) -> void:
 	elif id == "cooling_console":
 		sound.play("hiss")
 		_open_panel("cooling")
+	elif id.begins_with("crew_log_"):
+		sound.play("click")
+		_open_log(int(id.substr("crew_log_".length())))
 	elif id == "reboot_terminal":
 		if not gm.try_reboot():
 			sound.play("buzz")
@@ -1131,6 +1176,7 @@ func _handle_breaker(index: int) -> void:
 
 func _on_system_repaired(system_id: String) -> void:
 	sound.play("chime")
+	_update_pods()
 	sound.play("fan_up")   # the ventilation spins back up
 	# Doors that were waiting for this system slide open.
 	for room_id in _station["doors"]:
@@ -1211,6 +1257,7 @@ func _on_shift_failed() -> void:
 	sound.play("fail")
 	_close_panel()
 	_close_manuals()
+	_close_log()
 	_close_oracle()
 	_show_modal("OXYGEN RESERVE DEPLETED", Rules.COLOR_FAULT,
 		"The station is lost.\nRetrying restarts this shift with new puzzle values.", [
