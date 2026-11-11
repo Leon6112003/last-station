@@ -124,7 +124,7 @@ func _on_engage_cooling() -> void:
 	if _gm.engage_cooling():
 		solved.emit()
 	else:
-		_message.text = "PUMP OVERLOAD  -%d s  (check the protocol and the reactor state)" % Rules.confirm_penalty()
+		_message.text = "PUMP OVERLOAD  -%d s" % Rules.confirm_penalty()
 
 
 func _adjust_valve(index: int, steps: int) -> void:

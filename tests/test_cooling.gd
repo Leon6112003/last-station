@@ -147,7 +147,7 @@ func _test_panel() -> void:
 	for label in panel.find_children("*", "Label", true, false):
 		if (label as Label).text.begins_with("PUMP OVERLOAD"):
 			message = (label as Label).text
-	_check(message.contains("reactor state"), "a wrong flow tells the player to check the protocol and the reactor state")
+	_check(message == "PUMP OVERLOAD  -%d s" % Rules.confirm_penalty(), "a wrong flow shows the short penalty message, like the other panels")
 	panel.free()
 	gm.free()
 	await process_frame
