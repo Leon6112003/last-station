@@ -90,6 +90,7 @@ const FONT_SMALL := 22
 ##   "interactables": Array[Interactable],
 ##   "breakers": Array[Interactable],            # B1..B4 in index order
 ##   "consoles": {"oxygen": Interactable, "comms": Interactable, "cooling": Interactable},
+##   "corridor_lights": Array[OmniLight3D],     # the dim lights along the corridor (they flicker with Blackout)
 ##   "pods": Array[StandardMaterial3D],         # the glow of each cryo pod (red while the station is broken)
 ##   "reactor": StandardMaterial3D,              # the cooling room's reactor core (orange until repaired)
 ##   "reboot": Interactable,
@@ -158,8 +159,11 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 	var header_height := h - DOOR_HEIGHT
 	var hub_light := _add_light(parent, Vector3(BEDROOM_X, 2.9, 0.0), Rules.COLOR_FAULT, 0.0, 7.0)
 	# Dim corridor lights, one between every pair of doors, so the walk is never pitch black.
+	var corridor_lights: Array[OmniLight3D] = []
 	for corridor_light_x in [-14.0, -6.0, 3.0, 6.0, 18.0, 30.0, 42.0, 51.0]:
-		_add_light(parent, Vector3(corridor_light_x, 2.6, 0.0), theme["hub_light"], HUB_LIGHT_ENERGY, 8.0)
+		var corridor_light := _add_light(parent, Vector3(corridor_light_x, 2.6, 0.0), theme["hub_light"], HUB_LIGHT_ENERGY, 8.0)
+		corridor_light.set_meta("base_energy", HUB_LIGHT_ENERGY)   # the Blackout modifier flickers around this
+		corridor_lights.append(corridor_light)
 
 	for room_id in ROOM_CENTERS_X:
 		var x: float = ROOM_CENTERS_X[room_id]
@@ -303,7 +307,11 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 	var hazards: Array[HazardZone] = []
 	for i in GAS_XS.size():
 		var gas_x: float = GAS_XS[i]
-		var gas := HazardZone.create(Vector3(Rules.gas_length(run_number), 2.8, 3.0), Vector3(gas_x, 1.4, 0.0), GAS_PHASE_OFFSETS[i], run_number)
+		# With the Blackout modifier each shift starts the vents at a different point of their cycle.
+		var phase_offset: float = GAS_PHASE_OFFSETS[i]
+		if Rules.has_mod(Rules.MOD_BLACKOUT):
+			phase_offset += Rules.BLACKOUT_PHASE_STEP * float(maxi(run_number, 1) - 1) * float(i + 1)
+		var gas := HazardZone.create(Vector3(Rules.gas_length(run_number), 2.8, 3.0), Vector3(gas_x, 1.4, 0.0), phase_offset, run_number)
 		parent.add_child(gas)
 		hazards.append(gas)
 		# A warning sign on the wall beside the vent (readable from the corridor).
@@ -338,6 +346,7 @@ static func build(parent: Node3D, puzzles: Dictionary, theme: Dictionary = {}, r
 		"consoles": {"oxygen": oxygen_console, "comms": comms_console, "cooling": cooling_console},
 		"reactor": reactor_material,
 		"pods": pods,
+		"corridor_lights": corridor_lights,
 		"reboot": reboot,
 		"room_lights": room_lights,
 		"door_labels": door_labels,

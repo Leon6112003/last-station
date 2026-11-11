@@ -188,7 +188,11 @@ func try_reboot() -> bool:
 		return false
 	state = State.WON
 	clock_running = false
-	var result := ScoreManager.breakdown(reserve, retry_count)
+	var spent := float(Rules.reserve_for_shift(run_number)) - reserve   # reserve used, penalties included
+	var par := Rules.par_seconds(run_number)
+	var result := ScoreManager.breakdown(reserve, retry_count, spent, par)
+	result["par"] = par
+	result["spent"] = spent
 	run_score += int(result["final"])
 	result["run_total"] = run_score
 	result["hints"] = hints_used

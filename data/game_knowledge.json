@@ -135,7 +135,7 @@
  {
   "id": "scoring",
   "title": "Scoring",
-  "text": "When you reboot the station with all four systems repaired, your shift score is 300 plus half of your remaining reserve seconds (rounded down), minus 50 for each retry (the retry penalty is capped at 150). The highest possible score is 480, on shift 1. Mistakes already cost reserve time, so they have no separate score penalty. Your run total adds up the score of every shift you clear.",
+  "text": "When you reboot the station with all four systems repaired, your shift score is 300 plus half of your remaining reserve seconds (rounded down), minus 50 for each retry (the retry penalty is capped at 150). The highest possible score is 480, on shift 1. Mistakes already cost reserve time, so they have no separate score penalty. Level and modifiers change it (see those entries). Your run total adds up every shift you clear.",
   "keywords": [
    "score",
    "points",
@@ -486,6 +486,28 @@
    "harder",
    "mode",
    "menu"
+  ]
+ },
+ {
+  "id": "modifiers",
+  "title": "Modifiers",
+  "text": "Optional extras on the main menu, in any combination. Blackout: the corridor lights flicker and the gas vents start at a different point of their cycle each shift; score x1.15. Hardcore: one failed shift ends the run and clears the run score, and there are no retries; score x1.25. Speedrun: a par time of half the shift's starting reserve is shown under the reserve; beating it gives 100 points plus 1 per second under par.",
+  "keywords": [
+   "modifier",
+   "modifiers",
+   "extras",
+   "extra",
+   "blackout",
+   "hardcore",
+   "speedrun",
+   "par",
+   "flicker",
+   "lights",
+   "bonus",
+   "one",
+   "life",
+   "retry",
+   "time"
   ]
  }
 ]

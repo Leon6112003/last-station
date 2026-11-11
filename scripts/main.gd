@@ -115,6 +115,8 @@ var _systems_label: Label
 var _checklist_label: Label
 var _coach_label: Label
 var _reserve_label: Label
+var _par_label: Label
+var _pause_retry_button: Button
 var _prompt_label: Label
 var _notice_label: Label
 var _flash: ColorRect
@@ -157,6 +159,7 @@ func _ready() -> void:
 	_setup_input()
 	save = SaveManager.new(save_path)
 	Rules.level = save.difficulty
+	Rules.mods = save.modifiers
 	_records = KnowledgeBase.load_records()
 
 	gm = GameManager.new()
@@ -193,6 +196,20 @@ func _ready() -> void:
 
 ## Atmosphere. The hub light flickers a little; under a minute of reserve the whole
 ## station pulses red and a red vignette fades in. Visual only: no rules are touched.
+## Blackout: the corridor lights flicker unevenly and, now and then, one cuts out for a moment.
+## The flicker never takes a light below a share of its energy except in those short dips, so
+## the corridor stays walkable. Looks only.
+func _flicker_corridor_lights() -> void:
+	var lights: Array = _station.get("corridor_lights", [])
+	for i in lights.size():
+		var light := lights[i] as OmniLight3D
+		var wave := 0.5 + 0.5 * sin(_mood_time * 6.7 + float(i) * 1.9) * sin(_mood_time * 2.9 + float(i) * 0.7)
+		var level := Rules.BLACKOUT_MIN_LEVEL + (1.0 - Rules.BLACKOUT_MIN_LEVEL) * wave
+		if fposmod(_mood_time + float(i) * 2.3, Rules.BLACKOUT_DIP_EVERY_SECONDS) < Rules.BLACKOUT_DIP_SECONDS:
+			level = 0.05
+		light.light_energy = float(light.get_meta("base_energy")) * level
+
+
 func _update_mood(delta: float) -> void:
 	var running := gm.state == GameManager.State.PLAYING and not _paused
 	# The theme song plays over the opening intro and the menu, and carries on into the
@@ -202,6 +219,8 @@ func _update_mood(delta: float) -> void:
 	if _environment == null or _station.is_empty():
 		return
 	_mood_time += delta
+	if Rules.has_mod(Rules.MOD_BLACKOUT):
+		_flicker_corridor_lights()
 	var low := gm.state == GameManager.State.PLAYING and gm.reserve < LOW_RESERVE_SECONDS
 	# 0 when comfortable, up to 1 as the reserve runs out.
 	var urgency := clampf(1.0 - gm.reserve / LOW_RESERVE_SECONDS, 0.0, 1.0) if low else 0.0
@@ -325,6 +344,28 @@ func _danger_level(delta: float) -> float:
 	return maxf(danger, _hit_danger)
 
 
+## Speedrun: "PAR 03:00" under the reserve while the shift runs. Gold while you are inside par
+## (the reserve you have spent is at most half the shift's start), red once it is missed.
+func _update_par_label() -> void:
+	var show := Rules.has_mod(Rules.MOD_SPEEDRUN) and gm.state == GameManager.State.PLAYING
+	_par_label.visible = show
+	if not show:
+		return
+	var par := Rules.par_seconds(gm.run_number)
+	var spent := float(Rules.reserve_for_shift(gm.run_number)) - gm.reserve
+	var left := maxi(0, int(ceil(par - spent)))
+	if spent <= par:
+		_par_label.text = "PAR %s  ·  %s TO BEAT IT" % [_clock(int(par)), _clock(left)]
+		_par_label.add_theme_color_override("font_color", Rules.COLOR_GOLD)
+	else:
+		_par_label.text = "PAR %s  ·  MISSED" % _clock(int(par))
+		_par_label.add_theme_color_override("font_color", Rules.COLOR_FAULT)
+
+
+func _clock(seconds: int) -> String:
+	return "%02d:%02d" % [seconds / 60, seconds % 60]
+
+
 func _process(delta: float) -> void:
 	# While waking up in bed, the player's eyelids drive the black overlay.
 	if is_instance_valid(_player) and _player.waking:
@@ -333,6 +374,7 @@ func _process(delta: float) -> void:
 	_reserve_label.text = "RESERVE %02d:%02d" % [floori(seconds_left / 60.0), seconds_left % 60]
 	_reserve_label.add_theme_color_override(
 		"font_color", Rules.COLOR_FAULT if gm.reserve < 60.0 else Color.WHITE)
+	_update_par_label()
 	_systems_label.text = "SYSTEMS %d/%d" % [gm.repaired_count(), Rules.SYSTEMS_TOTAL]
 	_shift_label.text = "SHIFT %02d" % gm.run_number
 	var checklist := _checklist_text()
@@ -426,7 +468,7 @@ func _coach_text() -> String:
 func _checklist_text() -> String:
 	var rooms := {"power": "1st room", "oxygen": "2nd room", "comms": "3rd room", "cooling": "4th room"}
 	var protocol: String = gm.puzzles.get("protocol", "A")
-	var lines: Array[String] = ["REPAIR THE STATION  ·  PROTOCOL %s  ·  %s" % [protocol, Rules.level_name().to_upper()]]
+	var lines: Array[String] = ["REPAIR THE STATION  ·  PROTOCOL %s  ·  %s%s" % [protocol, Rules.level_name().to_upper(), ("  ·  " + Rules.mods_text().to_upper()) if Rules.mods != 0 else ""]]
 	for id in GameManager.SYSTEM_IDS:
 		var mark := "[x]" if gm.repaired.get(id, false) else "[ ]"
 		lines.append("%s %s (%s)" % [mark, id.capitalize(), rooms[id]])
@@ -481,6 +523,12 @@ func _set_level(level: int) -> void:
 	save.set_difficulty(Rules.level)
 
 
+## A modifier switched on or off on the menu: used from the next Play, and remembered.
+func _set_modifier(flag: int, on: bool) -> void:
+	Rules.set_mod(flag, on)
+	save.set_modifiers(Rules.mods)
+
+
 ## Main Menu > Play: a brand new run with a new seed. The intro card is shown
 ## once, the first time the game is played.
 func _start_new_game() -> void:
@@ -513,6 +561,7 @@ func _go_to_menu() -> void:
 		best_parts.append("Best run: %d" % save.best_run)
 	_menu_best_label.text = "   ·   ".join(best_parts)
 	_menu_screen.set_level(Rules.level)
+	_menu_screen.set_modifiers(Rules.mods)
 	_menu_layer.visible = true
 	_refresh_input_state()
 
@@ -530,6 +579,9 @@ func _free_world() -> void:
 
 
 func _retry() -> void:
+	if Rules.has_mod(Rules.MOD_HARDCORE):
+		_show_notice("NO RETRIES IN HARDCORE")   # the one-life rule: a lost shift ends the run
+		return
 	gm.retry()
 	_rebuild_world()
 
@@ -716,6 +768,11 @@ func _build_hud() -> void:
 	_reserve_label = _make_label("RESERVE 08:00", 19, 0.02, 0.07, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	_reserve_label.offset_right = -24
 	_hud_layer.add_child(_reserve_label)
+	# Speedrun: the par time, shown under the reserve.
+	_par_label = _make_label("", 17, 0.075, 0.115, Rules.COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	_par_label.offset_right = -24
+	_par_label.visible = false
+	_hud_layer.add_child(_par_label)
 
 	_prompt_label = _make_label("", 22, 0.56, 0.62, Rules.COLOR_GOLD)
 	_hud_layer.add_child(_prompt_label)
@@ -799,7 +856,9 @@ func _build_menu() -> void:
 		func() -> void: get_tree().quit(),
 		boot_intro,
 		_set_level,
-		save.difficulty)
+		save.difficulty,
+		_set_modifier,
+		save.modifiers)
 	_menu_screen.name = "MenuScreen"
 	_menu_layer.add_child(_menu_screen)
 	_menu_best_label = _menu_screen.best_label
@@ -848,7 +907,8 @@ func _build_pause_overlay() -> void:
 	column.add_child(title)
 
 	column.add_child(_make_menu_button("Resume", func() -> void: _set_paused(false)))
-	column.add_child(_make_menu_button("Retry Shift", _retry))
+	_pause_retry_button = _make_menu_button("Retry Shift", _retry)
+	column.add_child(_pause_retry_button)
 	column.add_child(_make_menu_button("Main Menu", _go_to_menu))
 	column.add_child(_make_menu_button("Quit", func() -> void: get_tree().quit()))
 
@@ -870,6 +930,8 @@ func _set_paused(paused: bool) -> void:
 	_pause_overlay.visible = paused
 	if paused:
 		_prompt_label.text = ""
+		# Hardcore has no retries: the pause menu's Retry button is greyed out.
+		_pause_retry_button.disabled = Rules.has_mod(Rules.MOD_HARDCORE)
 	_refresh_input_state()
 
 
@@ -1242,10 +1304,13 @@ func _on_shift_won(result: Dictionary) -> void:
 	var best_line := "Best shift score: %d%s" % [save.best_score, "   NEW BEST!" if is_new_best else ""]
 	var run_line := "Run total after shift %d: %d     Best run: %d%s" % [
 		result["run_number"], result["run_total"], save.best_run, "   NEW BEST!" if is_new_run_best else ""]
-	var body := "Reserve remaining: %d s\nSystems repaired: %d/%d\nMistakes: %d     Retries: %d     Hints: %d\n\nBase points: %d\nTime bonus: +%d\nRetry penalty: -%d\nLevel: %s (score x%.1f)\n\nSHIFT SCORE: %d\n%s\n%s\n\nNext shift: %d s of reserve     Seed: %d" % [
+	var speed_line := ""
+	if Rules.has_mod(Rules.MOD_SPEEDRUN):
+		speed_line = "\nSpeed bonus: +%d  (par %s, you used %s)" % [result["speed_bonus"], _clock(int(result["par"])), _clock(int(result["spent"]))]
+	var body := "Reserve remaining: %d s\nSystems repaired: %d/%d\nMistakes: %d     Retries: %d     Hints: %d\n\nBase points: %d\nTime bonus: +%d\nRetry penalty: -%d%s\nLevel: %s%s (score x%.2f)\n\nSHIFT SCORE: %d\n%s\n%s\n\nNext shift: %d s of reserve     Seed: %d" % [
 		result["reserve_remaining"], Rules.SYSTEMS_TOTAL, Rules.SYSTEMS_TOTAL, result["mistakes"], result["retries"], result["hints"],
 		result["base"], result["time_bonus"], result["retry_penalty"],
-		Rules.level_name(), result["multiplier"],
+		speed_line, Rules.level_name(), (" + " + Rules.mods_text()) if Rules.mods != 0 else "", result["multiplier"],
 		result["final"], best_line, run_line, result["next_reserve"], result["seed"]]
 	_show_modal("STATION REBOOTED", Rules.COLOR_CYAN, body, [
 		{"label": "Next Shift", "action": _next_shift},
@@ -1260,6 +1325,17 @@ func _on_shift_failed() -> void:
 	_close_manuals()
 	_close_log()
 	_close_oracle()
+	if Rules.has_mod(Rules.MOD_HARDCORE):
+		# One life: the run is over and its score is cleared (the best run already saved stays).
+		var lost := gm.run_score
+		gm.run_score = 0
+		_show_modal("RUN OVER", Rules.COLOR_FAULT,
+			"The station is lost, and Hardcore allows no second chance.\nRun score cleared (it was %d). Your best run is kept." % lost, [
+			{"label": "New Run", "action": _start_new_game},
+			{"label": "Main Menu", "action": _go_to_menu},
+			{"label": "Quit", "action": func() -> void: get_tree().quit()},
+		])
+		return
 	_show_modal("OXYGEN RESERVE DEPLETED", Rules.COLOR_FAULT,
 		"The station is lost.\nRetrying restarts this shift with new puzzle values.", [
 		{"label": "Retry Shift", "action": _retry},

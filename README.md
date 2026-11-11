@@ -75,6 +75,18 @@ Pick **Rookie**, **Engineer** or **Survivor** on the main menu (your choice is s
 
 All the numbers live in `scripts/rules.gd` (`LEVELS`); the manuals have a "Levels" entry that `tests/test_kb_sync.gd` keeps in sync with it. The numbers are estimates and have not been tuned by play.
 
+## Modifiers
+
+Three optional extras on the main menu, under the levels. They can be combined, they are remembered in the save file, and each one switched on raises the score multiplier.
+
+| Modifier | What it does | Score |
+|---|---|---|
+| **Blackout** | The corridor lights flicker unevenly and one cuts out for a third of a second now and then (never below 35% except in those dips, so you can still walk). Each shift starts the gas vents at a different point of their cycle, so you cannot learn the timing. A retry of the same shift keeps its timing. | x1.15 |
+| **Hardcore** | One failed shift ends the run: a **RUN OVER** screen shows the run score you lost, the score is cleared, and there are **no retries** (hold R shows "NO RETRIES IN HARDCORE" and the pause menu's Retry button is greyed out). Your saved best run is kept. | x1.25 |
+| **Speedrun** | A **PAR** time is shown under the reserve: half the shift's starting reserve (3:00 on shift 1 of Engineer), with a count of the time left to beat it. Finishing within par adds 100 points plus 1 per second under it (before the multipliers); the win screen shows it. Time is the reserve you used, penalties included. | x1.0 |
+
+Modifiers multiply with the level's score multiplier (for example Survivor with Hardcore is x1.4 x 1.25). The numbers live in `scripts/rules.gd` and the manuals have a "Modifiers" entry kept in sync by `tests/test_kb_sync.gd`. They are estimates and have not been tuned by play.
+
 ## The Cryo Bay (optional story)
 
 West of the crew quarters, on the way to the reboot terminal at the far west end, an open door leads to the **Cryo Bay**: six pods with the sleeping crew (their name plates are on the pods) and four terminals, **CREW LOG 1 to 4**, that tell what happened to the station. The pods glow red while the station is broken and turn cyan as you repair it. Press **E** at a terminal to read a log; like the manuals it pauses the game, so reading costs no reserve. The logs are story only: no rule, score or puzzle answer, and nothing in the room changes the game. Which logs you have read is remembered in the save file. It is on the way to the reboot terminal, so you pass its door when you finish; stepping in to read a log costs only a few seconds of walking.
@@ -145,7 +157,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 ```
 ./tests/run_all.sh        # needs `godot` on PATH
 ```
-24 headless test files, 966 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
+25 headless test files, 1018 checks, all passing at the time of writing (see `docs/TEST_REPORT.md`). A few tests print an ERROR/WARNING on purpose.
 
 ## Changes since the original spec
 
@@ -155,6 +167,7 @@ Everything is created in code from one tiny scene. Retrieval is plain keyword sc
 - **Guided first shift and protocol board:** shift 1 is always Protocol A with a "what to do next" line; a big sign in the crew quarters shows the protocol.
 - **The walk (added after playtesting feedback):** the compact hub became a bedroom start, a long corridor, far rooms, doors that unlock in order, and gas and spark hazards (see "The walk").
 - **Redesigned look (after playtesting feedback):** every door has a header sign, a frame and a light that turn from red to cyan when its system is repaired; two matching boards flank the middle door (the protocol, and how to get help); each room has a tinted floor and a ceiling strip, and the room lights up (bright cyan strip and floor) when repaired; the hub light flickers, and under a minute of reserve the station pulses red with a red screen-edge vignette (visual only, rules unchanged); breaker ratings are printed on the breakers; each room has one tidy display panel; the reboot terminal is labelled and turns cyan when ready.
+- **Modifiers (added later):** Blackout, Hardcore and Speedrun switches on the menu (see "Modifiers").
 - **Cryo Bay (added later):** an optional room with the sleeping crew and four story logs (see "The Cryo Bay").
 - **Hazards that grow (added later):** vents and laser switches get harsher each shift, and a second laser grid appears from shift 3 (see "The walk").
 - **Fourth system, Cooling (added later):** a reactor room past Comms with a CORE TEMP and a REACTOR state; the coolant flow is a formula that differs by protocol, and the core cools from orange to cyan when repaired. Reboot now needs 4/4.

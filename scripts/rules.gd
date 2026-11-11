@@ -152,9 +152,71 @@ static func confirm_penalty() -> int:
 	return int(_value("confirm"))
 
 
-## Multiplies the shift score, so a score earned on a harder level is worth more.
+## Multiplies the shift score, so a harder level (and a harder set of modifiers) is worth more.
 static func score_multiplier() -> float:
-	return float(_value("score"))
+	var multiplier := float(_value("score"))
+	for flag in MOD_FLAGS:
+		if has_mod(flag):
+			multiplier *= float(MOD_SCORE[flag])
+	return multiplier
+
+
+# --- Modifiers (optional extras chosen on the main menu, in any combination) -----------
+# BLACKOUT: the corridor lights flicker and the gas vents start at a different point of their
+#   cycle every shift. HARDCORE: one failed shift ends the run and clears the run score; there
+#   is no retry. SPEEDRUN: a visible par time and a bonus for beating it.
+const MOD_BLACKOUT := 1
+const MOD_HARDCORE := 2
+const MOD_SPEEDRUN := 4
+const MOD_FLAGS: Array[int] = [MOD_BLACKOUT, MOD_HARDCORE, MOD_SPEEDRUN]
+const MOD_NAMES := {1: "Blackout", 2: "Hardcore", 4: "Speedrun"}
+const MOD_BLURBS := {
+	1: "Flickering corridor lights; gas timing changes every shift.",
+	2: "One failed shift ends the run. No retries.",
+	4: "A par time to beat, with a bonus for beating it.",
+}
+const MOD_SCORE := {1: 1.15, 2: 1.25, 4: 1.0}
+const MODS_ALL := 7
+const SPEED_PAR_FRACTION := 0.5      # par = this share of the shift's starting reserve
+const SPEED_BONUS_FLAT := 100        # for finishing within par...
+const SPEED_BONUS_PER_SECOND := 1    # ...plus this for every second under it
+const BLACKOUT_DIP_SECONDS := 0.35   # a corridor light cuts out this long, now and then
+const BLACKOUT_DIP_EVERY_SECONDS := 7.0
+const BLACKOUT_MIN_LEVEL := 0.35     # the flicker never takes a light below this share of its energy
+const BLACKOUT_PHASE_STEP := 3.1     # seconds the vents' cycle is shifted by per shift
+
+## The modifiers in use (a sum of the MOD_ flags). Set from the menu or the save file.
+static var mods: int = 0
+
+
+static func has_mod(flag: int) -> bool:
+	return mods & flag != 0
+
+
+static func set_mod(flag: int, on: bool) -> void:
+	mods = (mods | flag) if on else (mods & ~flag)
+	mods &= MODS_ALL
+
+
+## "Blackout + Hardcore", or "" when there are none.
+static func mods_text() -> String:
+	var names: Array[String] = []
+	for flag in MOD_FLAGS:
+		if has_mod(flag):
+			names.append(MOD_NAMES[flag])
+	return " + ".join(names)
+
+
+## Par time for a shift, in reserve seconds spent: half of the shift's starting reserve.
+static func par_seconds(run: int) -> float:
+	return float(reserve_for_shift(run)) * SPEED_PAR_FRACTION
+
+
+## Speedrun bonus for finishing a shift having spent `spent` reserve seconds against `par`.
+static func speed_bonus(spent: float, par: float) -> int:
+	if not has_mod(MOD_SPEEDRUN) or spent > par:
+		return 0
+	return SPEED_BONUS_FLAT + int(floor(par - spent)) * SPEED_BONUS_PER_SECOND
 
 
 # --- Score (used from Milestone 2) --------------------------------------

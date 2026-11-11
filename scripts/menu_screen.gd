@@ -40,14 +40,16 @@ var _flicker_timer: float = 3.0
 var _flicker_left: int = 0
 var _level_buttons: Array[Button] = []
 var _level_blurb: Label
+var _modifier_buttons: Array[Button] = []
+var _modifier_line: Label
 
 
 ## Builds the menu. `play_intro` is true only in a real window on launch.
 ## With `on_level` (a callable taking the chosen level number) the menu also shows the
 ## difficulty selector, starting on `level`.
-static func create(on_play: Callable, on_how_to_play: Callable, on_quit: Callable, play_intro: bool, on_level: Callable = Callable(), level: int = Rules.LEVEL_ENGINEER) -> MenuScreen:
+static func create(on_play: Callable, on_how_to_play: Callable, on_quit: Callable, play_intro: bool, on_level: Callable = Callable(), level: int = Rules.LEVEL_ENGINEER, on_modifier: Callable = Callable(), modifiers: int = 0) -> MenuScreen:
 	var screen := MenuScreen.new()
-	screen._build(on_play, on_how_to_play, on_quit, play_intro, on_level, level)
+	screen._build(on_play, on_how_to_play, on_quit, play_intro, on_level, level, on_modifier, modifiers)
 	return screen
 
 
@@ -63,7 +65,7 @@ func set_level(level: int, highlight: bool = false) -> void:
 	_level_blurb.text = "%s: %s" % [Rules.LEVEL_NAMES[index], Rules.LEVEL_BLURBS[index]]
 
 
-func _build(on_play: Callable, on_how_to_play: Callable, on_quit: Callable, play_intro: bool, on_level: Callable, level: int) -> void:
+func _build(on_play: Callable, on_how_to_play: Callable, on_quit: Callable, play_intro: bool, on_level: Callable, level: int, on_modifier: Callable, modifiers: int) -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	var rng := RandomNumberGenerator.new()
@@ -107,10 +109,10 @@ func _build(on_play: Callable, on_how_to_play: Callable, on_quit: Callable, play
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
 	_column = VBoxContainer.new()
-	_column.add_theme_constant_override("separation", 10)
+	_column.add_theme_constant_override("separation", 7)
 	center.add_child(_column)
 
-	_title = _make_label("LAST STATION", 92, Rules.COLOR_CYAN)
+	_title = _make_label("LAST STATION", 80, Rules.COLOR_CYAN)
 	_title.add_theme_color_override("font_outline_color", Color(Rules.COLOR_CYAN, 0.28))
 	_title.add_theme_constant_override("outline_size", 14)
 	_column.add_child(_title)
@@ -128,6 +130,8 @@ func _build(on_play: Callable, on_how_to_play: Callable, on_quit: Callable, play
 
 	if on_level.is_valid():
 		_build_level_selector(on_level, level)
+	if on_modifier.is_valid():
+		_build_modifier_selector(on_modifier, modifiers)
 	var play := _make_button("Play", on_play, true)
 	_column.add_child(play)
 	_column.add_child(_make_button("How to Play", on_how_to_play, false))
@@ -254,11 +258,59 @@ func _build_level_selector(on_level: Callable, level: int) -> void:
 	set_level(level)
 
 
+## Optional modifiers: three on/off switches (Blackout, Hardcore, Speedrun). A switch that is on
+## is highlighted; with none on, nothing is. The line under them names what is on.
+func _build_modifier_selector(on_modifier: Callable, modifiers: int) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_column.add_child(row)
+	for flag in Rules.MOD_FLAGS:
+		var button := _make_button(Rules.MOD_NAMES[flag], func() -> void: pass, false)
+		button.custom_minimum_size = Vector2(150, 36)
+		button.add_theme_font_size_override("font_size", 18)
+		button.toggle_mode = true
+		button.focus_mode = Control.FOCUS_NONE
+		var chosen := _button_style(Color(Rules.COLOR_GOLD, 0.35), Rules.COLOR_GOLD)
+		button.add_theme_stylebox_override("pressed", chosen)
+		button.add_theme_stylebox_override("hover_pressed", chosen)
+		button.add_theme_color_override("font_pressed_color", Rules.COLOR_GOLD)
+		button.tooltip_text = Rules.MOD_BLURBS[flag]
+		button.toggled.connect(func(on: bool) -> void:
+			on_modifier.call(flag, on)
+			_refresh_modifier_line())
+		row.add_child(button)
+		_modifier_buttons.append(button)
+	_modifier_line = _make_label("", 16, Color(1, 1, 1, 0.7))
+	_column.add_child(_modifier_line)
+	set_modifiers(modifiers)
+
+
+## Shows which modifiers are on (used when the menu opens).
+func set_modifiers(modifiers: int) -> void:
+	for i in _modifier_buttons.size():
+		_modifier_buttons[i].set_pressed_no_signal(modifiers & int(Rules.MOD_FLAGS[i]) != 0)
+	_refresh_modifier_line(modifiers)
+
+
+func _refresh_modifier_line(modifiers: int = -1) -> void:
+	if _modifier_line == null:
+		return
+	var text := ""
+	if modifiers < 0:
+		modifiers = Rules.mods
+	var names: Array[String] = []
+	for flag in Rules.MOD_FLAGS:
+		if modifiers & int(flag) != 0:
+			names.append(Rules.MOD_NAMES[flag])
+	_modifier_line.text = "Optional extras: " + (" + ".join(names) if not names.is_empty() else "none")
+
+
 func _make_button(text: String, action: Callable, primary: bool) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.add_theme_font_size_override("font_size", 24)
-	button.custom_minimum_size = Vector2(320, 56)
+	button.custom_minimum_size = Vector2(320, 48)
 	var accent: Color = Rules.COLOR_GOLD if primary else Rules.COLOR_CYAN
 	button.add_theme_stylebox_override("normal", _button_style(Color(0.05, 0.07, 0.16, 0.88), Color(accent, 0.55)))
 	button.add_theme_stylebox_override("hover", _button_style(Color(accent, 0.2), accent))
