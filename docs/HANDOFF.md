@@ -37,7 +37,7 @@ cd LAST_STATION && godot --path .
 ## NOT VERIFIED
 - **No Windows build exists** (the export templates are not installed) and nothing was run on Windows.
 - **Frame rate on a weaker laptop** is not measured.
-- **The local model after the manuals grew to 30 entries** was not re-run. The built-in manual mode needs no model and is tested.
+- **The local model after the manuals grew to 31 entries** was not re-run. The built-in manual mode needs no model and is tested.
 - **How it sounds:** audio was never judged by me (I cannot hear it). The project owner's feedback on the music was mixed, and the latest version was not rated separately.
 - **Balance:** the reserve, hazard growth, level and modifier numbers, the Speedrun par and the adaptive-difficulty thresholds are estimates, not tuned by play.
 - **Colour-blind cues** were not checked by a colour-blind player, and key rebinding was tested with simulated key events.
